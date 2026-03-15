@@ -1,0 +1,446 @@
+/**
+ * Typed API Client for PixelReel
+ */
+
+import type {
+  Media,
+  MediaDetails,
+  User,
+  UserStats,
+  Review,
+  CreateReviewInput,
+  List,
+  ListDetails,
+  CreateListInput,
+  WatchlistItem,
+  DiaryEntry,
+  Activity,
+  Notification,
+  Achievement,
+  Plan,
+  PaginatedResponse,
+  SearchResults,
+  SearchResult,
+  EnrichedMediaData,
+  SearchOptions,
+} from "@/types";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function fetcher<T>(
+  endpoint: string,
+  options: RequestInit & { token?: string } = {}
+): Promise<T> {
+  const { token: _token, ...init } = options;
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...init.headers,
+  };
+
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new ApiError(error.error || "Request failed", res.status, error.code);
+  }
+
+  return res.json();
+}
+
+// ==================== AUTH ====================
+
+export const authApi = {
+  getGoogleUrl: () => `${API_URL}/auth/google`,
+  getAppleUrl: () => `${API_URL}/auth/apple`,
+
+  forgotPassword: (email: string) =>
+    fetcher<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    fetcher<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    }),
+
+  verifyEmail: (token: string) =>
+    fetcher<{ message: string }>(`/auth/verify?token=${token}`),
+
+  resendVerification: () =>
+    fetcher<{ message: string }>("/auth/resend-verification", {
+      method: "POST",
+    }),
+};
+
+// ==================== USERS ====================
+
+export const usersApi = {
+  getMe: () => fetcher<User>("/users/me"),
+
+  getByUsername: (username: string) => fetcher<User>(`/users/${username}`),
+
+  getStats: (username: string) =>
+    fetcher<UserStats>(`/users/${username}/stats`),
+
+  update: (data: Partial<User>) =>
+    fetcher<User>("/users/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  follow: (userId: string) =>
+    fetcher<{ message: string }>(`/users/${userId}/follow`, {
+      method: "POST",
+    }),
+
+  unfollow: (userId: string) =>
+    fetcher<{ message: string }>(`/users/${userId}/follow`, {
+      method: "DELETE",
+    }),
+
+  getFollowers: (username: string, page = 1) =>
+    fetcher<PaginatedResponse<User>>(
+      `/users/${username}/followers?page=${page}`
+    ),
+
+  getFollowing: (username: string, page = 1) =>
+    fetcher<PaginatedResponse<User>>(
+      `/users/${username}/following?page=${page}`
+    ),
+};
+
+// ==================== MEDIA ====================
+
+export const mediaApi = {
+  // Enhanced Search (POST with filters)
+  search: (
+    query: string,
+    options: Omit<SearchOptions, "page"> = {},
+    page = 1
+  ) => {
+    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+      "/media/search",
+      {
+        method: "POST",
+        body: JSON.stringify({ query, page, ...options }),
+      }
+    );
+  },
+
+  // Discovery (Browse with filters)
+  discover: (options: SearchOptions = {}) => {
+    const params = new URLSearchParams();
+    if (options.page) params.set("page", String(options.page));
+    if (options.type) params.set("type", options.type);
+    if (options.genre) params.set("genre", String(options.genre));
+    if (options.year) params.set("year", String(options.year));
+    if (options.sortBy) params.set("sortBy", options.sortBy);
+    if (options.language) params.set("language", options.language);
+
+    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+      `/media/discover?${params}`
+    );
+  },
+
+  // Quick Preview (Enriched Data without Import)
+  preview: (tmdbId: number, type: "movie" | "series") => {
+    return fetcher<{ success: true; data: EnrichedMediaData }>(
+      `/media/tmdb/${tmdbId}/preview?type=${type}`
+    );
+  },
+
+  getTrending: (
+    timeWindow: "day" | "week" = "week",
+    type: "all" | "movie" | "series" = "all",
+    page = 1
+  ) => {
+    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+      `/media/trending?timeWindow=${timeWindow}&type=${type}&page=${page}`
+    );
+  },
+
+  getPopular: (type: "movie" | "series" = "movie", page = 1) => {
+    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+      `/media/popular?type=${type}&page=${page}`
+    );
+  },
+
+  getTopRated: (type: "movie" | "series" = "movie", page = 1) => {
+    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+      `/media/top-rated?type=${type}&page=${page}`
+    );
+  },
+
+  getUpcoming: (page = 1) => {
+    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+      `/media/upcoming?page=${page}`
+    );
+  },
+
+  getRecommendations: (tmdbId: number, type: "movie" | "series", page = 1) => {
+    return fetcher<{ success: true; data: { results: SearchResult[]; page: number; totalPages: number } }>(
+      `/media/tmdb/${tmdbId}/recommendations?type=${type}&page=${page}`
+    );
+  },
+
+  getSimilar: (tmdbId: number, type: "movie" | "series", page = 1) => {
+    return fetcher<{ success: true; data: { results: SearchResult[]; page: number; totalPages: number } }>(
+      `/media/tmdb/${tmdbId}/similar?type=${type}&page=${page}`
+    );
+  },
+
+  // Legacy / Local access
+  getById: (id: string) => fetcher<{ data: MediaDetails }>(`/media/${id}`),
+
+  getBySlug: (slug: string) =>
+    fetcher<{ data: MediaDetails }>(`/media/slug/${slug}`),
+
+  // Import to DB
+  import: (tmdbId: number, type: "movie" | "series") =>
+    fetcher<{
+      success: true;
+      message: string;
+      mediaId: string;
+      data: EnrichedMediaData;
+    }>("/media/import", {
+      method: "POST",
+      body: JSON.stringify({ tmdbId, type }),
+    }),
+
+  // Batch Import
+  importBatch: (items: { tmdbId: number; type: "movie" | "series" }[]) =>
+    fetcher<{
+      success: true;
+      results: {
+        imported: number;
+        skipped: number;
+        failed: number;
+        details: any;
+      };
+    }>("/media/import/batch", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+
+  getReviews: (id: string, sort: "popular" | "recent" = "popular", page = 1) =>
+    fetcher<PaginatedResponse<Review>>(
+      `/media/${id}/reviews?sort=${sort}&page=${page}`
+    ),
+
+  getLists: (id: string, page = 1, limit = 6) =>
+    fetcher<PaginatedResponse<List>>(
+      `/media/${id}/lists?page=${page}&limit=${limit}`
+    ),
+};
+
+// ==================== REVIEWS ====================
+
+export const reviewsApi = {
+  list: (params: { mediaId?: string; userId?: string; page?: number } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.mediaId) searchParams.set("media_id", params.mediaId);
+    if (params.userId) searchParams.set("user_id", params.userId);
+    if (params.page) searchParams.set("page", String(params.page));
+    return fetcher<PaginatedResponse<Review>>(`/reviews?${searchParams}`);
+  },
+
+  getById: (id: string) => fetcher<Review>(`/reviews/${id}`),
+
+  create: (data: CreateReviewInput) =>
+    fetcher<Review>("/reviews", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<CreateReviewInput>) =>
+    fetcher<Review>(`/reviews/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetcher<{ message: string }>(`/reviews/${id}`, { method: "DELETE" }),
+
+  like: (id: string) =>
+    fetcher<{ liked: boolean }>(`/reviews/${id}/like`, {
+      method: "POST",
+    }),
+};
+
+// ==================== LISTS ====================
+
+export const listsApi = {
+  list: (params: { userId?: string; page?: number } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.userId) searchParams.set("user_id", params.userId);
+    if (params.page) searchParams.set("page", String(params.page));
+    return fetcher<PaginatedResponse<List>>(`/lists?${searchParams}`);
+  },
+
+  getById: (id: string) => fetcher<ListDetails>(`/lists/${id}`),
+
+  create: (data: CreateListInput) =>
+    fetcher<List>("/lists", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<CreateListInput>) =>
+    fetcher<List>(`/lists/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetcher<{ message: string }>(`/lists/${id}`, { method: "DELETE" }),
+
+  addItem: (listId: string, mediaId: string) =>
+    fetcher<{ message: string }>(`/lists/${listId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ mediaId }),
+    }),
+
+  removeItem: (listId: string, mediaId: string) =>
+    fetcher<{ message: string }>(`/lists/${listId}/items/${mediaId}`, {
+      method: "DELETE",
+    }),
+};
+
+// ==================== WATCHLIST ====================
+
+export const watchlistApi = {
+  list: () =>
+    fetcher<{ items: WatchlistItem[] }>("/watchlist"),
+
+  add: (
+    mediaId: string,
+    priority: "low" | "medium" | "high" = "medium"
+  ) =>
+    fetcher<WatchlistItem>("/watchlist", {
+      method: "POST",
+      body: JSON.stringify({ mediaId, priority }),
+    }),
+
+  remove: (mediaId: string) =>
+    fetcher<{ message: string }>(`/watchlist/${mediaId}`, {
+      method: "DELETE",
+    }),
+};
+
+// ==================== DIARY ====================
+
+export const diaryApi = {
+  list: (page = 1) =>
+    fetcher<PaginatedResponse<DiaryEntry>>(`/diary?page=${page}`),
+
+  add: (
+    mediaId: string,
+    data: { rating?: number; notes?: string; isRewatch?: boolean }
+  ) =>
+    fetcher<DiaryEntry>("/diary", {
+      method: "POST",
+      body: JSON.stringify({ mediaId, ...data }),
+    }),
+};
+
+// ==================== FEED ====================
+
+export const feedApi = {
+  getPersonal: (page = 1) =>
+    fetcher<PaginatedResponse<Activity>>(`/feed?page=${page}`),
+
+  getGlobal: (page = 1) =>
+    fetcher<PaginatedResponse<Activity>>(`/feed/global?page=${page}`),
+};
+
+// ==================== SEARCH ====================
+
+export const searchApi = {
+  all: (query: string) =>
+    fetcher<SearchResults>(`/search?q=${encodeURIComponent(query)}`),
+};
+
+// ==================== NOTIFICATIONS ====================
+
+export const notificationsApi = {
+  list: (page = 1) =>
+    fetcher<PaginatedResponse<Notification>>(`/notifications?page=${page}`),
+
+  markAsRead: (id: string) =>
+    fetcher<Notification>(`/notifications/${id}/read`, {
+      method: "POST",
+    }),
+
+  markAllAsRead: () =>
+    fetcher<{ message: string }>("/notifications/read-all", {
+      method: "POST",
+    }),
+};
+
+// ==================== PEOPLE ====================
+
+export const peopleApi = {
+  getById: (id: string) =>
+    fetcher<{
+      person: {
+        id: string;
+        tmdbId: number;
+        name: string;
+        profilePath?: string;
+        knownFor?: string;
+        biography?: string;
+        birthDate?: string;
+        deathDate?: string;
+        birthPlace?: string;
+        popularity?: number;
+      };
+      credits: any[];
+    }>(`/people/${id}`),
+};
+
+// ==================== PLANS ====================
+
+export const plansApi = {
+  list: () => fetcher<{ plans: Plan[] }>("/plans"),
+
+  getBySlug: (slug: string) => fetcher<Plan>(`/plans/${slug}`),
+};
+
+// ==================== EXPORT ALL ====================
+
+export const api = {
+  auth: authApi,
+  users: usersApi,
+  media: mediaApi,
+  reviews: reviewsApi,
+  lists: listsApi,
+  watchlist: watchlistApi,
+  diary: diaryApi,
+  feed: feedApi,
+  search: searchApi,
+  notifications: notificationsApi,
+  people: peopleApi,
+  plans: plansApi,
+};
+
+export { ApiError };
+export type { PaginatedResponse };

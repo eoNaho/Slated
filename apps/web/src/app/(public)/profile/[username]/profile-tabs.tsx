@@ -1,0 +1,189 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Film,
+  Star,
+  List,
+  Heart,
+  BookOpen,
+  Clock,
+  Activity as ActivityIcon,
+  BarChart2,
+  Lock,
+} from "lucide-react";
+import {
+  ProfileHeader,
+  FavoriteFilms,
+  FavoriteGenres,
+  ActivitySidebar,
+  ReviewsList,
+  UserLists,
+  WatchlistGrid,
+  LikesGrid,
+  ActivityFeed,
+  FilmsDiary,
+  FilmsGrid,
+} from "@/components/profile";
+import type {
+  UserProfile,
+  FavoriteFilm,
+  Review,
+  List as ListType,
+  DiaryEntry,
+  WatchlistItem,
+  LikeItem,
+  Activity,
+} from "@/types";
+
+interface ProfileTabsProps {
+  profile: UserProfile;
+  isOwnProfile: boolean;
+  favorites: FavoriteFilm[];
+  reviews: Review[];
+  lists: ListType[];
+  // These are empty for public viewing, populated for own profile
+  diary?: DiaryEntry[];
+  watchlist?: WatchlistItem[];
+  likes?: LikeItem[];
+  activity?: Activity[];
+}
+
+const tabs = [
+  { value: "overview", label: "Overview", icon: BarChart2 },
+  { value: "films", label: "Films", icon: Film },
+  { value: "diary", label: "Diary", icon: BookOpen },
+  { value: "reviews", label: "Reviews", icon: Star },
+  { value: "lists", label: "Lists", icon: List },
+  { value: "watchlist", label: "Watchlist", icon: Clock },
+  { value: "likes", label: "Likes", icon: Heart },
+  { value: "activity", label: "Activity", icon: ActivityIcon },
+];
+
+const PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
+
+export function ProfileTabs({
+  profile,
+  isOwnProfile,
+  favorites,
+  reviews,
+  lists,
+  diary = [],
+  watchlist = [],
+  likes = [],
+  activity = [],
+}: ProfileTabsProps) {
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
+
+  return (
+    <>
+      {/* Profile Header */}
+      <ProfileHeader
+        profile={profile}
+        favorites={favorites}
+        isOwnProfile={isOwnProfile}
+      />
+
+      {/* Tabs Navigation */}
+      <div className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-xl border-b border-white/5 mt-6">
+        <div className="container mx-auto px-6">
+          <nav className="flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`flex items-center gap-2 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all ${
+                  activeTab === tab.value
+                    ? "border-purple-500 text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <tab.icon className={`h-4 w-4 ${activeTab === tab.value ? "text-purple-500" : ""}`} />
+                {tab.label}
+                {/* Count badge */}
+                {tab.value === "reviews" && reviews.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-500">
+                    {profile.stats.reviewsCount}
+                  </span>
+                )}
+                {tab.value === "lists" && lists.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-500">
+                    {profile.stats.listsCount}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="container mx-auto px-6 py-10 min-h-[500px]">
+
+        {/* Private tab guard */}
+        {isPrivateTab ? (
+          <PrivateTabGuard username={profile.username} tab={activeTab} />
+        ) : (
+          <>
+            {activeTab === "overview" && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <div className="lg:col-span-8 space-y-12">
+                  <FavoriteFilms films={favorites} isEditable={isOwnProfile} />
+                  <ReviewsList reviews={reviews} limit={3} />
+                </div>
+                <div className="lg:col-span-4 space-y-10">
+                  <FavoriteGenres genres={[]} />
+                  <ActivitySidebar entries={diary} limit={5} />
+                  <UserLists lists={lists} limit={2} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === "films" && <FilmsGrid entries={diary} />}
+            {activeTab === "diary" && <FilmsDiary entries={diary} />}
+            {activeTab === "reviews" && (
+              reviews.length > 0
+                ? <ReviewsList reviews={reviews} showViewAll={false} />
+                : <EmptyState icon={Star} message="No reviews yet." />
+            )}
+            {activeTab === "lists" && (
+              lists.length > 0
+                ? <UserLists lists={lists} showViewAll={false} variant="lg01" />
+                : <EmptyState icon={List} message="No lists yet." />
+            )}
+            {activeTab === "watchlist" && <WatchlistGrid items={watchlist} />}
+            {activeTab === "likes" && <LikesGrid items={likes} />}
+            {activeTab === "activity" && <ActivityFeed activities={activity} />}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function PrivateTabGuard({ username, tab }: { username: string; tab: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
+        <Lock className="h-7 w-7 text-zinc-600" />
+      </div>
+      <h3 className="text-xl font-bold text-white mb-2 capitalize">{tab}</h3>
+      <p className="text-zinc-500 text-sm max-w-xs">
+        This section is only visible to <span className="text-zinc-300">@{username}</span>.
+      </p>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
+        <Icon className="h-7 w-7 text-zinc-600" />
+      </div>
+      <p className="text-zinc-500 text-sm">{message}</p>
+    </div>
+  );
+}

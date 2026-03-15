@@ -1,0 +1,4 @@
+/* Base globals - will be expanded with design tokens */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

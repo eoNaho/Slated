@@ -1,0 +1,30 @@
+{
+  "name": "pixelreel-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:web": "pnpm --filter @pixelreel/web dev",
+    "dev:api": "pnpm --filter @pixelreel/api dev",
+    "build:web": "pnpm --filter @pixelreel/web build",
+    "build:api": "pnpm --filter @pixelreel/api build",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "db:generate": "cd apps/api && bun run db:generate",
+    "db:migrate": "cd apps/api && bun run db:migrate",
+    "db:studio": "cd apps/api && bun run db:studio"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "prettier": "^3.1.0",
+    "turbo": "^2.3.3",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@9.15.2",
+  "engines": {
+    "node": ">=18"
+  }
+}

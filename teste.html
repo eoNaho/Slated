@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RetroReel Reviews – Your Digital Video Store</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --burnt-orange: #d2691e;
+        --mustard: #ffcc00;
+        --navy: #001f3f;
+        --beige: #f5f5dc;
+        --white: #ffffff;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Roboto", sans-serif;
+        font-size: 16px;
+        background: var(--beige);
+        color: var(--navy);
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      /* VHS Texture */
+      .vhs-texture {
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.03) 2px,
+          rgba(0, 0, 0, 0.03) 4px
+        );
+      }
+
+      /* Header */
+      header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: var(--beige);
+        z-index: 1000;
+        border-bottom: 2px solid rgba(0, 31, 63, 0.1);
+      }
+      .header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 100%;
+        gap: 20px;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+      }
+      .logo-icon {
+        width: 32px;
+        height: 20px;
+        background: var(--navy);
+        border-radius: 3px;
+        position: relative;
+      }
+      .logo-icon::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 14px;
+        height: 8px;
+        background: var(--mustard);
+        border-radius: 2px;
+      }
+      .logo-text {
+        font-family: "Playfair Display", serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--burnt-orange);
+      }
+      .search-bar {
+        flex: 1;
+        max-width: 400px;
+        position: relative;
+      }
+      .search-bar input {
+        width: 100%;
+        padding: 10px 40px 10px 16px;
+        border: 2px solid var(--navy);
+        border-radius: 25px;
+        background: var(--white);
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+      }
+      .search-bar input:focus {
+        border-color: var(--burnt-orange);
+      }
+      .search-bar::after {
+        content: "🎬";
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+      }
+      .nav-icons {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .nav-icon {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        text-decoration: none;
+        color: var(--navy);
+        font-size: 12px;
+        transition: color 0.3s;
+        cursor: pointer;
+      }
+      .nav-icon:hover {
+        color: var(--burnt-orange);
+      }
+      .nav-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--burnt-orange),
+          var(--mustard)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      /* Hero */
+      .hero {
+        margin-top: 60px;
+        height: 400px;
+        position: relative;
+        overflow: hidden;
+        background:
+          linear-gradient(
+            135deg,
+            rgba(0, 31, 63, 0.85),
+            rgba(210, 105, 30, 0.7)
+          ),
+          url("https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=1200")
+            center/cover;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .hero-content {
+        color: var(--white);
+        padding: 20px;
+      }
+      .hero h1 {
+        font-family: "Playfair Display", serif;
+        font-size: 36px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+      }
+      .hero p {
+        font-size: 20px;
+        margin-bottom: 28px;
+        opacity: 0.95;
+      }
+      .btn-group {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 14px 32px;
+        border-radius: 30px;
+        font-size: 16px;
+        font-weight: 500;
+        text-decoration: none;
+        transition:
+          transform 0.3s,
+          box-shadow 0.3s;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-primary {
+        background: var(--burnt-orange);
+        color: var(--white);
+        box-shadow: 0 4px 15px rgba(210, 105, 30, 0.4);
+      }
+      .btn-secondary {
+        background: var(--navy);
+        color: var(--white);
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Sections */
+      section {
+        padding: 50px 0;
+      }
+      .section-title {
+        font-family: "Playfair Display", serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--navy);
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .section-title::before {
+        content: "📼";
+      }
+
+      /* Carousel */
+      .carousel {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        scroll-snap-type: x mandatory;
+      }
+      .carousel::-webkit-scrollbar {
+        height: 6px;
+      }
+      .carousel::-webkit-scrollbar-thumb {
+        background: var(--burnt-orange);
+        border-radius: 3px;
+      }
+      .movie-card {
+        flex-shrink: 0;
+        width: 200px;
+        scroll-snap-align: start;
+        background: var(--white);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition:
+          transform 0.3s,
+          box-shadow 0.3s;
+        cursor: pointer;
+        position: relative;
+      }
+      .movie-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+      }
+      .movie-poster {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+      }
+      .rental-sticker {
+        position: absolute;
+        top: 12px;
+        left: -8px;
+        background: var(--mustard);
+        color: var(--navy);
+        padding: 4px 16px 4px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        clip-path: polygon(0 0, 100% 0, 90% 50%, 100% 100%, 0 100%);
+      }
+      .movie-info {
+        padding: 14px;
+      }
+      .movie-title {
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 6px;
+        color: var(--navy);
+      }
+      .movie-rating {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--burnt-orange);
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+      .movie-excerpt {
+        font-size: 13px;
+        color: #666;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      /* Feed */
+      .feed {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .feed-card {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        transition: box-shadow 0.3s;
+      }
+      .feed-card:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+      }
+      .feed-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .feed-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--navy), var(--burnt-orange));
+      }
+      .feed-user {
+        font-weight: 500;
+        color: var(--navy);
+      }
+      .feed-movie {
+        color: var(--burnt-orange);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .feed-movie:hover {
+        text-decoration: underline;
+      }
+      .feed-rating {
+        color: var(--mustard);
+        margin-left: 8px;
+      }
+      .feed-text {
+        font-size: 15px;
+        color: #444;
+        margin-bottom: 12px;
+      }
+      .feed-actions {
+        display: flex;
+        gap: 20px;
+      }
+      .feed-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--navy);
+        font-size: 13px;
+        cursor: pointer;
+        transition: color 0.3s;
+        background: none;
+        border: none;
+      }
+      .feed-btn:hover {
+        color: var(--burnt-orange);
+      }
+
+      /* Recommendations Grid */
+      .rec-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px;
+      }
+
+      /* Footer */
+      footer {
+        background: var(--navy);
+        color: var(--white);
+        padding: 40px 0;
+        margin-top: 20px;
+      }
+      .footer-inner {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+      }
+      .footer-links {
+        display: flex;
+        gap: 24px;
+      }
+      .footer-links a {
+        color: var(--white);
+        text-decoration: none;
+        font-size: 14px;
+        opacity: 0.8;
+        transition: opacity 0.3s;
+      }
+      .footer-links a:hover {
+        opacity: 1;
+      }
+      .footer-social {
+        display: flex;
+        gap: 16px;
+      }
+      .footer-social a {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        text-decoration: none;
+        transition: background 0.3s;
+      }
+      .footer-social a:hover {
+        background: var(--burnt-orange);
+      }
+      .copyright {
+        width: 100%;
+        text-align: center;
+        font-size: 13px;
+        opacity: 0.7;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .search-bar {
+          display: none;
+        }
+        .hero h1 {
+          font-size: 28px;
+        }
+        .hero p {
+          font-size: 16px;
+        }
+        .hero {
+          height: 350px;
+        }
+        .nav-icon span {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="vhs-texture">
+      <div class="container header-inner">
+        <a href="#" class="logo">
+          <div class="logo-icon"></div>
+          <span class="logo-text">RetroReel</span>
+        </a>
+        <div class="search-bar">
+          <input type="text" placeholder="Search movies, series, or users..." />
+        </div>
+        <nav class="nav-icons">
+          <a class="nav-icon"
+            ><svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg
+            ><span>Home</span></a
+          >
+          <a class="nav-icon"
+            ><svg viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"
+              /></svg
+            ><span>My Shelf</span></a
+          >
+          <a class="nav-icon"
+            ><svg viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+              /></svg
+            ><span>Community</span></a
+          >
+          <div class="avatar">JD</div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Welcome to Your Neighborhood Video Store</h1>
+        <p>Log, review, and discover films & series with a nostalgic vibe</p>
+        <div class="btn-group">
+          <button class="btn btn-primary">Sign Up Free</button>
+          <button class="btn btn-secondary">Browse Catalog</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Staff Picks -->
+    <section>
+      <div class="container">
+        <h2 class="section-title">Staff Picks: This Week's Rentals</h2>
+        <div class="carousel">
+          <div class="movie-card">
+            <div class="rental-sticker">Recommended</div>
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/rPdtLWNsZmAtoZl9PK7S2wE3qiS.jpg"
+              alt="The Godfather"
+            />
+            <div class="movie-info">
+              <div class="movie-title">The Godfather</div>
+              <div class="movie-rating">📼📼📼📼📼 4.8</div>
+              <p class="movie-excerpt">
+                "A masterpiece that defines cinema itself..."
+              </p>
+            </div>
+          </div>
+          <div class="movie-card">
+            <div class="rental-sticker">Classic</div>
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg"
+              alt="Inception"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Inception</div>
+              <div class="movie-rating">📼📼📼📼 4.5</div>
+              <p class="movie-excerpt">
+                "Mind-bending brilliance from Nolan..."
+              </p>
+            </div>
+          </div>
+          <div class="movie-card">
+            <div class="rental-sticker">Hot Pick</div>
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg"
+              alt="The Shawshank Redemption"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Shawshank Redemption</div>
+              <div class="movie-rating">📼📼📼📼📼 4.9</div>
+              <p class="movie-excerpt">
+                "Hope is a good thing, maybe the best..."
+              </p>
+            </div>
+          </div>
+          <div class="movie-card">
+            <div class="rental-sticker">Staff Fav</div>
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg"
+              alt="Joker"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Joker</div>
+              <div class="movie-rating">📼📼📼📼 4.3</div>
+              <p class="movie-excerpt">
+                "Phoenix delivers a haunting performance..."
+              </p>
+            </div>
+          </div>
+          <div class="movie-card">
+            <div class="rental-sticker">New</div>
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/1E5baAaEse26fej7uHcjOgEE2t2.jpg"
+              alt="Pulp Fiction"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Pulp Fiction</div>
+              <div class="movie-rating">📼📼📼📼📼 4.7</div>
+              <p class="movie-excerpt">"Tarantino at his absolute finest..."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Community Feed -->
+    <section style="background: rgba(0, 31, 63, 0.03)">
+      <div class="container">
+        <h2 class="section-title">Recent Reviews from the Counter</h2>
+        <div class="feed">
+          <div class="feed-card">
+            <div class="feed-header">
+              <div class="feed-avatar"></div>
+              <div>
+                <span class="feed-user">@cinephile_sarah</span> reviewed
+                <a href="#" class="feed-movie">Oppenheimer</a
+                ><span class="feed-rating">★★★★★</span>
+              </div>
+            </div>
+            <p class="feed-text">
+              "Three hours flew by. Nolan crafts a biopic that feels like an
+              epic thriller..."
+            </p>
+            <div class="feed-actions">
+              <button class="feed-btn">❤️ 142</button>
+              <button class="feed-btn">💬 23</button>
+            </div>
+          </div>
+          <div class="feed-card">
+            <div class="feed-header">
+              <div class="feed-avatar"></div>
+              <div>
+                <span class="feed-user">@retro_mike</span> reviewed
+                <a href="#" class="feed-movie">Stranger Things S4</a
+                ><span class="feed-rating">★★★★☆</span>
+              </div>
+            </div>
+            <p class="feed-text">
+              "The Duffer Brothers outdid themselves. A nostalgic
+              rollercoaster..."
+            </p>
+            <div class="feed-actions">
+              <button class="feed-btn">❤️ 89</button>
+              <button class="feed-btn">💬 15</button>
+            </div>
+          </div>
+          <div class="feed-card">
+            <div class="feed-header">
+              <div class="feed-avatar"></div>
+              <div>
+                <span class="feed-user">@vhs_collector</span> reviewed
+                <a href="#" class="feed-movie">Blade Runner 2049</a
+                ><span class="feed-rating">★★★★★</span>
+              </div>
+            </div>
+            <p class="feed-text">
+              "Villeneuve creates a visual masterpiece that honors the
+              original..."
+            </p>
+            <div class="feed-actions">
+              <button class="feed-btn">❤️ 201</button>
+              <button class="feed-btn">💬 34</button>
+            </div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 24px">
+          <button class="btn btn-secondary">Load More Reviews</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recommendations -->
+    <section>
+      <div class="container">
+        <h2 class="section-title">Popular Lists</h2>
+        <div class="rec-grid">
+          <div class="movie-card">
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg"
+              alt="Dune"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Dune</div>
+              <div class="movie-rating">📼📼📼📼 4.4</div>
+            </div>
+          </div>
+          <div class="movie-card">
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg"
+              alt="Interstellar"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Interstellar</div>
+              <div class="movie-rating">📼📼📼📼📼 4.8</div>
+            </div>
+          </div>
+          <div class="movie-card">
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg"
+              alt="Parasite"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Parasite</div>
+              <div class="movie-rating">📼📼📼📼📼 4.7</div>
+            </div>
+          </div>
+          <div class="movie-card">
+            <img
+              class="movie-poster"
+              src="https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg"
+              alt="Avengers Endgame"
+            />
+            <div class="movie-info">
+              <div class="movie-title">Avengers: Endgame</div>
+              <div class="movie-rating">📼📼📼📼 4.3</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container footer-inner">
+        <div class="footer-links">
+          <a href="#">About</a>
+          <a href="#">Privacy</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-social">
+          <a href="#">𝕏</a>
+          <a href="#">📷</a>
+        </div>
+        <p class="copyright">
+          © 2026 RetroReel Reviews – Your Digital Video Store
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
