@@ -13,7 +13,15 @@ export const metadata: Metadata = {
   },
   description:
     "Track movies and series, write reviews, build watchlists, earn achievements and connect with film clubs around the world.",
-  keywords: ["movies", "series", "reviews", "watchlist", "film clubs", "cinema", "streaming"],
+  keywords: [
+    "movies",
+    "series",
+    "reviews",
+    "watchlist",
+    "film clubs",
+    "cinema",
+    "streaming",
+  ],
 };
 
 export default function RootLayout({
@@ -23,7 +31,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased bg-zinc-950 text-zinc-100`}>
+      <body
+        className={`${inter.variable} font-sans antialiased bg-zinc-950 text-zinc-100`}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

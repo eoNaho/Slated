@@ -22,7 +22,7 @@ export function MediaCard({ media, large = false }: MediaCardProps) {
       className="group relative flex-shrink-0 cursor-pointer focus-within:ring-2 focus-within:ring-purple-500 rounded-xl block"
     >
       <div
-        className={`relative overflow-hidden rounded-xl bg-zinc-900 shadow-md transition-all duration-300 ease-out group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-purple-900/20 ${large ? "w-[280px] h-[420px]" : "w-[160px] h-[240px] md:w-[200px] md:h-[300px]"}`}
+        className={`relative overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-md transition-all duration-300 ease-out group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-purple-900/20 group-hover:border-purple-500/30 ${large ? "w-[280px] h-[420px]" : "w-[160px] h-[240px] md:w-[200px] md:h-[300px]"}`}
       >
         {media.posterPath ? (
           <img

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { ChevronLeft, ChevronRight, Star, BookmarkPlus } from "lucide-react";
 import type { Media } from "@/types";
 
 interface HeroSectionProps {
@@ -12,215 +12,188 @@ interface HeroSectionProps {
 
 export function HeroSection({ initialMedia = [] }: HeroSectionProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [featuredMedia, setFeaturedMedia] = useState<Media[]>(initialMedia);
+  const featuredMedia = initialMedia;
 
-  const nextSlide = () => {
+  const nextSlide = useCallback(() => {
     setCurrentSlide((prev) =>
       prev === featuredMedia.length - 1 ? 0 : prev + 1
     );
-  };
+  }, [featuredMedia.length]);
 
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     setCurrentSlide((prev) =>
       prev === 0 ? featuredMedia.length - 1 : prev - 1
     );
-  };
+  }, [featuredMedia.length]);
 
-  // Auto-slide
   useEffect(() => {
     if (featuredMedia.length <= 1) return;
-    const interval = setInterval(nextSlide, 8000);
+    const interval = setInterval(nextSlide, 7000);
     return () => clearInterval(interval);
-  }, [featuredMedia.length]);
+  }, [featuredMedia.length, nextSlide]);
 
   const featured = featuredMedia[currentSlide];
 
   if (!featured || featuredMedia.length === 0) {
     return (
-      <div className="h-[60vh] bg-gradient-to-br from-purple-900/30 via-black to-black rounded-xl flex items-center justify-center">
+      <div className="h-[70vh] bg-zinc-900 border-b border-zinc-800 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-2">
+          <h2
+            className="text-2xl font-bold text-white mb-2"
+            style={{ fontFamily: "var(--font-playfair), serif" }}
+          >
             Welcome to PixelReel
           </h2>
-          <p className="text-zinc-400 mb-4">
-            Start adding movies and series to see them here
-          </p>
-          <Link href="/search">
-            <Button className="bg-gradient-to-r from-purple-600 to-pink-600">
-              Search Content
-            </Button>
+          <p className="text-zinc-400 mb-4">Discover and review films &amp; series</p>
+          <Link
+            href="/search"
+            className="inline-flex items-center justify-center bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold px-6 py-2.5 rounded-full hover:from-purple-500 hover:to-pink-500 transition-all text-sm"
+          >
+            Browse Catalog
           </Link>
         </div>
       </div>
     );
   }
 
+  const backdropUrl = featured.backdropPath || featured.posterPath || "";
+  const year = featured.releaseDate
+    ? new Date(featured.releaseDate).getFullYear()
+    : null;
+
   return (
-    <section className="relative mb-16 overflow-hidden">
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* Main Featured Content */}
-        <Link
-          href={`/${featured.type === "movie" ? "movies" : "series"}/${featured.id}`}
-          className="relative h-[60vh] lg:h-[70vh] w-full lg:w-2/3 overflow-hidden rounded-xl group cursor-pointer"
-        >
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out transform group-hover:scale-105"
-            style={{
-              backgroundImage: `url(${featured.backdropPath || featured.posterPath || ""})`,
-              filter: "brightness(0.4)",
-            }}
+    <section className="relative border-b border-zinc-800 overflow-hidden" style={{ minHeight: "72vh" }}>
+      {/* Backdrop */}
+      {backdropUrl && (
+        <div className="absolute inset-0">
+          <Image
+            src={backdropUrl}
+            alt=""
+            fill
+            className="object-cover"
+            style={{ filter: "brightness(0.18) saturate(0.7)" }}
+            priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/85 to-zinc-950/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
+        </div>
+      )}
 
-          {/* Navigation Arrows */}
-          {featuredMedia.length > 1 && (
-            <>
-              <div className="absolute top-1/2 left-4 transform -translate-y-1/2 z-10">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    prevSlide();
-                  }}
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </Button>
-              </div>
-              <div className="absolute top-1/2 right-4 transform -translate-y-1/2 z-10">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    nextSlide();
-                  }}
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </Button>
-              </div>
-            </>
-          )}
+      <div className="relative z-10 container mx-auto px-6 py-16 flex items-center min-h-[72vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-16 items-center w-full">
 
-          {/* Content */}
-          <div className="absolute bottom-0 left-0 p-8 w-full">
-            <span className="mb-6 inline-block px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-medium uppercase tracking-wider">
-              Featured
-            </span>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight">
+          {/* Text Content — 3/5 */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Meta */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="px-3 py-1 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-400 text-xs font-semibold tracking-widest uppercase">
+                {featured.type === "movie" ? "Film" : "Series"}
+              </span>
+              {year && (
+                <span className="text-zinc-500 text-sm">{year}</span>
+              )}
+              {featured.voteAverage && featured.voteAverage > 0 && (
+                <div className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                  <span className="text-sm font-semibold text-zinc-300">
+                    {featured.voteAverage.toFixed(1)}
+                  </span>
+                  <span className="text-zinc-600 text-xs">/ 10</span>
+                </div>
+              )}
+            </div>
+
+            {/* Title */}
+            <h1
+              className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight"
+              style={{ fontFamily: "var(--font-playfair), serif" }}
+            >
               {featured.title}
             </h1>
-            <div className="flex items-center mb-4 text-sm text-zinc-400">
-              <span>
-                {featured.releaseDate
-                  ? new Date(featured.releaseDate).getFullYear()
-                  : "N/A"}
-              </span>
-              <span className="mx-2">•</span>
-              <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px]">
-                {featured.type === "movie" ? "Movie" : "Series"}
-              </span>
-            </div>
-            {featured.voteAverage && (
-              <div className="flex items-center mb-6">
-                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400 mr-1" />
-                <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  {featured.voteAverage.toFixed(1)}
-                </span>
-                <span className="text-sm text-zinc-300 ml-1">/ 10</span>
-              </div>
-            )}
+
+            {/* Overview */}
             {featured.overview && (
-              <p className="text-zinc-300 mb-8 text-lg leading-relaxed max-w-3xl line-clamp-3">
+              <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-2xl line-clamp-3">
                 {featured.overview}
               </p>
             )}
-            <div className="flex gap-4">
-              <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0 shadow-lg">
-                View Details
-              </Button>
-            </div>
-          </div>
 
-          {/* Slide indicators */}
-          {featuredMedia.length > 1 && (
-            <div className="absolute bottom-4 right-4 flex gap-1">
-              {featuredMedia.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setCurrentSlide(index);
-                  }}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentSlide ? "bg-purple-500" : "bg-white/30"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </Link>
-
-        {/* Side Cards */}
-        {featuredMedia.length > 2 && (
-          <div className="lg:w-1/3 flex flex-col gap-4">
-            {featuredMedia.slice(1, 3).map((media, index) => (
+            {/* Actions */}
+            <div className="flex items-center gap-3 flex-wrap pt-2">
               <Link
-                key={media.id}
-                href={`/${media.type === "movie" ? "movies" : "series"}/${media.id}`}
-                className="bg-white/5 border-white/10 backdrop-blur-md overflow-hidden h-1/2 rounded-lg group cursor-pointer relative"
+                href={`/${featured.type === "movie" ? "movies" : "series"}/${featured.id}`}
+                className="inline-flex items-center justify-center bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold px-6 py-2.5 rounded-full transition-all text-sm shadow-lg shadow-purple-900/30"
               >
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                  style={{
-                    backgroundImage: `url(${media.posterPath || ""})`,
-                    filter: "brightness(0.3)",
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
-                <div className="absolute bottom-0 left-0 p-6">
-                  <span
-                    className={`mb-2 inline-block px-2 py-0.5 rounded text-[10px] font-medium ${
-                      index === 0
-                        ? "bg-gradient-to-r from-orange-500 to-red-500"
-                        : "bg-gradient-to-r from-green-500 to-emerald-500"
-                    } text-white`}
-                  >
-                    {index === 0 ? "Trending" : "Top Rated"}
-                  </span>
-                  <h3 className="text-xl font-bold text-white mb-1">
-                    {media.title}
-                  </h3>
-                  <div className="flex items-center text-sm text-zinc-400 mb-2">
-                    <span>
-                      {media.releaseDate
-                        ? new Date(media.releaseDate).getFullYear()
-                        : "N/A"}
-                    </span>
-                    <span className="mx-2">•</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px]">
-                      {media.type === "movie" ? "Movie" : "Series"}
-                    </span>
-                  </div>
-                  {media.voteAverage && (
-                    <div className="flex items-center">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                      <span className="text-lg font-bold text-purple-400">
-                        {media.voteAverage.toFixed(1)}
-                      </span>
-                      <span className="text-xs text-zinc-400 ml-1">/ 10</span>
-                    </div>
-                  )}
-                </div>
+                View Details
               </Link>
-            ))}
+              <button className="inline-flex items-center gap-2 border border-zinc-700 text-zinc-300 font-medium px-5 py-2.5 rounded-full hover:border-zinc-500 hover:text-white transition-colors text-sm">
+                <BookmarkPlus className="h-4 w-4" />
+                Watchlist
+              </button>
+            </div>
+
+            {/* Slide controls */}
+            {featuredMedia.length > 1 && (
+              <div className="flex items-center gap-4 pt-4">
+                <button
+                  onClick={prevSlide}
+                  className="p-2 rounded-full border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white transition-colors"
+                  aria-label="Previous"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {featuredMedia.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentSlide(i)}
+                      className={`rounded-full transition-all duration-300 ${
+                        i === currentSlide
+                          ? "w-6 h-1.5 bg-purple-500"
+                          : "w-1.5 h-1.5 bg-zinc-700 hover:bg-zinc-500"
+                      }`}
+                      aria-label={`Go to slide ${i + 1}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={nextSlide}
+                  className="p-2 rounded-full border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white transition-colors"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Poster — 2/5 */}
+          <div className="hidden lg:flex lg:col-span-2 items-center justify-center">
+            <Link
+              href={`/${featured.type === "movie" ? "movies" : "series"}/${featured.id}`}
+              className="group relative block"
+            >
+              <div className="relative w-[260px] aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_32px_64px_rgba(0,0,0,0.8)] ring-1 ring-white/10 rotate-1 group-hover:rotate-0 transition-transform duration-500">
+                {featured.posterPath ? (
+                  <Image
+                    src={featured.posterPath}
+                    alt={featured.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                    <Star className="h-12 w-12 text-zinc-700" />
+                  </div>
+                )}
+              </div>
+              {/* Glow below poster */}
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-purple-500/10 rounded-full blur-xl" />
+            </Link>
+          </div>
+
+        </div>
       </div>
     </section>
   );

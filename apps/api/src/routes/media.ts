@@ -36,53 +36,9 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
   .use(betterAuthPlugin)
 
   // ==========================================================================
-  // SEARCH & DISCOVER (Letterboxd Style)
+  // DISCOVER (Letterboxd Style)
+  // Search was moved to GET /search — see routes/search.ts
   // ==========================================================================
-
-  /**
-   * POST /media/search
-   * Enhanced search with filters
-   */
-  .post(
-    "/search",
-    async ({ body, set }) => {
-      const { query, type, year, page, language } = body;
-
-      if (!query || query.trim().length === 0) {
-        set.status = 400;
-        return { error: "Query is required" };
-      }
-
-      try {
-        const results = await metadataService.search(query, {
-          type: type || "all",
-          year,
-          page: page || 1,
-          language: language || "en-US",
-        });
-
-        return {
-          success: true,
-          data: results,
-        };
-      } catch (error) {
-        logger.error({ error, query }, "Search failed");
-        set.status = 500;
-        return { error: "Search failed" };
-      }
-    },
-    {
-      body: t.Object({
-        query: t.String({ minLength: 1 }),
-        type: t.Optional(
-          t.Union([t.Literal("movie"), t.Literal("series"), t.Literal("all")]),
-        ),
-        year: t.Optional(t.Number()),
-        page: t.Optional(t.Number({ minimum: 1 })),
-        language: t.Optional(t.String()),
-      }),
-    },
-  )
 
   /**
    * GET /media/discover
@@ -412,10 +368,10 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
 
           // Rate limit
           await new Promise((r) => setTimeout(r, 100));
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.failed.push({
             tmdbId: item.tmdbId,
-            error: error.message || "Unknown error",
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -677,7 +633,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ format: "uuid" }) }),
     },
   )
 

@@ -67,6 +67,11 @@ export interface TMDBMediaDetails {
   videos?: {
     results: { key: string; type: string; site: string }[];
   };
+  // TV series use external_ids to expose imdb_id (movies have it directly)
+  external_ids?: {
+    imdb_id?: string;
+    tvdb_id?: number;
+  };
 }
 
 export interface SearchResult {
@@ -79,6 +84,7 @@ export interface SearchResult {
   backdropPath?: string | null;
   releaseDate?: string;
   voteAverage?: number;
+  voteCount?: number;
   overview?: string;
   isLocal: boolean; // true = already in our DB
   localId?: string;
@@ -140,10 +146,14 @@ export class TMDBService {
     params: Record<string, string> = {},
     retries = 3
   ): Promise<T> {
+    // Filter out empty strings so they don't override defaults
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== "" && v != null)
+    );
     const searchParams = new URLSearchParams({
       api_key: TMDB_API_KEY!,
-      language: params.language || "en-US", // English as default
-      ...params,
+      language: "en-US",
+      ...cleanParams,
     });
 
     const url = `${TMDB_BASE_URL}${endpoint}?${searchParams}`;
@@ -206,7 +216,15 @@ export class TMDBService {
     query: string,
     options: SearchOptions = {}
   ): Promise<PaginatedResult<SearchResult>> {
-    const { page = 1, language = "en-US", includeAdult = false } = options;
+    const { page = 1, language = "en-US", year, includeAdult = false } = options;
+
+    const searchParams: Record<string, string> = {
+      query,
+      page: String(page),
+      language,
+      include_adult: String(includeAdult),
+    };
+    if (year) searchParams.year = String(year);
 
     // Search TMDB
     const tmdbData = await this.fetch<{
@@ -222,17 +240,13 @@ export class TMDBService {
         release_date?: string;
         first_air_date?: string;
         vote_average?: number;
+        vote_count?: number;
         overview?: string;
       }>;
       page: number;
       total_pages: number;
       total_results: number;
-    }>("/search/multi", {
-      query,
-      page: String(page),
-      language,
-      include_adult: String(includeAdult),
-    });
+    }>("/search/multi", searchParams);
 
     // Filter out people, keep only movies and TV
     const mediaResults = tmdbData.results.filter(
@@ -274,6 +288,7 @@ export class TMDBService {
           : null,
         releaseDate: isMovie ? item.release_date : item.first_air_date,
         voteAverage: item.vote_average,
+        voteCount: item.vote_count,
         overview: item.overview,
         isLocal: !!localId,
         localId,
@@ -300,11 +315,16 @@ export class TMDBService {
   async syncMedia(tmdbId: number, type: "movie" | "series") {
     const endpoint = type === "movie" ? `/movie/${tmdbId}` : `/tv/${tmdbId}`;
 
-    // Fetch full details
+    // Fetch full details — append external_ids for TV to get imdb_id
     const data = await this.fetch<TMDBMediaDetails>(endpoint, {
-      append_to_response: "credits,videos",
+      append_to_response: type === "series" ? "credits,videos,external_ids" : "credits,videos",
       language: "en-US",
     });
+
+    // TV series expose imdb_id via external_ids, not as a top-level field
+    if (type === "series" && !data.imdb_id && data.external_ids?.imdb_id) {
+      data.imdb_id = data.external_ids.imdb_id;
+    }
 
     // Also fetch English data for original title if different
     let englishTitle: string | undefined;
@@ -697,9 +717,14 @@ export class TMDBService {
     const endpoint = `/${mediaType}/${tmdbId}`;
 
     const data = await this.fetch<TMDBMediaDetails>(endpoint, {
-      append_to_response: "credits,videos",
+      append_to_response: type === "series" ? "credits,videos,external_ids" : "credits,videos",
       language,
     });
+
+    // TV series expose imdb_id via external_ids, not as a top-level field
+    if (type === "series" && !data.imdb_id && data.external_ids?.imdb_id) {
+      data.imdb_id = data.external_ids.imdb_id;
+    }
 
     return data;
   }

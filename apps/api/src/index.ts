@@ -101,9 +101,15 @@ const app = new Elysia()
     logger.error({ code, error: errorMessage, cause, stack: error?.stack?.split("\n")[1]?.trim() }, "Request error");
 
     switch (code) {
-      case "VALIDATION":
+      case "VALIDATION": {
         set.status = 400;
-        return { error: "Invalid data" };
+        const ve = error?.valueError;
+        const field = ve?.path ? ve.path.replace(/^\//, "") : undefined;
+        const detail = field
+          ? `'${field}' — ${ve?.message ?? "invalid value"}`
+          : (ve?.message ?? errorMessage);
+        return { error: "Validation failed", detail };
+      }
       case "NOT_FOUND":
         set.status = 404;
         return { error: "Resource not found" };

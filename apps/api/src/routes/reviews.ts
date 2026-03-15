@@ -207,6 +207,39 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
     },
   )
 
+  // Delete review
+  .delete(
+    "/:id",
+    async (ctx: any) => {
+      const { user: authUser, params, set } = ctx;
+
+      const [existing] = await db
+        .select()
+        .from(reviews)
+        .where(eq(reviews.id, params.id))
+        .limit(1);
+
+      if (!existing) {
+        set.status = 404;
+        return { error: "Review not found" };
+      }
+
+      if (existing.userId !== authUser.id) {
+        set.status = 403;
+        return { error: "Forbidden" };
+      }
+
+      await db.delete(reviews).where(eq(reviews.id, params.id));
+
+      set.status = 204;
+      return null;
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+    },
+  )
+
   // Like Review
   .post(
     "/:id/like",

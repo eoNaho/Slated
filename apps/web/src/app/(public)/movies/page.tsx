@@ -20,8 +20,8 @@ async function getPopularMovies(): Promise<PaginatedResponse<Media> | null> {
 }
 
 export const metadata = {
-  title: "Movies",
-  description: "Discover and explore popular movies",
+  title: "Filmes",
+  description: "Descubra e explore filmes populares",
 };
 
 export default async function MoviesPage() {
@@ -35,45 +35,48 @@ export default async function MoviesPage() {
         <div className="container mx-auto px-4 lg:px-8 py-16 relative">
           <div className="flex items-center gap-3 mb-4">
             <Film className="h-8 w-8 text-purple-400" />
-            <h1 className="text-4xl font-bold text-white">Movies</h1>
+            <h1 className="text-4xl font-bold text-white">Filmes</h1>
           </div>
           <p className="text-xl text-zinc-400 max-w-2xl">
-            Discover the best movies from around the world. Track what
-            you&apos;ve watched, rate your favorites, and build your personal
-            film diary.
+            Descubra os melhores filmes de todo o mundo. Acompanhe o que já viu, 
+            avalie os seus favoritos e crie o seu diário de cinema pessoal.
           </p>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <div className="container mx-auto px-4 lg:px-8 py-8 border-b border-white/10">
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" className="text-purple-400 bg-purple-400/10">
             <TrendingUp className="h-4 w-4 mr-2" />
-            Popular
+            Populares
           </Button>
           <Button variant="ghost" className="text-zinc-400 hover:text-white">
             <Star className="h-4 w-4 mr-2" />
-            Top Rated
+            Melhor Classificados
           </Button>
           <Button variant="ghost" className="text-zinc-400 hover:text-white">
             <Calendar className="h-4 w-4 mr-2" />
-            Upcoming
+            Próximas Estreias
           </Button>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid Responsivo */}
       <div className="container mx-auto px-4 lg:px-8 py-8">
         {movies && movies.data.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {/* Grid ajustado:
+                - gap-6 para melhor espaçamento
+                - O MediaCard agora é w-full, então ele preenche cada coluna sem transbordar
+            */}
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {movies.data.map((movie) => (
                 <MediaCard key={movie.id} media={movie} />
               ))}
             </div>
 
-            {/* Pagination */}
+            {/* Paginação */}
             {movies.totalPages > 1 && (
               <div className="flex justify-center gap-2 mt-12">
                 {Array.from(
@@ -101,14 +104,14 @@ export default async function MoviesPage() {
           <div className="text-center py-16">
             <Film className="h-16 w-16 text-zinc-700 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">
-              No movies yet
+              Ainda não há filmes
             </h2>
             <p className="text-zinc-400">
-              Search for movies to add them to the library.
+              Pesquise filmes para os adicionar à biblioteca.
             </p>
             <Link href="/search">
               <Button className="mt-4 bg-purple-600 hover:bg-purple-700">
-                Search Movies
+                Pesquisar Filmes
               </Button>
             </Link>
           </div>

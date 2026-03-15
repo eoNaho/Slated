@@ -137,11 +137,17 @@ export const mediaApi = {
     options: Omit<SearchOptions, "page"> = {},
     page = 1
   ) => {
-    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+    return fetcher<{ results: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       "/media/search",
       {
         method: "POST",
-        body: JSON.stringify({ query, page, ...options }),
+        body: JSON.stringify({
+          query: query.trim(),
+          page,
+          ...Object.fromEntries(
+            Object.entries(options).filter(([, v]) => v !== "" && v !== undefined && v !== null)
+          ),
+        }),
       }
     );
   },
@@ -375,8 +381,25 @@ export const feedApi = {
 // ==================== SEARCH ====================
 
 export const searchApi = {
-  all: (query: string) =>
-    fetcher<SearchResults>(`/search?q=${encodeURIComponent(query)}`),
+  search: (
+    query: string,
+    options: { type?: "all" | "movie" | "series" | "users" | "lists"; page?: number; limit?: number } = {}
+  ) => {
+    const params = new URLSearchParams({ q: query });
+    if (options.type  && options.type !== "all") params.set("type", options.type);
+    if (options.page  && options.page > 1)        params.set("page",  String(options.page));
+    if (options.limit)                             params.set("limit", String(options.limit));
+    return fetcher<{
+      media:      SearchResult[];
+      users:      Pick<User, "id" | "username" | "displayName" | "avatarUrl" | "isVerified">[];
+      lists:      Pick<List, "id" | "name" | "description" | "itemsCount" | "userId">[];
+      page:       number;
+      totalPages: number;
+      total:      number;
+      hasNext:    boolean;
+      hasPrev:    boolean;
+    }>(`/search?${params}`);
+  },
 };
 
 // ==================== NOTIFICATIONS ====================

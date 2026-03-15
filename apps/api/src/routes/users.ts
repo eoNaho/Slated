@@ -229,6 +229,63 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     },
   )
 
+  // Get user's following
+  .get(
+    "/:username/following",
+    async ({ params, query, set }: any) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      const [targetUser] = await db
+        .select({ id: userTable.id })
+        .from(userTable)
+        .where(eq(userTable.username, params.username))
+        .limit(1);
+
+      if (!targetUser) {
+        set.status = 404;
+        return { error: "User not found" };
+      }
+
+      const following = await db
+        .select({
+          id: userTable.id,
+          username: userTable.username,
+          displayName: userTable.displayName,
+          avatarUrl: userTable.avatarUrl,
+          isVerified: userTable.isVerified,
+        })
+        .from(follows)
+        .innerJoin(userTable, eq(follows.followingId, userTable.id))
+        .where(eq(follows.followerId, targetUser.id))
+        .limit(limit)
+        .offset(offset);
+
+      const [{ total }] = await db
+        .select({ total: count() })
+        .from(follows)
+        .where(eq(follows.followerId, targetUser.id));
+
+      return {
+        data: following,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: offset + limit < total,
+        hasPrev: page > 1,
+      };
+    },
+    {
+      params: t.Object({ username: t.String() }),
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+    },
+  )
+
   // Follow a user
   .post(
     "/:username/follow",

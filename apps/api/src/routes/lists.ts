@@ -165,6 +165,87 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
   )
 
+  // Update list
+  .patch(
+    "/:id",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const [existing] = await db
+        .select()
+        .from(lists)
+        .where(eq(lists.id, params.id))
+        .limit(1);
+
+      if (!existing) {
+        set.status = 404;
+        return { error: "List not found" };
+      }
+
+      if (existing.userId !== user.id) {
+        set.status = 403;
+        return { error: "You can only edit your own lists" };
+      }
+
+      const [updated] = await db
+        .update(lists)
+        .set({
+          name: body.name ?? existing.name,
+          description: body.description ?? existing.description,
+          isPublic: body.is_public ?? existing.isPublic,
+          isRanked: body.is_ranked ?? existing.isRanked,
+          updatedAt: new Date(),
+        })
+        .where(eq(lists.id, params.id))
+        .returning();
+
+      return { data: updated };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 3 })),
+        description: t.Optional(t.String()),
+        is_public: t.Optional(t.Boolean()),
+        is_ranked: t.Optional(t.Boolean()),
+      }),
+    },
+  )
+
+  // Delete list
+  .delete(
+    "/:id",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const [existing] = await db
+        .select()
+        .from(lists)
+        .where(eq(lists.id, params.id))
+        .limit(1);
+
+      if (!existing) {
+        set.status = 404;
+        return { error: "List not found" };
+      }
+
+      if (existing.userId !== user.id) {
+        set.status = 403;
+        return { error: "You can only delete your own lists" };
+      }
+
+      await db.delete(lists).where(eq(lists.id, params.id));
+
+      set.status = 204;
+      return null;
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+    },
+  )
+
   // Add item to list
   .post(
     "/:id/items",
@@ -230,5 +311,57 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         media_id: t.String(),
         note: t.Optional(t.String()),
       }),
+    },
+  )
+
+  // Remove item from list
+  .delete(
+    "/:id/items/:mediaId",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const [list] = await db
+        .select()
+        .from(lists)
+        .where(eq(lists.id, params.id))
+        .limit(1);
+
+      if (!list) {
+        set.status = 404;
+        return { error: "List not found" };
+      }
+
+      if (list.userId !== user.id) {
+        set.status = 403;
+        return { error: "You can only edit your own lists" };
+      }
+
+      const deleted = await db
+        .delete(listItems)
+        .where(
+          and(
+            eq(listItems.listId, params.id),
+            eq(listItems.mediaId, params.mediaId),
+          ),
+        )
+        .returning();
+
+      if (deleted.length === 0) {
+        set.status = 404;
+        return { error: "Item not found in list" };
+      }
+
+      // Decrement items count
+      await db
+        .update(lists)
+        .set({ itemsCount: sql`GREATEST(${lists.itemsCount} - 1, 0)` })
+        .where(eq(lists.id, params.id));
+
+      set.status = 204;
+      return null;
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String(), mediaId: t.String() }),
     },
   );

@@ -100,12 +100,13 @@ export interface SearchResultEnriched {
     overview?: string;
 
     // Rating preview (TMDB only for search results)
-    rating: number;
+    voteAverage: number;
     voteCount: number;
 
     // Local DB status
     isLocal: boolean;
     localId?: string;
+    localSlug?: string;
 }
 
 // ============================================================================
@@ -150,7 +151,7 @@ export class MetadataService {
             backdropPath: result.backdropPath,
             releaseDate: result.releaseDate,
             overview: result.overview,
-            rating: result.voteAverage || 0,
+            voteAverage: result.voteAverage || 0,
             voteCount: result.voteCount || 0,
             isLocal: result.isLocal,
             localId: result.localId,
