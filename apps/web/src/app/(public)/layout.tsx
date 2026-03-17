@@ -10,7 +10,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       </div>
 
       <Header />
-      <main className="relative z-10">
+      <main className="relative z-10 pt-14">
         {children}
         <Footer />
       </main>

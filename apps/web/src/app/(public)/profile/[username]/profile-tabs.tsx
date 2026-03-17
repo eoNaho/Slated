@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Film,
   Star,
@@ -11,6 +11,7 @@ import {
   Activity as ActivityIcon,
   BarChart2,
   Lock,
+  Users,
 } from "lucide-react";
 import {
   ProfileHeader,
@@ -25,6 +26,8 @@ import {
   FilmsDiary,
   FilmsGrid,
 } from "@/components/profile";
+import { ClubCard } from "@/components/clubs/club-card";
+import type { Club } from "@/lib/queries/clubs";
 import type {
   UserProfile,
   FavoriteFilm,
@@ -38,6 +41,7 @@ import type {
 
 interface ProfileTabsProps {
   profile: UserProfile;
+  username: string;
   isOwnProfile: boolean;
   favorites: FavoriteFilm[];
   reviews: Review[];
@@ -55,6 +59,7 @@ const tabs = [
   { value: "diary", label: "Diary", icon: BookOpen },
   { value: "reviews", label: "Reviews", icon: Star },
   { value: "lists", label: "Lists", icon: List },
+  { value: "clubs", label: "Clubs", icon: Users },
   { value: "watchlist", label: "Watchlist", icon: Clock },
   { value: "likes", label: "Likes", icon: Heart },
   { value: "activity", label: "Activity", icon: ActivityIcon },
@@ -62,8 +67,11 @@ const tabs = [
 
 const PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+
 export function ProfileTabs({
   profile,
+  username,
   isOwnProfile,
   favorites,
   reviews,
@@ -74,6 +82,16 @@ export function ProfileTabs({
   activity = [],
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [clubsLoaded, setClubsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== "clubs" || clubsLoaded) return;
+    fetch(`${API_URL}/users/${username}/clubs`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : { data: [] })
+      .then((json) => { setClubs(json.data ?? []); setClubsLoaded(true); })
+      .catch(() => setClubsLoaded(true));
+  }, [activeTab, clubsLoaded, username]);
 
   const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
 
@@ -111,6 +129,11 @@ export function ProfileTabs({
                 {tab.value === "lists" && lists.length > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-500">
                     {profile.stats.listsCount}
+                  </span>
+                )}
+                {tab.value === "clubs" && clubsLoaded && clubs.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-500">
+                    {clubs.length}
                   </span>
                 )}
               </button>
@@ -152,6 +175,21 @@ export function ProfileTabs({
               lists.length > 0
                 ? <UserLists lists={lists} showViewAll={false} variant="lg01" />
                 : <EmptyState icon={List} message="No lists yet." />
+            )}
+            {activeTab === "clubs" && (
+              !clubsLoaded ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-6 h-6 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
+                </div>
+              ) : clubs.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {clubs.map((club) => (
+                    <ClubCard key={club.id} club={club} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={Users} message="Nenhum club ainda." />
+              )
             )}
             {activeTab === "watchlist" && <WatchlistGrid items={watchlist} />}
             {activeTab === "likes" && <LikesGrid items={likes} />}

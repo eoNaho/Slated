@@ -1,127 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { HeroSection } from "@/components/home";
-import { Carousel, SectionHeader } from "@/components/common";
-import { MediaCard, ReviewCard, type Review } from "@/components/media";
-import type { Media } from "@/types";
 import Image from "next/image";
 import { Star } from "lucide-react";
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+import { HeroSection } from "@/components/home";
+import { Carousel, SectionHeader } from "@/components/common";
+import { MediaCard, ReviewCard } from "@/components/media";
+import { getTrending, transformTrendingToMedia, generateReviews } from "@/lib/queries/home";
 
-// Types for trending response
-interface TrendingItem {
-  id: number;
-  tmdbId: number;
-  mediaType: "movie" | "series";
-  title: string;
-  posterPath?: string | null;
-  backdropPath?: string | null;
-  releaseDate?: string;
-  voteAverage?: number;
-  overview?: string;
-}
-
-interface TrendingResponse {
-  results: TrendingItem[];
-  page: number;
-  totalPages: number;
-  totalResults: number;
-}
-
-// Fetch trending from TMDB
-async function getTrending(
-  type: "all" | "movie" | "tv" = "all",
-): Promise<TrendingItem[]> {
-  try {
-    const res = await fetch(`${API_URL}/media/trending/week?type=${type}`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
-    const data: TrendingResponse = await res.json();
-    return data.results?.slice(0, 20) || [];
-  } catch {
-    return [];
-  }
-}
-
-// Generate reviews using real movie data
-function generateReviews(trendingItems: TrendingItem[]): Review[] {
-  const reviewTemplates = [
-    {
-      user: {
-        name: "Sofia Coppola Fan",
-        avatar: "https://i.pravatar.cc/150?u=a042581f4e29026024d",
-      },
-      content:
-        "A hauntingly beautiful experience. The direction is simply impeccable.",
-      rating: 4,
-      likes: 245,
-      comments: 32,
-    },
-    {
-      user: {
-        name: "Cinephile Joe",
-        avatar: "https://i.pravatar.cc/150?u=a042581f4e29026704d",
-      },
-      content:
-        "Harrowing. The sound design alone deserves every award available. I'm still shaking.",
-      rating: 5,
-      likes: 890,
-      comments: 120,
-    },
-    {
-      user: {
-        name: "Film_Nerd92",
-        avatar: "https://i.pravatar.cc/150?u=a042581f4e2902612d",
-      },
-      content:
-        "A cold, calculating masterpiece that keeps you at arm's length yet completely engaged.",
-      rating: 4,
-      likes: 467,
-      comments: 58,
-    },
-    {
-      user: {
-        name: "MovieMaven",
-        avatar: "https://i.pravatar.cc/150?u=a042581f4e29026704e",
-      },
-      content:
-        "More existential than I expected. The performances steal the show.",
-      rating: 4,
-      likes: 1234,
-      comments: 234,
-    },
-  ];
-
-  return trendingItems.slice(0, 4).map((item, idx) => ({
-    id: idx + 1,
-    movieTitle: item.title,
-    poster:
-      item.posterPath ||
-      "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=800&auto=format&fit=crop",
-    ...reviewTemplates[idx],
-  }));
-}
-
-function transformTrendingToMedia(items: TrendingItem[]): Media[] {
-  return items.map((t) => ({
-    id: String(t.tmdbId),
-    tmdbId: t.tmdbId,
-    type: t.mediaType,
-    title: t.title,
-    posterPath: t.posterPath,
-    backdropPath: t.backdropPath,
-    releaseDate: t.releaseDate,
-    voteAverage: t.voteAverage,
-    overview: t.overview,
-  }));
-}
+export const metadata: Metadata = {
+  title: "PixelReel — Track Movies & Series",
+  description:
+    "Discover, track, and review movies and TV series. Build watchlists, follow friends, and share your cinematic journey on PixelReel.",
+};
 
 export default async function HomePage() {
   const [trendingAll, trendingMovies, trendingTV] = await Promise.all([
     getTrending("all"),
     getTrending("movie"),
-    getTrending("tv"),
+    getTrending("series"),
   ]);
 
   const heroMedia = transformTrendingToMedia(trendingAll.slice(0, 5));

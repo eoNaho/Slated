@@ -6,11 +6,15 @@ import {
   userSocialLinks,
   userStats,
   follows,
+  clubs,
+  clubMembers,
   eq,
   and,
   count,
+  desc,
 } from "../db";
-import { betterAuthPlugin } from "../lib/auth";
+import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { storageService } from "../services/storage";
 
 export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
   .use(betterAuthPlugin)
@@ -288,13 +292,19 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
   // Follow a user
   .post(
-    "/:username/follow",
+    "/:userId/follow",
     async (ctx: any) => {
       const { user, params, set } = ctx;
+
+      if (params.userId === user.id) {
+        set.status = 400;
+        return { error: "Cannot follow yourself" };
+      }
+
       const [targetUser] = await db
         .select({ id: userTable.id })
         .from(userTable)
-        .where(eq(userTable.username, params.username))
+        .where(eq(userTable.id, params.userId))
         .limit(1);
 
       if (!targetUser) {
@@ -302,17 +312,12 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "User not found" };
       }
 
-      if (targetUser.id === user.id) {
-        set.status = 400;
-        return { error: "Cannot follow yourself" };
-      }
-
       try {
         await db.insert(follows).values({
           followerId: user.id,
           followingId: targetUser.id,
         });
-        return { success: true, message: "Followed successfully" };
+        return { message: "Followed successfully" };
       } catch (e: any) {
         if (e.code === "23505") {
           set.status = 400;
@@ -321,18 +326,80 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         throw e;
       }
     },
-    { requireAuth: true, params: t.Object({ username: t.String() }) },
+    { requireAuth: true, params: t.Object({ userId: t.String() }) },
+  )
+
+  // Get clubs a user belongs to (by username)
+  // Returns all clubs if viewer is the same user, otherwise only public clubs
+  .get(
+    "/:username/clubs",
+    async (ctx: any) => {
+      const { params, request } = ctx;
+
+      const session = await getOptionalSession(request.headers);
+      const viewerId = session?.session?.userId ?? session?.user?.id ?? null;
+
+      const [target] = await db
+        .select({ id: userTable.id })
+        .from(userTable)
+        .where(eq(userTable.username, params.username))
+        .limit(1);
+
+      if (!target) return { data: [] };
+
+      const isSelf = viewerId === target.id;
+
+      // alias for club owners
+      const ownerTable = db.select({
+        id: userTable.id,
+        username: userTable.username,
+        displayName: userTable.displayName,
+        avatarUrl: userTable.avatarUrl,
+      }).from(userTable).as("owner");
+
+      const condition = isSelf
+        ? eq(clubMembers.userId, target.id)
+        : and(eq(clubMembers.userId, target.id), eq(clubs.isPublic, true));
+
+      const memberships = await db
+        .select({
+          club: clubs,
+          role: clubMembers.role,
+          owner: {
+            id: ownerTable.id,
+            username: ownerTable.username,
+            displayName: ownerTable.displayName,
+            avatarUrl: ownerTable.avatarUrl,
+          },
+        })
+        .from(clubMembers)
+        .innerJoin(clubs, eq(clubMembers.clubId, clubs.id))
+        .innerJoin(ownerTable, eq(clubs.ownerId, ownerTable.id))
+        .where(condition)
+        .orderBy(desc(clubMembers.joinedAt));
+
+      return {
+        data: memberships.map((m) => ({
+          ...m.club,
+          coverUrl: storageService.getImageUrl(m.club.coverUrl ?? "") || null,
+          owner: m.owner,
+          myRole: m.role,
+        })),
+      };
+    },
+    { params: t.Object({ username: t.String() }) }
   )
 
   // Unfollow a user
   .delete(
-    "/:username/follow",
+    "/:userId/follow",
     async (ctx: any) => {
       const { user, params, set } = ctx;
+
       const [targetUser] = await db
         .select({ id: userTable.id })
         .from(userTable)
-        .where(eq(userTable.username, params.username))
+        .where(eq(userTable.id, params.userId))
         .limit(1);
 
       if (!targetUser) {
@@ -349,7 +416,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           ),
         );
 
-      return { success: true, message: "Unfollowed successfully" };
+      return { message: "Unfollowed successfully" };
     },
-    { requireAuth: true, params: t.Object({ username: t.String() }) },
+    { requireAuth: true, params: t.Object({ userId: t.String() }) },
   );

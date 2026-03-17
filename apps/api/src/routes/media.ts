@@ -10,6 +10,7 @@ import {
   mediaStreaming,
   streamingServices,
   eq,
+  and,
   desc,
   count,
 } from "../db";
@@ -46,7 +47,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/discover",
-    async ({ query }) => {
+    async ({ query, set }) => {
       const {
         type = "movie",
         genre,
@@ -66,9 +67,17 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           language,
         });
 
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error({ error, query }, "Discover failed");
+        set.status = 500;
         return { error: "Failed to discover media" };
       }
     },
@@ -101,7 +110,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/trending",
-    async ({ query }) => {
+    async ({ query, set }) => {
       const { timeWindow = "week", type = "all", page = 1 } = query;
 
       try {
@@ -111,9 +120,17 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           Number(page),
         );
 
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error({ error }, "Trending failed");
+        set.status = 500;
         return { error: "Failed to get trending media" };
       }
     },
@@ -133,7 +150,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/popular",
-    async ({ query }) => {
+    async ({ query, set }) => {
       const { type = "movie", page = 1 } = query;
 
       try {
@@ -142,9 +159,17 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           Number(page),
         );
 
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error({ error }, "Popular failed");
+        set.status = 500;
         return { error: "Failed to get popular media" };
       }
     },
@@ -161,7 +186,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/top-rated",
-    async ({ query }) => {
+    async ({ query, set }) => {
       const { type = "movie", page = 1 } = query;
 
       try {
@@ -170,9 +195,17 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           Number(page),
         );
 
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error({ error }, "Top rated failed");
+        set.status = 500;
         return { error: "Failed to get top rated media" };
       }
     },
@@ -189,14 +222,22 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/upcoming",
-    async ({ query }) => {
+    async ({ query, set }) => {
       const { page = 1 } = query;
 
       try {
         const results = await metadataService.getUpcoming(Number(page));
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error({ error }, "Upcoming failed");
+        set.status = 500;
         return { error: "Failed to get upcoming movies" };
       }
     },
@@ -231,10 +272,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           type as "movie" | "series",
         );
 
-        return {
-          success: true,
-          data: enrichedData,
-        };
+        return { data: enrichedData };
       } catch (error) {
         logger.error({ error, tmdbId: params.tmdbId }, "Preview failed");
         set.status = 500;
@@ -316,6 +354,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       }
     },
     {
+      requireAuth: true,
       body: t.Object({
         tmdbId: t.Number(),
         type: t.Union([t.Literal("movie"), t.Literal("series")]),
@@ -387,6 +426,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       };
     },
     {
+      requireAuth: true,
       body: t.Object({
         items: t.Array(
           t.Object({
@@ -642,7 +682,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/tmdb/:tmdbId/recommendations",
-    async ({ params, query }) => {
+    async ({ params, query, set }) => {
       const { type = "movie", page = 1 } = query;
 
       try {
@@ -652,12 +692,20 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           Number(page),
         );
 
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error(
           { error, tmdbId: params.tmdbId },
           "Recommendations failed",
         );
+        set.status = 500;
         return { error: "Failed to get recommendations" };
       }
     },
@@ -677,7 +725,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
    */
   .get(
     "/tmdb/:tmdbId/similar",
-    async ({ params, query }) => {
+    async ({ params, query, set }) => {
       const { type = "movie", page = 1 } = query;
 
       try {
@@ -687,9 +735,17 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           Number(page),
         );
 
-        return { success: true, data: results };
+        return {
+          data: results.results,
+          page: results.page,
+          totalPages: results.totalPages,
+          total: results.totalResults,
+          hasNext: results.page < results.totalPages,
+          hasPrev: results.page > 1,
+        };
       } catch (error) {
         logger.error({ error, tmdbId: params.tmdbId }, "Similar failed");
+        set.status = 500;
         return { error: "Failed to get similar media" };
       }
     },
@@ -790,7 +846,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         .from(listItems)
         .innerJoin(lists, eq(listItems.listId, lists.id))
         .innerJoin(userTable, eq(lists.userId, userTable.id))
-        .where(eq(listItems.mediaId, params.id))
+        .where(and(eq(listItems.mediaId, params.id), eq(lists.isPublic, true)))
         .orderBy(desc(lists.likesCount))
         .limit(limit)
         .offset(offset);
@@ -798,7 +854,8 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       const [{ total }] = await db
         .select({ total: count() })
         .from(listItems)
-        .where(eq(listItems.mediaId, params.id));
+        .innerJoin(lists, eq(listItems.listId, lists.id))
+        .where(and(eq(listItems.mediaId, params.id), eq(lists.isPublic, true)));
 
       return {
         data: results.map((r) => ({

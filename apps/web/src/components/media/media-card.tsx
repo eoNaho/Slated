@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Star, Heart, Plus, Film, Tv } from "lucide-react";
 import type { Media } from "@/types";
 import { getMediaUrl } from "@/lib/utils";
@@ -25,11 +26,12 @@ export function MediaCard({ media, large = false }: MediaCardProps) {
         className={`relative overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-md transition-all duration-300 ease-out group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-purple-900/20 group-hover:border-purple-500/30 ${large ? "w-[280px] h-[420px]" : "w-[160px] h-[240px] md:w-[200px] md:h-[300px]"}`}
       >
         {media.posterPath ? (
-          <img
+          <Image
             src={media.posterPath}
             alt={media.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100"
-            loading="lazy"
+            fill
+            unoptimized
+            className="object-cover transition-transform duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-800">

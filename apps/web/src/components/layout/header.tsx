@@ -23,8 +23,8 @@ const navLinks = [
   { href: "/movies", label: "Filmes" },
   { href: "/series", label: "Séries" },
   { href: "/lists", label: "Listas" },
+  { href: "/clubs", label: "Clubs" },
   { href: "/discover", label: "Descobrir" },
-  { href: "/community", label: "Comunidade" },
 ];
 
 export function Header() {

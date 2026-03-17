@@ -30,34 +30,38 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
   })
 
   // System Stats
-  .get("/stats", async () => {
-    const [{ totalUsers }] = await db
-      .select({ totalUsers: count() })
-      .from(userTable);
-    const [{ totalMedia }] = await db
-      .select({ totalMedia: count() })
-      .from(media);
-    const [{ totalReviews }] = await db
-      .select({ totalReviews: count() })
-      .from(reviews);
-    const [{ totalLists }] = await db
-      .select({ totalLists: count() })
-      .from(lists);
-    const [{ pendingReports }] = await db
-      .select({ pendingReports: count() })
-      .from(reports)
-      .where(eq(reports.status, "pending"));
+  .get(
+    "/stats",
+    async () => {
+      const [{ totalUsers }] = await db
+        .select({ totalUsers: count() })
+        .from(user);
+      const [{ totalMedia }] = await db
+        .select({ totalMedia: count() })
+        .from(media);
+      const [{ totalReviews }] = await db
+        .select({ totalReviews: count() })
+        .from(reviews);
+      const [{ totalLists }] = await db
+        .select({ totalLists: count() })
+        .from(lists);
+      const [{ pendingReports }] = await db
+        .select({ pendingReports: count() })
+        .from(reports)
+        .where(eq(reports.status, "pending"));
 
-    return {
-      data: {
-        user: totalUsers,
-        media: totalMedia,
-        reviews: totalReviews,
-        lists: totalLists,
-        reports: pendingReports,
-      },
-    };
-  }, { requireAuth: true })
+      return {
+        data: {
+          user: totalUsers,
+          media: totalMedia,
+          reviews: totalReviews,
+          lists: totalLists,
+          reports: pendingReports,
+        },
+      };
+    },
+    { requireAuth: true },
+  )
 
   // Manage Users
   .get(
@@ -69,11 +73,11 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       const q = query.q || "";
 
       // Simple search implementation
-      let baseQuery = db.select().from(userTable).limit(limit).offset(offset);
+      let baseQuery = db.select().from(user).limit(limit).offset(offset);
 
       const results = await baseQuery;
 
-      const [{ total }] = await db.select({ total: count() }).from(userTable);
+      const [{ total }] = await db.select({ total: count() }).from(user);
 
       return { data: results, total, page, limit };
     },
@@ -84,7 +88,7 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
         limit: t.Optional(t.String()),
         q: t.Optional(t.String()),
       }),
-    }
+    },
   )
 
   // Ban/Unban User
@@ -96,7 +100,7 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       const [updated] = await db
         .update(user)
         .set({ status })
-        .where(eq(userTable.id, params.id))
+        .where(eq(user.id, params.id))
         .returning();
 
       if (!updated) {
@@ -116,7 +120,7 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
           t.Literal("banned"),
         ]),
       }),
-    }
+    },
   )
 
   // Reports Management
@@ -136,7 +140,7 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
     {
       requireAuth: true,
       query: t.Object({ status: t.Optional(t.String()) }),
-    }
+    },
   )
 
   .patch(
@@ -167,5 +171,5 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       body: t.Object({
         status: t.Union([t.Literal("resolved"), t.Literal("dismissed")]),
       }),
-    }
+    },
   );

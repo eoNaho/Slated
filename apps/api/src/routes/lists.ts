@@ -5,14 +5,12 @@ import {
   listItems,
   media,
   user as userTable,
-  likes,
   activities,
   eq,
   and,
   desc,
   count,
   sql,
-  ilike,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 

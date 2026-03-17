@@ -3,7 +3,6 @@
  */
 
 import type {
-  Media,
   MediaDetails,
   User,
   UserStats,
@@ -16,10 +15,8 @@ import type {
   DiaryEntry,
   Activity,
   Notification,
-  Achievement,
   Plan,
   PaginatedResponse,
-  SearchResults,
   SearchResult,
   EnrichedMediaData,
   SearchOptions,
@@ -43,6 +40,7 @@ async function fetcher<T>(
   endpoint: string,
   options: RequestInit & { token?: string } = {}
 ): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { token: _token, ...init } = options;
 
   const headers: HeadersInit = {
@@ -162,14 +160,14 @@ export const mediaApi = {
     if (options.sortBy) params.set("sortBy", options.sortBy);
     if (options.language) params.set("language", options.language);
 
-    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/discover?${params}`
     );
   },
 
   // Quick Preview (Enriched Data without Import)
   preview: (tmdbId: number, type: "movie" | "series") => {
-    return fetcher<{ success: true; data: EnrichedMediaData }>(
+    return fetcher<{ data: EnrichedMediaData }>(
       `/media/tmdb/${tmdbId}/preview?type=${type}`
     );
   },
@@ -179,37 +177,37 @@ export const mediaApi = {
     type: "all" | "movie" | "series" = "all",
     page = 1
   ) => {
-    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/trending?timeWindow=${timeWindow}&type=${type}&page=${page}`
     );
   },
 
   getPopular: (type: "movie" | "series" = "movie", page = 1) => {
-    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/popular?type=${type}&page=${page}`
     );
   },
 
   getTopRated: (type: "movie" | "series" = "movie", page = 1) => {
-    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/top-rated?type=${type}&page=${page}`
     );
   },
 
   getUpcoming: (page = 1) => {
-    return fetcher<{ success: true; data: PaginatedResponse<SearchResult> }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/upcoming?page=${page}`
     );
   },
 
   getRecommendations: (tmdbId: number, type: "movie" | "series", page = 1) => {
-    return fetcher<{ success: true; data: { results: SearchResult[]; page: number; totalPages: number } }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/tmdb/${tmdbId}/recommendations?type=${type}&page=${page}`
     );
   },
 
   getSimilar: (tmdbId: number, type: "movie" | "series", page = 1) => {
-    return fetcher<{ success: true; data: { results: SearchResult[]; page: number; totalPages: number } }>(
+    return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/tmdb/${tmdbId}/similar?type=${type}&page=${page}`
     );
   },
@@ -240,7 +238,7 @@ export const mediaApi = {
         imported: number;
         skipped: number;
         failed: number;
-        details: any;
+        details: { success: string[]; failed: { tmdbId: number; error: string }[]; skipped: number[] };
       };
     }>("/media/import/batch", {
       method: "POST",
@@ -436,7 +434,7 @@ export const peopleApi = {
         birthPlace?: string;
         popularity?: number;
       };
-      credits: any[];
+      credits: Record<string, unknown>[];
     }>(`/people/${id}`),
 };
 

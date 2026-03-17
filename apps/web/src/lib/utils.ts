@@ -43,6 +43,17 @@ export function slugify(title: string): string {
  * Generate URL for a media item (movie or series)
  * Uses media.slug if available, otherwise generates from title
  */
+export function calculateAge(birthDate: string, deathDate?: string | null): number {
+  const birth = new Date(birthDate);
+  const end = deathDate ? new Date(deathDate) : new Date();
+  let age = end.getFullYear() - birth.getFullYear();
+  const monthDiff = end.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && end.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 export function getMediaUrl(media: {
   type: "movie" | "series";
   title: string;

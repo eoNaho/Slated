@@ -135,6 +135,7 @@ export default async function ProfilePage({ params }: PageProps) {
       <div className="fixed inset-0 bg-gradient-to-br from-black via-purple-900/20 to-black -z-10" />
       <ProfileTabs
         profile={profile}
+        username={username}
         isOwnProfile={isOwnProfile}
         favorites={[]}
         reviews={reviews}

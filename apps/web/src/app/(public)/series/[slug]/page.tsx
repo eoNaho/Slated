@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import {
   Star,
   Clock,
@@ -15,44 +16,27 @@ import {
   ChevronRight,
   Layers,
 } from "lucide-react";
-import { mediaApi } from "@/lib/api";
-import type { MediaDetails, Review, SearchResult } from "@/types";
+import { getMovie, getPopularReviews, getSimilarSeries } from "@/lib/queries/media";
 import { MovieActions } from "@/components/movies/movie-actions";
-
-async function getSeries(slug: string): Promise<MediaDetails | null> {
-  try {
-    const res = await mediaApi.getBySlug(slug);
-    return res.data ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function getPopularReviews(mediaId: string): Promise<Review[]> {
-  try {
-    const res = await mediaApi.getReviews(mediaId, "popular", 1);
-    return res.data ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function getSimilarSeries(tmdbId: number): Promise<SearchResult[]> {
-  try {
-    const res = await mediaApi.getSimilar(tmdbId, "series", 1);
-    return res.data?.results ?? [];
-  } catch {
-    return [];
-  }
-}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const series = await getMovie(slug);
+  const title = series?.title ?? slug.replace(/-/g, " ");
+  const year = series?.releaseDate ? new Date(series.releaseDate).getFullYear() : null;
+  return {
+    title: year ? `${title} (${year}) | PixelReel` : `${title} | PixelReel`,
+    description: series?.overview ?? `Watch ${title} on PixelReel.`,
+  };
+}
+
 export default async function SeriesPage({ params }: PageProps) {
   const { slug } = await params;
-  const series = await getSeries(slug);
+  const series = await getMovie(slug);
 
   if (!series) notFound();
 
@@ -60,7 +44,9 @@ export default async function SeriesPage({ params }: PageProps) {
 
   const cast = series.credits?.filter((c) => c.creditType === "cast") ?? [];
   const crew = series.credits?.filter((c) => c.creditType === "crew") ?? [];
-  const creators = crew.filter((c) => c.job === "Creator" || c.job === "Series Creator" || c.department === "Creating");
+  const creators = crew.filter(
+    (c) => c.job === "Creator" || c.job === "Series Creator" || c.department === "Creating"
+  );
 
   const [reviews, similarSeries] = await Promise.all([
     getPopularReviews(series.id),
@@ -119,7 +105,10 @@ export default async function SeriesPage({ params }: PageProps) {
                 </h3>
                 <div className="space-y-2">
                   {series.streaming.map((service) => (
-                    <div key={service.id} className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5 hover:border-white/10 transition-colors cursor-pointer">
+                    <div
+                      key={service.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5 hover:border-white/10 transition-colors cursor-pointer"
+                    >
                       <Play className="h-4 w-4 text-purple-400" />
                       <span className="text-sm text-white">{service.name}</span>
                     </div>

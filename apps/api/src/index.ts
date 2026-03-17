@@ -25,6 +25,7 @@ import { adminRoutes } from "./routes/admin";
 import { plansRoutes } from "./routes/plans";
 import { privacyRoutes } from "./routes/privacy";
 import { clubsRoutes } from "./routes/clubs";
+import { clubContentRoutes } from "./routes/club-content";
 import { commentsRoutes } from "./routes/comments";
 import { feedRoutes } from "./routes/feed";
 import { searchRoutes } from "./routes/search";
@@ -142,6 +143,7 @@ const app = new Elysia()
       .use(plansRoutes)
       .use(privacyRoutes)
       .use(clubsRoutes)
+      .use(clubContentRoutes)
       .use(commentsRoutes)
       .use(feedRoutes)
       .use(searchRoutes)

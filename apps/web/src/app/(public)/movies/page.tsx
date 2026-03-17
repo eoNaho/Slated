@@ -1,25 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Film, TrendingUp, Star, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCard } from "@/components/media";
-import type { Media, PaginatedResponse } from "@/types";
+import { getPopularMovies } from "@/lib/queries/media";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
-
-async function getPopularMovies(): Promise<PaginatedResponse<Media> | null> {
-  try {
-    const res = await fetch(`${API_URL}/media/popular?type=movie&limit=20`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-export const metadata = {
+export const metadata: Metadata = {
   title: "Filmes",
   description: "Descubra e explore filmes populares",
 };
@@ -38,7 +24,7 @@ export default async function MoviesPage() {
             <h1 className="text-4xl font-bold text-white">Filmes</h1>
           </div>
           <p className="text-xl text-zinc-400 max-w-2xl">
-            Descubra os melhores filmes de todo o mundo. Acompanhe o que já viu, 
+            Descubra os melhores filmes de todo o mundo. Acompanhe o que já viu,
             avalie os seus favoritos e crie o seu diário de cinema pessoal.
           </p>
         </div>
@@ -66,10 +52,6 @@ export default async function MoviesPage() {
       <div className="container mx-auto px-4 lg:px-8 py-8">
         {movies && movies.data.length > 0 ? (
           <>
-            {/* Grid ajustado:
-                - gap-6 para melhor espaçamento
-                - O MediaCard agora é w-full, então ele preenche cada coluna sem transbordar
-            */}
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {movies.data.map((movie) => (
                 <MediaCard key={movie.id} media={movie} />

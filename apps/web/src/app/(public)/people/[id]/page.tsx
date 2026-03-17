@@ -1,58 +1,32 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Calendar, MapPin, Star, Film, Tv, ChevronLeft } from "lucide-react";
-import { mediaApi } from "@/lib/api";
-import type { Person, Credit } from "@/types";
-
-// Fetch person by ID - using the credits data we already have
-async function getPerson(id: string): Promise<{
-  person: Person;
-  credits: Credit[];
-} | null> {
-  try {
-    // For now, we'll try to get person info from any media they're in
-    // In a full implementation, there would be a /people/:id endpoint
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"}/people/${id}`
-    );
-    if (response.ok) {
-      const data = await response.json();
-      return data;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// Calculate age
-function calculateAge(birthDate: string, deathDate?: string | null): number {
-  const birth = new Date(birthDate);
-  const end = deathDate ? new Date(deathDate) : new Date();
-  let age = end.getFullYear() - birth.getFullYear();
-  const monthDiff = end.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && end.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
-}
+import type { Metadata } from "next";
+import { Star, Film, Tv, ChevronLeft } from "lucide-react";
+import { getPerson } from "@/lib/queries/people";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const personData = await getPerson(id);
+  const name = personData?.person.name ?? "Person";
+  return {
+    title: `${name} | PixelReel`,
+    description: `Filmography and biography for ${name}.`,
+  };
 }
 
 export default async function PersonPage({ params }: PageProps) {
   const { id } = await params;
   const personData = await getPerson(id);
 
-  if (!personData) {
-    notFound();
-  }
+  if (!personData) notFound();
 
   const { person, credits = [] } = personData;
 
-  // Separate movie and series credits
   const movieCredits = credits.filter((c) => c.mediaId && c.creditType);
   const castCredits = movieCredits.filter((c) => c.creditType === "cast");
   const crewCredits = movieCredits.filter((c) => c.creditType === "crew");
@@ -62,7 +36,6 @@ export default async function PersonPage({ params }: PageProps) {
       {/* Header with gradient */}
       <div className="relative bg-gradient-to-b from-purple-900/20 to-zinc-950 pt-8 pb-12">
         <div className="container mx-auto px-4 lg:px-8">
-          {/* Back button */}
           <Link
             href="javascript:history.back()"
             className="inline-flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
@@ -98,12 +71,9 @@ export default async function PersonPage({ params }: PageProps) {
               </h1>
 
               {person.knownFor && (
-                <p className="text-lg text-zinc-400 mb-4">
-                  Known for {person.knownFor}
-                </p>
+                <p className="text-lg text-zinc-400 mb-4">Known for {person.knownFor}</p>
               )}
 
-              {/* Stats */}
               <div className="flex flex-wrap gap-4 mb-6">
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900/50 border border-white/5">
                   <Film className="h-4 w-4 text-purple-400" />
@@ -121,7 +91,6 @@ export default async function PersonPage({ params }: PageProps) {
                 )}
               </div>
 
-              {/* Personal Info - placeholder for when API provides more data */}
               <div className="space-y-2 text-sm text-zinc-400">
                 <p className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-yellow-400" />
@@ -135,7 +104,6 @@ export default async function PersonPage({ params }: PageProps) {
 
       {/* Filmography */}
       <div className="container mx-auto px-4 lg:px-8 py-8">
-        {/* Acting Credits */}
         {castCredits.length > 0 && (
           <section className="mb-12">
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -154,9 +122,7 @@ export default async function PersonPage({ params }: PageProps) {
                     Media #{credit.mediaId?.slice(0, 8)}
                   </p>
                   {credit.character && (
-                    <p className="text-xs text-zinc-500 truncate">
-                      as {credit.character}
-                    </p>
+                    <p className="text-xs text-zinc-500 truncate">as {credit.character}</p>
                   )}
                 </div>
               ))}
@@ -164,7 +130,6 @@ export default async function PersonPage({ params }: PageProps) {
           </section>
         )}
 
-        {/* Crew Credits */}
         {crewCredits.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -187,7 +152,6 @@ export default async function PersonPage({ params }: PageProps) {
           </section>
         )}
 
-        {/* Empty state */}
         {castCredits.length === 0 && crewCredits.length === 0 && (
           <div className="text-center py-12">
             <Film className="h-12 w-12 text-zinc-700 mx-auto mb-3" />
