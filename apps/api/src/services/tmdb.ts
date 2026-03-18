@@ -1,4 +1,4 @@
-import { db, media, genres, mediaGenres, people, mediaCredits } from "../db";
+import { db, media, genres, mediaGenres, people, mediaCredits, streamingServices, mediaStreaming } from "../db";
 import { eq, inArray } from "drizzle-orm";
 import { storageService } from "./storage";
 import { logger } from "../utils/logger";
@@ -66,6 +66,19 @@ export interface TMDBMediaDetails {
   };
   videos?: {
     results: { key: string; type: string; site: string }[];
+  };
+  "watch/providers"?: {
+    results: Record<
+      string,
+      {
+        link?: string;
+        flatrate?: {
+          provider_id: number;
+          provider_name: string;
+          logo_path: string;
+        }[];
+      }
+    >;
   };
   // TV series use external_ids to expose imdb_id (movies have it directly)
   external_ids?: {
@@ -315,9 +328,9 @@ export class TMDBService {
   async syncMedia(tmdbId: number, type: "movie" | "series") {
     const endpoint = type === "movie" ? `/movie/${tmdbId}` : `/tv/${tmdbId}`;
 
-    // Fetch full details — append external_ids for TV to get imdb_id
+    // Fetch full details — append external_ids for TV to get imdb_id, and watch/providers for all
     const data = await this.fetch<TMDBMediaDetails>(endpoint, {
-      append_to_response: type === "series" ? "credits,videos,external_ids" : "credits,videos",
+      append_to_response: type === "series" ? "credits,videos,external_ids,watch/providers" : "credits,videos,watch/providers",
       language: "en-US",
     });
 
@@ -592,6 +605,83 @@ export class TMDBService {
             castOrder: p.order,
           })
           .onConflictDoNothing();
+      }
+
+      // Sync Watch Providers
+      const providersData = data["watch/providers"]?.results;
+      if (providersData) {
+        // We will process flatrate providers for all available countries.
+        // First, let's collect all unique providers.
+        const allProviders = new Map<number, { name: string; logoPath: string | null }>();
+        const countryProviderLinks: Array<{ country: string; providerId: number; url?: string }> = [];
+
+        for (const [country, countryData] of Object.entries(providersData)) {
+          if (countryData.flatrate) {
+            for (const provider of countryData.flatrate) {
+              allProviders.set(provider.provider_id, {
+                name: provider.provider_name,
+                logoPath: getTmdbImageUrl(provider.logo_path, "original")
+              });
+              countryProviderLinks.push({
+                country,
+                providerId: provider.provider_id,
+                url: countryData.link
+              });
+            }
+          }
+        }
+
+        if (allProviders.size > 0) {
+          logger.info({ tmdbId, providersCount: allProviders.size }, "Syncing watch providers");
+
+          // Insert or update streaming services
+          for (const [providerId, provider] of allProviders.entries()) {
+            await tx
+              .insert(streamingServices)
+              .values({
+                tmdbId: providerId,
+                name: provider.name,
+                slug: generateSlug(provider.name),
+                logoPath: provider.logoPath,
+              })
+              .onConflictDoUpdate({
+                target: streamingServices.tmdbId,
+                set: {
+                  name: provider.name,
+                  logoPath: provider.logoPath,
+                }
+              });
+          }
+
+          // Get the local DB IDs for the synced services
+          const dbServices = await tx
+            .select()
+            .from(streamingServices)
+            .where(inArray(streamingServices.tmdbId, Array.from(allProviders.keys())));
+
+          const tmdbIdToLocalId = new Map(dbServices.map(s => [s.tmdbId, s.id]));
+
+          // Clear existing mappings for this media to avoid stale data
+          await tx
+            .delete(mediaStreaming)
+            .where(eq(mediaStreaming.mediaId, insertedMedia.id));
+
+          // Insert new country-provider mappings
+          for (const link of countryProviderLinks) {
+            const localServiceId = tmdbIdToLocalId.get(link.providerId);
+            if (localServiceId) {
+              await tx
+                .insert(mediaStreaming)
+                .values({
+                  mediaId: insertedMedia.id,
+                  serviceId: localServiceId,
+                  country: link.country.toUpperCase(),
+                  url: link.url,
+                })
+                .onConflictDoNothing();
+            }
+          }
+        }
       }
 
       logger.info(

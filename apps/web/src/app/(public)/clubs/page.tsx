@@ -43,67 +43,67 @@ export default async function ClubsPage({ searchParams }: PageProps) {
   const currentPage = Number(page) || 1;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 relative overflow-hidden">
+      <div className="fixed inset-0 bg-gradient-to-br from-black via-purple-900/10 to-black -z-10" />
+      
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="border-b border-white/5">
-        <div className="container mx-auto px-6 pt-10 pb-8">
-          <div className="flex items-start justify-between gap-6 mb-8">
+      <div className="relative border-b border-white/5 bg-zinc-900/20 backdrop-blur-md">
+        <div className="container mx-auto px-6 pt-16 pb-12">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-8 mb-12">
             {/* Title */}
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.35em] text-amber-500/70 mb-3">
-                Comunidades de Cinema
+            <div className="relative">
+              <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl -z-10 animate-pulse" />
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-400 mb-4 flex items-center gap-2">
+                <span className="w-8 h-px bg-purple-500/30" />
+                Community Hub
               </p>
               <h1
-                className="font-black text-white leading-none mb-4"
+                className="font-black text-white leading-none mb-6"
                 style={{
-                  fontSize: "clamp(3rem, 8vw, 6rem)",
-                  letterSpacing: "-0.04em",
+                  fontSize: "clamp(3.5rem, 10vw, 7rem)",
+                  letterSpacing: "-0.05em",
                 }}
               >
                 Clubs
               </h1>
-              <p className="text-zinc-500 text-sm max-w-md leading-relaxed">
-                Encontre sua tribo. Assista junto, discuta, vote, e descubra
-                cinema com quem entende.
+              <p className="text-zinc-400 text-base max-w-lg leading-relaxed font-medium">
+                Find your tribe. Watch together, discuss, vote, and discover
+                the magic of cinema with enthusiasts who share your passion.
               </p>
             </div>
 
             {/* CTA */}
             <Link
               href="/clubs/new"
-              className="shrink-0 mt-1 flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white uppercase tracking-wide transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(217,119,6,0.4)]"
-              style={{
-                background: "linear-gradient(135deg, #d97706, #b45309)",
-                boxShadow: "0 4px 20px rgba(217,119,6,0.3)",
-              }}
+              className="group relative flex items-center gap-2 px-8 py-4 text-sm font-bold text-white uppercase tracking-wider transition-all duration-300 rounded-2xl overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Plus className="h-4 w-4" />
-              Criar Club
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 group-hover:from-purple-500 group-hover:to-indigo-500 transition-all" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.2),transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Plus className="h-4 w-4 relative z-10" />
+              <span className="relative z-10">Create Club</span>
             </Link>
           </div>
 
           {/* ── Filters ── */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 p-2 rounded-3xl bg-black/40 border border-white/5 backdrop-blur-xl">
             {/* Search */}
-            <form method="GET" className="relative w-full sm:w-auto sm:min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600 pointer-events-none" />
+            <form method="GET" className="relative w-full lg:w-80 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-purple-400 transition-colors pointer-events-none" />
               <input
                 name="search"
                 defaultValue={search}
-                placeholder="Buscar clubs..."
-                className="w-full pl-9 pr-4 py-2 bg-zinc-900 border border-white/6 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500/40 transition-colors"
-                style={{ borderRadius: "2px" }}
+                placeholder="Search clubs..."
+                className="w-full pl-11 pr-4 py-3 bg-zinc-900/50 border border-white/5 rounded-2xl text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/40 transition-all"
               />
               {category && (
                 <input type="hidden" name="category" value={category} />
               )}
             </form>
 
-            {/* Divider */}
-            <div className="hidden sm:block h-6 w-px bg-white/8" />
+            <div className="hidden lg:block h-8 w-px bg-white/10" />
 
             {/* Category chips */}
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden w-full lg:w-auto">
               {CATEGORIES.map((cat) => {
                 const isActive = (category ?? "") === cat.value;
                 const href = cat.value
@@ -113,12 +113,11 @@ export default async function ClubsPage({ searchParams }: PageProps) {
                   <Link
                     key={cat.value}
                     href={href}
-                    className={`shrink-0 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200 border ${
+                    className={`shrink-0 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-300 rounded-xl border ${
                       isActive
-                        ? "bg-amber-500/15 text-amber-300 border-amber-500/40"
-                        : "bg-transparent text-zinc-600 border-white/6 hover:border-white/15 hover:text-zinc-300"
+                        ? "bg-purple-500/10 text-purple-400 border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.15)]"
+                        : "bg-transparent text-zinc-500 border-white/5 hover:border-white/20 hover:text-zinc-300"
                     }`}
-                    style={{ borderRadius: "2px" }}
                   >
                     {cat.label}
                   </Link>
@@ -130,38 +129,39 @@ export default async function ClubsPage({ searchParams }: PageProps) {
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────────── */}
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-12">
         {/* Count */}
         {result && result.total > 0 && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 mb-6">
-            <span className="text-zinc-400">{result.total}</span> clubs
-            encontrados
-          </p>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">
+              <span className="text-purple-400">{result.total}</span> communities found
+            </p>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          </div>
         )}
 
         {/* Grid */}
         {clubs.length === 0 ? (
-          <div className="py-24 text-center">
-            <div className="w-16 h-16 border border-white/6 flex items-center justify-center mx-auto mb-5">
-              <Film className="h-7 w-7 text-zinc-700" />
+          <div className="py-32 text-center rounded-[3rem] bg-zinc-900/20 border border-white/5 backdrop-blur-sm max-w-3xl mx-auto">
+            <div className="w-20 h-20 rounded-3xl bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto mb-8 shadow-2xl">
+              <Film className="h-8 w-8 text-zinc-600" />
             </div>
-            <p className="text-zinc-300 text-base font-semibold mb-1">
-              Nenhum club encontrado
+            <h3 className="text-2xl font-bold text-white mb-3">
+              No clubs found
+            </h3>
+            <p className="text-zinc-500 text-base max-w-sm mx-auto mb-10 leading-relaxed">
+              Looks like there are no communities matching your criteria. Why not start one yourself?
             </p>
-            <p className="text-zinc-600 text-sm">Seja o primeiro a criar um.</p>
             <Link
               href="/clubs/new"
-              className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 text-sm font-bold text-white uppercase tracking-wide transition-all hover:-translate-y-0.5"
-              style={{
-                background: "linear-gradient(135deg, #d97706, #b45309)",
-                borderRadius: "2px",
-              }}
+              className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold text-white uppercase tracking-wider bg-white/5 border border-white/10 rounded-2xl transition-all hover:bg-white/10 hover:-translate-y-1 active:scale-[0.98]"
             >
-              <Plus className="h-4 w-4" /> Criar Club
+              <Plus className="h-4 w-4" /> Start a Club
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {clubs.map((club) => (
               <ClubCard key={club.id} club={club} />
             ))}
@@ -170,7 +170,7 @@ export default async function ClubsPage({ searchParams }: PageProps) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1 mt-12">
+          <div className="flex items-center justify-center gap-3 mt-20">
             {Array.from({ length: totalPages }).map((_, i) => {
               const p = i + 1;
               const isActive = p === currentPage;
@@ -182,12 +182,11 @@ export default async function ClubsPage({ searchParams }: PageProps) {
                 <Link
                   key={p}
                   href={`?${qs}`}
-                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
+                  className={`w-12 h-12 flex items-center justify-center text-sm font-bold rounded-2xl border transition-all duration-300 ${
                     isActive
-                      ? "bg-amber-500/15 text-amber-300 border-amber-500/40"
-                      : "text-zinc-600 border-transparent hover:border-white/10 hover:text-zinc-300"
+                      ? "bg-purple-500/10 text-purple-400 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.1)]"
+                      : "text-zinc-500 border-white/5 hover:border-white/20 hover:text-zinc-300"
                   }`}
-                  style={{ borderRadius: "2px" }}
                 >
                   {p}
                 </Link>

@@ -12,6 +12,9 @@ export { ActivitySidebar } from "./activity-sidebar";
 export { FilmsDiary } from "./films-diary";
 export { FilmsGrid } from "./films-grid";
 export { RatingStars } from "./rating-stars";
+export { WatchingNow } from "./watching-now";
+export { ScrobblesHistory } from "./scrobbles-history";
+export { ScrobblesStats } from "./scrobbles-stats";
 
 // Mock Data
 export * from "./mock-data";

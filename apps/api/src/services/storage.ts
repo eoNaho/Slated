@@ -229,6 +229,61 @@ export class StorageService {
   }
 
   /**
+   * Optimize and upload a user avatar (square)
+   * Creates both original (400px) and small (80px) sizes
+   */
+  async uploadAvatar(
+    buffer: ArrayBuffer,
+    folder: string
+  ): Promise<{ path: string; paths: { original: string; small: string } }> {
+    const input = Buffer.from(buffer);
+
+    const original = await sharp(input)
+      .resize({ width: 400, height: 400, fit: "cover", withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    const small = await sharp(input)
+      .resize({ width: 80, height: 80, fit: "cover", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    const originalPath = `${folder}/avatar.webp`;
+    const smallPath = `${folder}/avatar-sm.webp`;
+
+    await Promise.all([
+      this.upload(original, originalPath, "image/webp"),
+      this.upload(small, smallPath, "image/webp"),
+    ]);
+
+    return {
+      path: originalPath,
+      paths: { original: originalPath, small: smallPath },
+    };
+  }
+
+  /**
+   * Optimize and upload a user profile cover/banner
+   * Wide format (1920px max width)
+   */
+  async uploadCover(
+    buffer: ArrayBuffer,
+    folder: string
+  ): Promise<{ path: string }> {
+    const input = Buffer.from(buffer);
+
+    const optimized = await sharp(input)
+      .resize({ width: 1920, withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    const path = `${folder}/cover.webp`;
+    await this.upload(optimized, path, "image/webp");
+
+    return { path };
+  }
+
+  /**
    * Check if a file exists in B2
    */
   async exists(key: string): Promise<boolean> {

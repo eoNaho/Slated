@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
+import { toast } from "sonner";
 interface MovieActionsProps {
   movie: {
     id: string;
@@ -22,6 +23,32 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const year = movie.releaseDate
     ? new Date(movie.releaseDate).getFullYear()
     : undefined;
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = `${movie.title} - PixelReel`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          url,
+        });
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          console.error("Error sharing:", err);
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard!");
+      } catch (err) {
+        console.error("Error copying to clipboard:", err);
+        toast.error("Failed to copy link");
+      }
+    }
+  };
 
   return (
     <>
@@ -82,6 +109,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
         </Button>
         <Button
           variant="ghost"
+          onClick={handleShare}
           className="flex-1 text-zinc-400 hover:bg-white/5"
         >
           <Share2 className="h-4 w-4 mr-2" />

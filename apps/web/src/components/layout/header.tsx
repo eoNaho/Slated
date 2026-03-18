@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useSession, signOut } from "@/lib/auth-client";
+import { resolveImage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -148,7 +149,7 @@ export function Header() {
               >
                 {avatarSrc ? (
                   <Image
-                    src={avatarSrc}
+                    src={resolveImage(avatarSrc)!}
                     alt={displayName}
                     width={32}
                     height={32}

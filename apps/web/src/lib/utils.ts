@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Resolves a potentially relative image path from the backend storage
+ * into a full absolute URL using the API's image proxy.
+ */
+export function resolveImage(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+  // Trim trailing slash from API_URL if present
+  const base = API_URL.replace(/\/$/, "");
+  return `${base}/images/${path}`;
+}
+
 export function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",

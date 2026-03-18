@@ -16,6 +16,7 @@ export type GenderType = "male" | "female" | "non_binary" | "unknown";
 export type UserRole = "user" | "moderator" | "admin";
 export type UserStatus = "active" | "suspended" | "banned";
 export type Priority = "low" | "medium" | "high";
+export type ClubEventType = "watch" | "discussion";
 export type ActivityType =
   | "watched"
   | "review"
@@ -24,7 +25,7 @@ export type ActivityType =
   | "like"
   | "follow"
   | "achievement";
-export type TargetType = "media" | "review" | "list";
+export type TargetType = "media" | "review" | "list" | "club" | "event";
 export type AchievementCategory =
   | "watching"
   | "social"

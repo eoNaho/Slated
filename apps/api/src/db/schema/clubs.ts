@@ -57,6 +57,11 @@ export const clubJoinRequestStatusEnum = pgEnum("club_join_request_status", [
   "rejected",
 ]);
 
+export const clubEventTypeEnum = pgEnum("club_event_type", [
+  "watch",
+  "discussion",
+]);
+
 export const clubEventRsvpStatusEnum = pgEnum("club_event_rsvp_status", [
   "going",
   "interested",
@@ -88,7 +93,7 @@ export const clubs = pgTable(
     index("idx_clubs_owner").on(table.ownerId),
     index("idx_clubs_public").on(table.isPublic),
     index("idx_clubs_created").on(table.createdAt),
-  ]
+  ],
 );
 
 // ─── Club memberships ────────────────────────────────────────────────────────
@@ -110,7 +115,7 @@ export const clubMembers = pgTable(
     unique("unique_club_member").on(table.clubId, table.userId),
     index("idx_club_members_club").on(table.clubId),
     index("idx_club_members_user").on(table.userId),
-  ]
+  ],
 );
 
 // ─── Club invites (for private clubs or direct invitations) ──────────────────
@@ -136,7 +141,7 @@ export const clubInvites = pgTable(
     unique("unique_pending_invite").on(table.clubId, table.invitedUserId),
     index("idx_club_invites_invited").on(table.invitedUserId),
     index("idx_club_invites_club").on(table.clubId),
-  ]
+  ],
 );
 
 // ─── Club join requests (for private clubs with allowJoinRequests=true) ───────
@@ -161,7 +166,7 @@ export const clubJoinRequests = pgTable(
     unique("unique_join_request").on(table.clubId, table.userId),
     index("idx_join_requests_club").on(table.clubId),
     index("idx_join_requests_user").on(table.userId),
-  ]
+  ],
 );
 
 // ─── Club shared watchlist ────────────────────────────────────────────────────
@@ -173,13 +178,16 @@ export const clubWatchlistItems = pgTable(
     clubId: uuid("club_id")
       .references(() => clubs.id, { onDelete: "cascade" })
       .notNull(),
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "cascade" }),
+    mediaId: uuid("media_id").references(() => media.id, {
+      onDelete: "cascade",
+    }),
     // Denormalized for display without extra joins
     mediaTitle: text("media_title").notNull(),
     mediaPosterPath: text("media_poster_path"),
     mediaType: text("media_type").notNull(), // "movie" | "series"
-    suggestedBy: uuid("suggested_by")
-      .references(() => user.id, { onDelete: "set null" }),
+    suggestedBy: uuid("suggested_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     note: text("note"),
     isWatched: boolean("is_watched").default(false).notNull(),
     watchedAt: timestamp("watched_at", { withTimezone: true }),
@@ -188,7 +196,7 @@ export const clubWatchlistItems = pgTable(
   (table) => [
     index("idx_club_watchlist_club").on(table.clubId),
     index("idx_club_watchlist_media").on(table.mediaId),
-  ]
+  ],
 );
 
 // ─── Club screening events ────────────────────────────────────────────────────
@@ -202,8 +210,11 @@ export const clubScreeningEvents = pgTable(
       .notNull(),
     title: text("title").notNull(),
     description: text("description"),
-    // Optional linked film
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "set null" }),
+    eventType: clubEventTypeEnum("event_type").default("watch").notNull(),
+    // Optional linked film (usually for "watch" type)
+    mediaId: uuid("media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     mediaTitle: text("media_title"),
     mediaPosterPath: text("media_poster_path"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
@@ -219,7 +230,7 @@ export const clubScreeningEvents = pgTable(
   (table) => [
     index("idx_club_events_club").on(table.clubId),
     index("idx_club_events_scheduled").on(table.scheduledAt),
-  ]
+  ],
 );
 
 export const clubEventRsvps = pgTable(
@@ -240,7 +251,7 @@ export const clubEventRsvps = pgTable(
     unique("unique_event_rsvp").on(table.eventId, table.userId),
     index("idx_event_rsvps_event").on(table.eventId),
     index("idx_event_rsvps_user").on(table.userId),
-  ]
+  ],
 );
 
 // ─── Club posts (discussions + pinned announcements) ─────────────────────────
@@ -256,7 +267,9 @@ export const clubPosts = pgTable(
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     // Optional: discussion about a specific film
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "set null" }),
+    mediaId: uuid("media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     mediaTitle: text("media_title"),
     title: text("title").notNull(),
     content: text("content").notNull(),
@@ -269,7 +282,7 @@ export const clubPosts = pgTable(
     index("idx_club_posts_club").on(table.clubId),
     index("idx_club_posts_user").on(table.userId),
     index("idx_club_posts_pinned").on(table.clubId, table.isPinned),
-  ]
+  ],
 );
 
 export const clubPostComments = pgTable(
@@ -285,9 +298,7 @@ export const clubPostComments = pgTable(
     content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => [
-    index("idx_post_comments_post").on(table.postId),
-  ]
+  (table) => [index("idx_post_comments_post").on(table.postId)],
 );
 
 // ─── Club polls ───────────────────────────────────────────────────────────────
@@ -307,9 +318,7 @@ export const clubPolls = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => [
-    index("idx_club_polls_club").on(table.clubId),
-  ]
+  (table) => [index("idx_club_polls_club").on(table.clubId)],
 );
 
 export const clubPollOptions = pgTable(
@@ -321,13 +330,13 @@ export const clubPollOptions = pgTable(
       .notNull(),
     text: text("text").notNull(),
     // Optional linked film for "which movie to watch" polls
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "set null" }),
+    mediaId: uuid("media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     mediaPosterPath: text("media_poster_path"),
     votesCount: integer("votes_count").default(0).notNull(),
   },
-  (table) => [
-    index("idx_poll_options_poll").on(table.pollId),
-  ]
+  (table) => [index("idx_poll_options_poll").on(table.pollId)],
 );
 
 export const clubPollVotes = pgTable(
@@ -348,5 +357,5 @@ export const clubPollVotes = pgTable(
   (table) => [
     unique("unique_poll_vote").on(table.pollId, table.userId),
     index("idx_poll_votes_poll").on(table.pollId),
-  ]
+  ],
 );

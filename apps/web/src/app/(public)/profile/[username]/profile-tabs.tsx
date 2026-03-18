@@ -12,6 +12,7 @@ import {
   BarChart2,
   Lock,
   Users,
+  History,
 } from "lucide-react";
 import {
   ProfileHeader,
@@ -25,6 +26,8 @@ import {
   ActivityFeed,
   FilmsDiary,
   FilmsGrid,
+  ScrobblesHistory,
+  ScrobblesStats,
 } from "@/components/profile";
 import { ClubCard } from "@/components/clubs/club-card";
 import type { Club } from "@/lib/queries/clubs";
@@ -63,6 +66,7 @@ const tabs = [
   { value: "watchlist", label: "Watchlist", icon: Clock },
   { value: "likes", label: "Likes", icon: Heart },
   { value: "activity", label: "Activity", icon: ActivityIcon },
+  { value: "scrobbles", label: "Scrobbles", icon: History },
 ];
 
 const PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
@@ -194,6 +198,12 @@ export function ProfileTabs({
             {activeTab === "watchlist" && <WatchlistGrid items={watchlist} />}
             {activeTab === "likes" && <LikesGrid items={likes} />}
             {activeTab === "activity" && <ActivityFeed activities={activity} />}
+            {activeTab === "scrobbles" && (
+              <div className="space-y-12">
+                <ScrobblesStats />
+                <ScrobblesHistory />
+              </div>
+            )}
           </>
         )}
       </div>

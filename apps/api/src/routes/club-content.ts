@@ -345,6 +345,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
           clubId: params.id,
           title: body.title,
           description: body.description,
+          eventType: body.eventType,
           mediaId: body.mediaId,
           mediaTitle: body.mediaTitle,
           mediaPosterPath: body.mediaPosterPath,
@@ -362,6 +363,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       body: t.Object({
         title: t.String({ minLength: 3, maxLength: 100 }),
         description: t.Optional(t.String({ maxLength: 500 })),
+        eventType: t.Union([t.Literal("watch"), t.Literal("discussion")], { default: "watch" }),
         scheduledAt: t.String(),
         mediaId: t.Optional(t.String()),
         mediaTitle: t.Optional(t.String()),
@@ -397,8 +399,12 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       const updates: any = { updatedAt: new Date() };
       if (body.title !== undefined) updates.title = body.title;
       if (body.description !== undefined) updates.description = body.description;
+      if (body.eventType !== undefined) updates.eventType = body.eventType;
       if (body.scheduledAt !== undefined) updates.scheduledAt = new Date(body.scheduledAt);
       if (body.meetLink !== undefined) updates.meetLink = body.meetLink;
+      if (body.mediaId !== undefined) updates.mediaId = body.mediaId;
+      if (body.mediaTitle !== undefined) updates.mediaTitle = body.mediaTitle;
+      if (body.mediaPosterPath !== undefined) updates.mediaPosterPath = body.mediaPosterPath;
 
       const [updated] = await db
         .update(clubScreeningEvents)
@@ -414,8 +420,12 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       body: t.Object({
         title: t.Optional(t.String({ minLength: 3, maxLength: 100 })),
         description: t.Optional(t.String({ maxLength: 500 })),
+        eventType: t.Optional(t.Union([t.Literal("watch"), t.Literal("discussion")])),
         scheduledAt: t.Optional(t.String()),
         meetLink: t.Optional(t.String({ maxLength: 300 })),
+        mediaId: t.Optional(t.String()),
+        mediaTitle: t.Optional(t.String()),
+        mediaPosterPath: t.Optional(t.String()),
       }),
     }
   )

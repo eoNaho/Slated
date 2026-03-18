@@ -24,8 +24,13 @@ import {
   MessageSquare,
   Newspaper,
   CheckCircle2,
+  Camera,
+  Trash2,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
+import { useSession, authClient } from "@/lib/auth-client";
+import { resolveImage } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -268,6 +273,11 @@ export function SettingsClient() {
   const [notifComments, setNotifComments] = useState(true);
   const [notifDigest, setNotifDigest] = useState(false);
 
+  // ── Image upload state
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [coverLoading, setCoverLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number>(0);
+
   // Pre-fill from session
   useEffect(() => {
     if (session?.user) {
@@ -317,6 +327,54 @@ export function SettingsClient() {
       toast.error("Failed to save profile");
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (file: File, type: "avatar" | "cover") => {
+    const loadingSetter = type === "avatar" ? setAvatarLoading : setCoverLoading;
+    loadingSetter(true);
+
+    try {
+      const formData = new FormData();
+      formData.append(type, file);
+
+      const res = await fetch(`${API}/users/me/${type}`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error(`Failed to upload ${type}`);
+
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} updated`);
+      await authClient.getSession(); // Refresh session to get new URL
+      setLastUpdated(Date.now()); // Force refresh images
+    } catch (err: any) {
+      toast.error(err.message || `Failed to upload ${type}`);
+    } finally {
+      loadingSetter(false);
+    }
+  };
+
+  const handleRemoveImage = async (type: "avatar" | "cover") => {
+    const loadingSetter = type === "avatar" ? setAvatarLoading : setCoverLoading;
+    loadingSetter(true);
+
+    try {
+      const res = await fetch(`${API}/users/me/${type}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error(`Failed to remove ${type}`);
+
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} removed`);
+      await authClient.getSession();
+      setLastUpdated(Date.now());
+    } catch (err: any) {
+      toast.error(err.message || `Failed to remove ${type}`);
+    } finally {
+      loadingSetter(false);
     }
   };
 
@@ -401,16 +459,15 @@ export function SettingsClient() {
           {/* ── Sidebar ────────────────────────────────────────────────── */}
           <aside className="w-52 flex-shrink-0">
             {/* Avatar block */}
-            <div className="flex items-center gap-3 mb-8 px-1">
-              <img
-                src={
-                  u.image ||
-                  u.avatarUrl ||
-                  `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
-                }
-                alt={username}
-                className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10"
-              />
+                <div className="flex items-center gap-3 mb-8 px-1">
+                  <img
+                    src={`${
+                      resolveImage(u.image || u.avatarUrl) ||
+                      `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
+                    }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                    alt={username}
+                    className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10"
+                  />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white truncate">
                   {u.displayName || u.name || username}
@@ -462,23 +519,112 @@ export function SettingsClient() {
                   description="Your public-facing identity on PixelReel."
                 />
 
-                {/* Avatar (read-only) */}
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/50">
-                  <img
-                    src={
-                      u.image ||
-                      u.avatarUrl ||
-                      `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
-                    }
-                    alt={username}
-                    className="w-16 h-16 rounded-xl object-cover ring-1 ring-white/10 flex-shrink-0"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-zinc-200">
-                      Profile photo
-                    </p>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      Avatar uploads coming soon.
+                {/* Banner Upload */}
+                <div className="space-y-3">
+                  <label className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" />
+                    Profile Banner
+                  </label>
+                  <div className="relative h-40 w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 group shadow-2xl">
+                    <img
+                      src={`${
+                        resolveImage(u.coverUrl) ||
+                        "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200"
+                      }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                      alt="Banner Preview"
+                      className={`w-full h-full object-cover transition-all duration-500 ${coverLoading ? "opacity-40 blur-sm" : "group-hover:scale-105"}`}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 gap-3">
+                      <label className="cursor-pointer h-10 px-4 rounded-xl bg-white text-zinc-950 text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-xl">
+                        <Camera className="h-3.5 w-3.5" />
+                        Change Banner
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(file, "cover");
+                          }}
+                        />
+                      </label>
+                      {u.coverUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage("cover")}
+                          className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center hover:bg-red-500/30 transition-all backdrop-blur-md"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {coverLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <RefreshCw className="h-6 w-6 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-zinc-600">
+                    Recommended size: 1920x480px. Max 10MB.
+                  </p>
+                </div>
+
+                {/* Avatar & Info Row */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-sm">
+                  <div className="relative group">
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-purple-500/20 bg-zinc-900 shadow-2xl relative">
+                      <img
+                        src={`${
+                          resolveImage(u.image || u.avatarUrl) ||
+                          `https://ui-avatars.com/api/?name=${username}&size=120&background=7c3aed&color=fff`
+                        }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                        alt={username}
+                        className={`w-full h-full object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
+                      />
+                      
+                      {/* Avatar Overlay */}
+                      <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer">
+                        <Camera className="h-6 w-6 text-white" />
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(file, "avatar");
+                          }}
+                        />
+                      </label>
+
+                      {avatarLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                          <RefreshCw className="h-5 w-5 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Floating Delete Badge */}
+                    {u.avatarUrl && !avatarLoading && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage("avatar")}
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-lg bg-zinc-900 border border-red-500/30 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-75 group-hover:scale-100"
+                        title="Remove avatar"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="text-sm font-bold text-white mb-1">
+                      Profile Picture
+                    </h3>
+                    <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
+                      Click the image to upload a new avatar. Square images work best. Max 5MB.
                     </p>
                   </div>
                 </div>

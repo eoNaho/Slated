@@ -11,10 +11,12 @@ import {
   Settings,
 } from "lucide-react";
 import type { UserProfile, FavoriteFilm } from "@/types";
+import { WatchingNow } from "./watching-now";
+import { resolveImage } from "@/lib/utils";
 
 interface ProfileHeaderProps {
-  profile: UserProfile;
-  favorites: FavoriteFilm[];
+  profile: UserProfile; // Keep original type
+  favorites: FavoriteFilm[]; // Keep original type
   isOwnProfile?: boolean;
 }
 
@@ -27,7 +29,7 @@ export function ProfileHeader({
 
   // Use coverUrl as banner, fallback to first favorite poster
   const bannerUrl =
-    profile.coverUrl ||
+    resolveImage(profile.coverUrl) || // Use resolveImage here
     favorites[0]?.posterPath ||
     "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920";
 
@@ -51,7 +53,7 @@ export function ProfileHeader({
             <div className="w-36 h-36 lg:w-40 lg:h-40 rounded-2xl bg-zinc-950 p-0.5 shadow-2xl ring-1 ring-white/10">
               <img
                 src={
-                  profile.avatarUrl ||
+                  resolveImage(profile.avatarUrl) || // Use resolveImage here
                   `https://ui-avatars.com/api/?name=${profile.username}&size=160&background=7c3aed&color=fff`
                 }
                 alt={profile.displayName || profile.username}
@@ -158,6 +160,10 @@ export function ProfileHeader({
                 })}
               </span>
             </div>
+          </div>
+          
+          <div className="mt-8 md:mt-0 md:ml-auto shrink-0">
+            <WatchingNow />
           </div>
         </div>
 

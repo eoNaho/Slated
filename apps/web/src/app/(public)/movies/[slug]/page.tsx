@@ -101,14 +101,18 @@ export default async function MoviePage({ params }: PageProps) {
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <div className="relative w-full" style={{ height: "65vh", minHeight: 380 }}>
         {movie.backdropPath ? (
-          <Image
-            src={movie.backdropPath}
-            alt={movie.title}
-            fill
-            className="object-cover object-center"
-            priority
-            sizes="100vw"
-          />
+          <div className="absolute inset-0">
+            <Image
+              src={movie.backdropPath}
+              alt={movie.title}
+              fill
+              className="object-cover object-[center_30%]"
+              priority
+              sizes="100vw"
+            />
+            {/* Overlay to ensure text readability and add depth */}
+            <div className="absolute inset-0 bg-zinc-950/20" />
+          </div>
         ) : (
           <div className="absolute inset-0 bg-zinc-900" />
         )}
@@ -126,19 +130,19 @@ export default async function MoviePage({ params }: PageProps) {
         {/* Edge vignette */}
         <div
           className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 120% 100% at 50% 50%, transparent 30%, rgba(13,13,15,0.75) 100%)" }}
+          style={{ background: "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(13,13,15,0.8) 100%)" }}
         />
 
-        {/* Bottom fade */}
+        {/* Bottom fade - deeper and smoother */}
         <div
           className="absolute inset-x-0 bottom-0"
-          style={{ height: "75%", background: "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 10%, rgba(13,13,15,0.9) 45%, transparent 100%)" }}
+          style={{ height: "85%", background: "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 15%, rgba(13,13,15,0.95) 40%, rgba(13,13,15,0.4) 70%, transparent 100%)" }}
         />
 
         {/* Top fade */}
         <div
-          className="absolute inset-x-0 top-0 h-20"
-          style={{ background: "linear-gradient(to bottom, rgba(13,13,15,0.5), transparent)" }}
+          className="absolute inset-x-0 top-0 h-40"
+          style={{ background: "linear-gradient(to bottom, rgba(13,13,15,0.7) 0%, rgba(13,13,15,0.3) 50%, transparent 100%)" }}
         />
 
         {movie.trailerUrl && (
@@ -154,28 +158,34 @@ export default async function MoviePage({ params }: PageProps) {
 
           {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
           <div className="w-full lg:w-56 xl:w-64 flex-shrink-0">
-            {/* Poster */}
-            <div
-              className="relative rounded-xl overflow-hidden mb-5"
-              style={{
-                aspectRatio: "2/3",
-                boxShadow: "0 32px 80px rgba(0,0,0,0.9), 0 8px 24px rgba(0,0,0,0.6)",
-              }}
-            >
-              {movie.posterPath ? (
-                <Image
-                  src={movie.posterPath}
-                  alt={movie.title}
-                  fill
-                  className="object-cover"
-                  priority
-                  sizes="(max-width: 1024px) 200px, 256px"
-                />
-              ) : (
-                <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                  <Film className="h-16 w-16 text-zinc-800" />
-                </div>
-              )}
+            {/* Poster with glow */}
+            <div className="relative group mb-8">
+              <div 
+                className="absolute -inset-4 bg-purple-600/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{ background: "radial-gradient(circle, rgba(147,51,234,0.3) 0%, transparent 70%)" }}
+              />
+              <div
+                className="relative rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                style={{
+                  aspectRatio: "2/3",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)",
+                }}
+              >
+                {movie.posterPath ? (
+                  <Image
+                    src={movie.posterPath}
+                    alt={movie.title}
+                    fill
+                    className="object-cover"
+                    priority
+                    sizes="(max-width: 1024px) 200px, 256px"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                    <Film className="h-16 w-16 text-zinc-800" />
+                  </div>
+                )}
+              </div>
             </div>
 
             <MovieActions movie={movie} />
@@ -198,18 +208,58 @@ export default async function MoviePage({ params }: PageProps) {
             ) : null}
 
             {movie.streaming && movie.streaming.length > 0 && (
-              <div className="mt-5">
+              <div className="mt-8">
                 <SectionLabel>Where to Watch</SectionLabel>
-                <div className="space-y-1.5">
-                  {movie.streaming.map((service) => (
-                    <div
-                      key={service.id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors border border-white/[0.04] hover:border-white/10"
-                      style={{ background: "rgba(255,255,255,0.03)" }}
+                <div className="mt-4 space-y-2">
+                  {Object.values(
+                    movie.streaming.reduce((acc, curr) => {
+                      if (!acc[curr.serviceId]) {
+                        acc[curr.serviceId] = { ...curr, countries: [curr.country] };
+                      } else {
+                        acc[curr.serviceId].countries.push(curr.country);
+                      }
+                      return acc;
+                    }, {} as Record<string, typeof movie.streaming[0] & { countries: string[] }>)
+                  ).map((mapping) => (
+                    <a
+                      key={mapping.serviceId}
+                      href={mapping.url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between px-4 py-3 rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer"
                     >
-                      <Play className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-                      <span className="text-sm text-zinc-200">{service.name}</span>
-                    </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center border border-white/5 overflow-hidden shrink-0">
+                          {mapping.service.logoPath ? (
+                            <img 
+                              src={mapping.service.logoPath} 
+                              alt={mapping.service.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                          ) : (
+                            <Play className="h-4 w-4 text-amber-400 fill-amber-400/20" />
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">{mapping.service.name}</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {mapping.countries.slice(0, 5).map(country => (
+                              <span key={country} className="text-[9px] px-1 py-0.5 rounded bg-white/[0.03] text-zinc-500 border border-white/[0.05]">
+                                {country}
+                              </span>
+                            ))}
+                            {mapping.countries.length > 5 && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-white/[0.03] text-zinc-500 border border-white/[0.05]">
+                                +{mapping.countries.length - 5}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest bg-zinc-900/50 px-2 py-1 rounded leading-none group-hover:text-amber-500/80 group-hover:bg-amber-500/5 transition-all border border-white/[0.02]">
+                        Watch
+                      </div>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -271,36 +321,58 @@ export default async function MoviePage({ params }: PageProps) {
           {/* ── RIGHT MAIN CONTENT ───────────────────────────────────────── */}
           <div className="flex-1 min-w-0 pt-2 lg:pt-8">
 
-            <header className="mb-7">
+            <header className="mb-8">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                {year && (
+                  <span className="px-2 py-0.5 rounded bg-white/10 text-white text-xs font-bold tracking-wider">
+                    {year}
+                  </span>
+                )}
+                {movie.status && (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] uppercase font-bold tracking-widest border border-amber-500/20">
+                    {movie.status.replace(/_/g, " ")}
+                  </span>
+                )}
+                {genres.slice(0, 3).map((name, i) => (
+                  <span key={i} className="text-xs text-zinc-500 font-medium">
+                    {i > 0 && " • "} {name}
+                  </span>
+                ))}
+              </div>
+
               <h1
-                className="font-black text-white leading-none tracking-tight mb-3"
-                style={{ fontSize: "clamp(2.2rem, 5vw, 3.8rem)" }}
+                className="font-black text-white leading-[0.9] tracking-tight mb-4"
+                style={{ 
+                  fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
+                  textShadow: "0 10px 30px rgba(0,0,0,0.5)"
+                }}
               >
                 {movie.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-zinc-500">
-                {year && (
-                  <span className="font-medium text-zinc-300">{year}</span>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                {directors.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-500">Directed by</span>
+                    <div className="flex gap-1.5">
+                      {directors.map((d, i) => (
+                        <span key={d.id}>
+                          <Link
+                            href={`/people/${d.person.id}`}
+                            className="text-zinc-200 hover:text-amber-400 transition-colors font-semibold"
+                          >
+                            {d.person.name}
+                          </Link>
+                          {i < directors.length - 1 && <span className="text-zinc-700">,</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {movie.originalTitle && movie.originalTitle !== movie.title && (
-                  <span className="italic text-zinc-600">{movie.originalTitle}</span>
-                )}
-                {directors.length > 0 && (
-                  <span>
-                    Directed by{" "}
-                    {directors.map((d, i) => (
-                      <span key={d.id}>
-                        <Link
-                          href={`/people/${d.person.id}`}
-                          className="text-zinc-300 hover:text-amber-400 transition-colors font-medium"
-                        >
-                          {d.person.name}
-                        </Link>
-                        {i < directors.length - 1 && ", "}
-                      </span>
-                    ))}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-600 italic">{movie.originalTitle}</span>
+                  </div>
                 )}
               </div>
             </header>
@@ -320,19 +392,21 @@ export default async function MoviePage({ params }: PageProps) {
               </p>
             )}
 
-            <div className="border-t border-white/[0.06] mb-8" />
+            <div className="border-t border-white/[0.04] mb-12" />
 
             {cast.length > 0 && (
-              <section className="mb-10">
+              <section className="mb-16">
                 <SectionLabel>Cast</SectionLabel>
-                <CastCarousel cast={cast} />
+                <div className="mt-6">
+                  <CastCarousel cast={cast} />
+                </div>
               </section>
             )}
 
             {crew.length > 0 && (
-              <section className="mb-10">
+              <section className="mb-16">
                 <SectionLabel>Crew</SectionLabel>
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-6 flex flex-wrap gap-2.5">
                   {directors.map((credit) => (
                     <CrewChip key={credit.id} credit={credit} highlight />
                   ))}
@@ -346,7 +420,7 @@ export default async function MoviePage({ params }: PageProps) {
               </section>
             )}
 
-            <div className="border-t border-white/[0.06] mb-8" />
+            <div className="border-t border-white/[0.04] mb-12" />
 
             <section className="mb-10">
               <div className="flex items-center justify-between mb-5">

@@ -16,6 +16,11 @@ import {
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 
+function resolveImageUrl(path: string | null): string | null {
+  if (!path) return null;
+  return storageService.getImageUrl(path);
+}
+
 export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
   .use(betterAuthPlugin)
 
@@ -34,6 +39,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     return {
       data: {
         ...user,
+        avatarUrl: resolveImageUrl(user.avatarUrl),
+        coverUrl: resolveImageUrl(user.coverUrl),
         settings,
         socialLinks,
       },
@@ -70,6 +77,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       return {
         data: {
           ...publicProfile,
+          avatarUrl: resolveImageUrl(publicProfile.avatarUrl),
+          coverUrl: resolveImageUrl(publicProfile.coverUrl),
           socialLinks,
         },
       };
@@ -89,6 +98,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           bio: body.bio,
           location: body.location,
           website: body.website,
+          avatarUrl: body.avatarUrl,
+          coverUrl: body.coverUrl,
           updatedAt: new Date(),
         })
         .where(eq(userTable.id, user.id))
@@ -103,8 +114,155 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         bio: t.Optional(t.String()),
         location: t.Optional(t.String()),
         website: t.Optional(t.String()),
+        avatarUrl: t.Optional(t.String()),
+        coverUrl: t.Optional(t.String()),
       }),
     },
+  )
+
+  // ── Upload avatar ──────────────────────────────────────────────────────────
+  .post(
+    "/me/avatar",
+    async (ctx: any) => {
+      const { user, request, set } = ctx;
+
+      const formData = await request.formData();
+      const file = formData.get("avatar") as File | null;
+
+      if (!file || typeof file === "string") {
+        set.status = 400;
+        return { error: "No image file provided" };
+      }
+
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (!allowed.includes(file.type)) {
+        set.status = 400;
+        return { error: "Only JPEG, PNG and WebP images are allowed" };
+      }
+
+      const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+      if (file.size > MAX_SIZE) {
+        set.status = 400;
+        return { error: "Image must be under 5 MB" };
+      }
+
+      // Delete old avatar if it was a custom upload
+      if (user.avatarUrl && !user.avatarUrl.startsWith("http")) {
+        await storageService.delete(user.avatarUrl).catch(() => null);
+        // Also try to delete the small variant
+        await storageService
+          .delete(user.avatarUrl.replace(".webp", "-sm.webp"))
+          .catch(() => null);
+      }
+
+      const buffer = await file.arrayBuffer();
+      const { path } = await storageService.uploadAvatar(
+        buffer,
+        `users/${user.id}`
+      );
+
+      const [updated] = await db
+        .update(userTable)
+        .set({ avatarUrl: path, updatedAt: new Date() })
+        .where(eq(userTable.id, user.id))
+        .returning();
+
+      return { data: { avatarUrl: resolveImageUrl(updated.avatarUrl) } };
+    },
+    { requireAuth: true }
+  )
+
+  // ── Remove avatar ──────────────────────────────────────────────────────────
+  .delete(
+    "/me/avatar",
+    async (ctx: any) => {
+      const { user } = ctx;
+
+      if (user.avatarUrl && !user.avatarUrl.startsWith("http")) {
+        await storageService.delete(user.avatarUrl).catch(() => null);
+        await storageService
+          .delete(user.avatarUrl.replace(".webp", "-sm.webp"))
+          .catch(() => null);
+      }
+
+      const [updated] = await db
+        .update(userTable)
+        .set({ avatarUrl: null, updatedAt: new Date() })
+        .where(eq(userTable.id, user.id))
+        .returning();
+
+      return { data: { avatarUrl: null } };
+    },
+    { requireAuth: true }
+  )
+
+  // ── Upload cover/banner ────────────────────────────────────────────────────
+  .post(
+    "/me/cover",
+    async (ctx: any) => {
+      const { user, request, set } = ctx;
+
+      const formData = await request.formData();
+      const file = formData.get("cover") as File | null;
+
+      if (!file || typeof file === "string") {
+        set.status = 400;
+        return { error: "No image file provided" };
+      }
+
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (!allowed.includes(file.type)) {
+        set.status = 400;
+        return { error: "Only JPEG, PNG and WebP images are allowed" };
+      }
+
+      const MAX_SIZE = 10 * 1024 * 1024; // 10 MB (banners are larger)
+      if (file.size > MAX_SIZE) {
+        set.status = 400;
+        return { error: "Image must be under 10 MB" };
+      }
+
+      // Delete old cover if it was a custom upload
+      if (user.coverUrl && !user.coverUrl.startsWith("http")) {
+        await storageService.delete(user.coverUrl).catch(() => null);
+      }
+
+      const buffer = await file.arrayBuffer();
+      const { path } = await storageService.uploadCover(
+        buffer,
+        `users/${user.id}`
+      );
+
+      const [updated] = await db
+        .update(userTable)
+        .set({ coverUrl: path, updatedAt: new Date() })
+        .where(eq(userTable.id, user.id))
+        .returning();
+
+      return { data: { coverUrl: resolveImageUrl(updated.coverUrl) } };
+    },
+    { requireAuth: true }
+  )
+
+  // ── Remove cover/banner ────────────────────────────────────────────────────
+  .delete(
+    "/me/cover",
+    async (ctx: any) => {
+      const { user } = ctx;
+
+      if (user.coverUrl && !user.coverUrl.startsWith("http")) {
+        await storageService.delete(user.coverUrl).catch(() => null);
+      }
+
+      const [updated] = await db
+        .update(userTable)
+        .set({ coverUrl: null, updatedAt: new Date() })
+        .where(eq(userTable.id, user.id))
+        .returning();
+
+      return { data: { coverUrl: null } };
+    },
+    { requireAuth: true }
   )
 
   // Get user stats (public)

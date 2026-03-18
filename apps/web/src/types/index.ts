@@ -74,7 +74,7 @@ export interface Media {
 export interface MediaDetails extends Media {
   genres: Genre[];
   credits: Credit[];
-  streaming: StreamingService[];
+  streaming: { mediaId: string; serviceId: string; country: string; url?: string | null; service: StreamingService }[];
   externalRatings?: ExternalRating[];
 }
 

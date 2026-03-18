@@ -23,6 +23,7 @@
     "better-auth": "^1.5.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "emoji-picker-react": "^4.18.0",
     "facehash": "^0.0.5",
     "framer-motion": "^12.23.26",
@@ -46,6 +47,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }
