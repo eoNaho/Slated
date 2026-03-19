@@ -563,6 +563,35 @@ export const api = {
   people: peopleApi,
   plans: plansApi,
   stories: storiesApi,
+  discover: {
+    get: (options: any = {}) => {
+      const params = new URLSearchParams();
+      if (options.page) params.set("page", String(options.page));
+      if (options.type) params.set("type", options.type);
+      if (options.genre) params.set("genre", options.genre);
+      if (options.year) params.set("year", String(options.year));
+      if (options.sortBy) params.set("sortBy", options.sortBy);
+      if (options.streaming) params.set("streaming", options.streaming);
+      return fetcher<any>(`/discover?${params}`);
+    },
+    genres: () => fetcher<{ data: any[] }>("/discover/genres"),
+    streaming: () => fetcher<{ data: any[] }>("/discover/streaming"),
+    random: (options: any = {}) => {
+      const params = new URLSearchParams();
+      if (options.limit) params.set("limit", String(options.limit));
+      if (options.type) params.set("type", options.type);
+      if (options.genre) params.set("genre", options.genre);
+      if (options.year) params.set("year", String(options.year));
+      if (options.streaming) params.set("streaming", options.streaming);
+      return fetcher<{ data: any[] }>("/discover/random?" + params.toString());
+    },
+    popular: (options: any = {}) => {
+      const params = new URLSearchParams();
+      if (options.period) params.set("period", options.period);
+      if (options.type) params.set("type", options.type);
+      return fetcher<{ data: any[] }>(`/discover/popular?${params}`);
+    }
+  }
 };
 
 export { ApiError };

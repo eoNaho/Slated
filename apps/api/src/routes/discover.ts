@@ -175,6 +175,15 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
     return { data: allGenres };
   })
 
+  .get("/streaming", async () => {
+    const services = await db
+      .select({ id: streamingServices.id, name: streamingServices.name, slug: streamingServices.slug, logoPath: streamingServices.logoPath })
+      .from(streamingServices)
+      .orderBy(asc(streamingServices.name));
+
+    return { data: services.map(s => ({ ...s, logoPath: resolveImageUrl(s.logoPath) })) };
+  })
+
   // ==========================================================================
   // Get popular (based on recent activity in DB)
   // ==========================================================================
@@ -255,6 +264,64 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         period: t.Optional(t.String()),
         type: t.Optional(t.String()),
         limit: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  .get(
+    "/random",
+    async ({ query }: any) => {
+      const limit = Math.min(Number(query.limit) || 1, 10);
+      const genreId = query.genre;
+      const year = query.year ? Number(query.year) : undefined;
+      const type = query.type as "movie" | "series" | undefined;
+      const streamingService = query.streaming;
+
+      const conditions = [];
+      if (type) conditions.push(eq(media.type, type));
+      if (year) conditions.push(sql`EXTRACT(YEAR FROM ${media.releaseDate}) = ${year}`);
+
+      let results;
+      if (genreId) {
+        results = await db
+          .select({ media })
+          .from(media)
+          .innerJoin(mediaGenres, eq(media.id, mediaGenres.mediaId))
+          .where(and(eq(mediaGenres.genreId, genreId), ...conditions))
+          .orderBy(sql`RANDOM()`)
+          .limit(limit);
+      } else if (streamingService) {
+        results = await db
+          .select({ media })
+          .from(media)
+          .innerJoin(mediaStreaming, eq(media.id, mediaStreaming.mediaId))
+          .innerJoin(streamingServices, eq(mediaStreaming.serviceId, streamingServices.id))
+          .where(and(eq(streamingServices.slug, streamingService), ...conditions))
+          .orderBy(sql`RANDOM()`)
+          .limit(limit);
+      } else {
+        const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+        results = await db.select().from(media).where(whereClause).orderBy(sql`RANDOM()`).limit(limit);
+      }
+
+      const data = results.map((r) => {
+        const item = "media" in r ? r.media : r;
+        return {
+          ...item,
+          posterPath: resolveImageUrl(item.posterPath),
+          backdropPath: resolveImageUrl(item.backdropPath),
+        };
+      });
+
+      return { data };
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.String()),
+        genre: t.Optional(t.String()),
+        year: t.Optional(t.String()),
+        type: t.Optional(t.String()),
+        streaming: t.Optional(t.String()),
       }),
     }
   );

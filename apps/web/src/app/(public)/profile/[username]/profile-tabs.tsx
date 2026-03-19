@@ -31,6 +31,7 @@ import {
 } from "@/components/profile";
 import { ClubCard } from "@/components/clubs/club-card";
 import type { Club } from "@/lib/queries/clubs";
+import { Story } from "@/types/stories";
 import type {
   UserProfile,
   FavoriteFilm,
@@ -51,6 +52,7 @@ interface ProfileTabsProps {
   favorites: FavoriteFilm[];
   reviews: Review[];
   lists: ListType[];
+  stories?: Story[];
   // These are empty for public viewing, populated for own profile
   diary?: DiaryEntry[];
   watchlist?: WatchlistItem[];
@@ -89,6 +91,7 @@ export function ProfileTabs({
   watchlist = [],
   likes = [],
   activity = [],
+  stories = [],
   watchingNow = null,
   scrobbles = [],
 }: ProfileTabsProps) {
@@ -117,6 +120,7 @@ export function ProfileTabs({
         favorites={favorites}
         isOwnProfile={isOwnProfile}
         watchingNow={watchingNow}
+        stories={stories}
       />
 
       {/* Tabs Navigation */}

@@ -6,6 +6,7 @@ import { HeroSection } from "@/components/home";
 import { Carousel, SectionHeader } from "@/components/common";
 import { MediaCard, ReviewCard } from "@/components/media";
 import { getTrending, transformTrendingToMedia, generateReviews } from "@/lib/queries/home";
+import { StoriesBar } from "@/components/stories/StoriesBar";
 
 export const metadata: Metadata = {
   title: "PixelReel — Track Movies & Series",
@@ -31,6 +32,9 @@ export default async function HomePage() {
 
   return (
     <div className="relative min-h-screen">
+      {/* Stories Feed */}
+      <StoriesBar />
+
       {/* Hero Section — Editorial Layout */}
       <HeroSection initialMedia={heroMedia} />
 

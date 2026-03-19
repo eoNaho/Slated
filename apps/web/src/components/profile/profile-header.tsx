@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -11,14 +11,17 @@ import {
   Settings,
 } from "lucide-react";
 import type { UserProfile, FavoriteFilm } from "@/types";
-import { resolveImage } from "@/lib/utils";
+import { resolveImage, cn } from "@/lib/utils";
 import { WatchingNow } from "./watching-now";
+import { Story } from "@/types/stories";
+import { StoryViewer } from "@/components/stories/StoryViewer";
 
 interface ProfileHeaderProps {
-  profile: UserProfile; // Keep original type
-  favorites: FavoriteFilm[]; // Keep original type
+  profile: UserProfile;
+  favorites: FavoriteFilm[];
   isOwnProfile?: boolean;
   watchingNow?: any;
+  stories?: Story[];
 }
 
 export function ProfileHeader({
@@ -26,12 +29,22 @@ export function ProfileHeader({
   favorites,
   isOwnProfile,
   watchingNow = null,
+  stories = [],
 }: ProfileHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(false);
+  const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(null);
+
+  // Separate active stories from pinned stories (highlights)
+  const { activeStories, pinnedStories, hasUnseen } = useMemo(() => {
+    const active = stories.filter((s) => !s.isExpired && !s.isPinned);
+    const pinned = stories.filter((s) => s.isPinned);
+    const unseen = active.some((s) => !s.hasViewed);
+    return { activeStories: active, pinnedStories: pinned, hasUnseen: unseen };
+  }, [stories]);
 
   // Use coverUrl as banner, fallback to first favorite poster
   const bannerUrl =
-    resolveImage(profile.coverUrl) || // Use resolveImage here
+    resolveImage(profile.coverUrl) ||
     favorites[0]?.posterPath ||
     "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920";
 
@@ -50,20 +63,32 @@ export function ProfileHeader({
       {/* Profile Content */}
       <div className="container mx-auto px-6 relative z-10 -mt-24 lg:-mt-28">
         <div className="flex flex-col md:flex-row gap-5 items-start md:items-end">
-          {/* Avatar - Square */}
-          <div className="relative shrink-0">
-            <div className="w-36 h-36 lg:w-40 lg:h-40 rounded-2xl bg-zinc-950 p-0.5 shadow-2xl ring-1 ring-white/10">
-              <img
-                src={
-                  resolveImage(profile.avatarUrl) || // Use resolveImage here
-                  `https://ui-avatars.com/api/?name=${profile.username}&size=160&background=7c3aed&color=fff`
-                }
-                alt={profile.displayName || profile.username}
-                className="w-full h-full object-cover rounded-[14px]"
-              />
+          {/* Avatar - Custom Rounded Square with Story Support */}
+          <div 
+            className="relative shrink-0 group cursor-pointer"
+            onClick={() => {
+              if (activeStories.length > 0) {
+                setActiveStoryGroup(activeStories);
+              }
+            }}
+          >
+            <div className={cn(
+              "w-36 h-36 lg:w-40 lg:h-40 rounded-2xl bg-zinc-950 p-0.5 shadow-2xl transition-transform active:scale-95",
+              hasUnseen ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[3px] animate-gradient-xy" : "ring-1 ring-white/10"
+            )}>
+              <div className="w-full h-full rounded-[14px] bg-zinc-950 overflow-hidden border-2 border-zinc-950">
+                <img
+                  src={
+                    resolveImage(profile.avatarUrl) ||
+                    `https://ui-avatars.com/api/?name=${profile.username}&size=160&background=7c3aed&color=fff`
+                  }
+                  alt={profile.displayName || profile.username}
+                  className="w-full h-full object-cover rounded-[12px]"
+                />
+              </div>
             </div>
             {profile.isPremium && (
-              <div className="absolute -top-2 -right-2 z-20">
+              <div className="absolute top-0 -right-2 z-20">
                 <span className="relative flex h-8 w-8">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-25"></span>
                   <span className="relative inline-flex rounded-full h-8 w-8 bg-zinc-900 border border-purple-500/40 items-center justify-center">
@@ -183,6 +208,38 @@ export function ProfileHeader({
           </div>
         </div>
 
+        {/* Highlights Section */}
+        {pinnedStories.length > 0 && (
+          <div className="mt-8 flex gap-5 overflow-x-auto no-scrollbar pb-2">
+            {pinnedStories.map((story) => (
+              <div
+                key={story.id}
+                className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer"
+                onClick={() => setActiveStoryGroup([story])}
+              >
+                <div className="w-16 h-16 rounded-2xl p-[2px] bg-zinc-800 ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all">
+                  <div className="w-full h-full rounded-[14px] overflow-hidden bg-zinc-900 border-2 border-zinc-950">
+                    {story.imageUrl ? (
+                      <img
+                        src={resolveImage(story.imageUrl) || ""}
+                        className="w-full h-full object-cover"
+                        alt=""
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-500">
+                        <Star className="h-6 w-6" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span className="text-[10px] font-medium text-zinc-500 group-hover:text-zinc-300 transition-colors uppercase tracking-wider">
+                  Highlight
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Stats Row - Inline */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-6 pt-5 border-t border-white/5">
           <div className="flex items-center gap-1.5 text-sm">
@@ -226,6 +283,14 @@ export function ProfileHeader({
           )}
         </div>
       </div>
+
+      {/* Story Viewer */}
+      {activeStoryGroup && (
+        <StoryViewer
+          stories={activeStoryGroup}
+          onClose={() => setActiveStoryGroup(null)}
+        />
+      )}
     </div>
   );
 }

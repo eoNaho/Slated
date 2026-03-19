@@ -127,18 +127,20 @@ export default async function ProfilePage({ params }: PageProps) {
   const profile: UserProfile = { ...user, stats };
   const isOwnProfile = sessionUsername === username;
 
-  // Phase 2: reviews and lists (need user.id)
-  const [reviewsRes, listsRes] = await Promise.all([
+  // Phase 2: reviews, lists, and stories (need user.id)
+  const [reviewsRes, listsRes, storiesRes] = await Promise.all([
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
     fetchJson<{ data: List[]; total: number }>(
       `/lists?user_id=${user.id}&limit=10`,
     ),
+    fetchJson<{ data: any[] }>(`/stories/user/${username}`),
   ]);
 
   const reviews = reviewsRes?.data ?? [];
   const lists = listsRes?.data ?? [];
+  const stories = storiesRes?.data ?? [];
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
@@ -150,6 +152,7 @@ export default async function ProfilePage({ params }: PageProps) {
         favorites={[]}
         reviews={reviews}
         lists={lists}
+        stories={stories}
         watchingNow={activityNowRes?.data}
         scrobbles={scrobblesRes?.data || []}
       />

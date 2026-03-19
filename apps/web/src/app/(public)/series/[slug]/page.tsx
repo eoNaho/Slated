@@ -106,11 +106,11 @@ export default async function SeriesPage({ params }: PageProps) {
                 <div className="space-y-2">
                   {series.streaming.map((service) => (
                     <div
-                      key={service.id}
+                      key={service.serviceId}
                       className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5 hover:border-white/10 transition-colors cursor-pointer"
                     >
                       <Play className="h-4 w-4 text-purple-400" />
-                      <span className="text-sm text-white">{service.name}</span>
+                      <span className="text-sm text-white">{service.service.name}</span>
                     </div>
                   ))}
                 </div>

@@ -422,21 +422,16 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     async (ctx: any) => {
       const { user, params, set } = ctx;
 
-      try {
-        await db.insert(storyViews).values({
+      await db
+        .insert(storyViews)
+        .values({
           storyId: params.id,
           viewerId: user.id,
-        });
+        })
+        .onConflictDoNothing();
 
-        // views_count is auto-incremented by trigger
-        return { success: true };
-      } catch (e: any) {
-        // Unique constraint = already viewed, just silently succeed
-        if (e.code === "23505") {
-          return { success: true, already_viewed: true };
-        }
-        throw e;
-      }
+      // views_count is auto-incremented by trigger
+      return { success: true };
     },
     {
       requireAuth: true,
