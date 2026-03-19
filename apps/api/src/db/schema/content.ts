@@ -50,6 +50,7 @@ export const lists = pgTable(
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     name: text("name").notNull(),
+    slug: text("slug").notNull(),
     description: text("description"),
     coverUrl: text("cover_url"),
     isPublic: boolean("is_public").default(true),
@@ -62,7 +63,10 @@ export const lists = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => [index("idx_lists_user").on(table.userId)]
+  (table) => [
+    index("idx_lists_user").on(table.userId),
+    unique("unique_user_list_slug").on(table.userId, table.slug),
+  ]
 );
 
 // List Items

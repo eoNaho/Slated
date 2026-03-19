@@ -10,7 +10,7 @@ interface ListCardProps {
 export function ListCard({ list }: ListCardProps) {
   return (
     <Link
-      href={`/lists/${list.id}`}
+      href={`/lists/${list.user?.username}/${list.slug}`}
       className="group flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.05] hover:border-white/[0.1] transition-all"
       style={{ background: "rgba(255,255,255,0.02)" }}
     >

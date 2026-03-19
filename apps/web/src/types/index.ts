@@ -36,6 +36,7 @@ export interface UserStats {
   level: number;
   thisYearCount?: number; // Films watched this year
   averageRating?: number; // User's average rating
+  clubsCount?: number; // Clubs the user is a member of
 }
 
 // Extended profile with stats included (for profile pages)
@@ -245,9 +246,10 @@ export interface List {
   id: string;
   userId: string;
   name: string;
+  slug: string;
   description?: string | null;
   coverUrl?: string | null;
-  coverImages?: string[]; // Multiple cover images for display
+  coverImages?: string[];
   isPublic: boolean;
   isRanked: boolean;
   category?: string | null;
@@ -277,6 +279,7 @@ export interface CreateListInput {
   isPublic?: boolean;
   isRanked?: boolean;
   category?: string;
+  item_ids?: string[];
 }
 
 // ==================== WATCHLIST ====================
@@ -332,6 +335,10 @@ export interface Activity {
   // For activity feed display
   data?: {
     title?: string;
+    name?: string;
+    slug?: string;
+    mediaType?: "movie" | "series" | "episode";
+    id?: string | number;
     posterPath?: string;
     rating?: number;
     content?: string;

@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star, Heart, Plus, Film, Tv } from "lucide-react";
+import { Star, Heart, Plus, Trash2, Film, Tv } from "lucide-react";
 import type { Media } from "@/types";
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, resolveImage } from "@/lib/utils";
 
 interface MediaCardProps {
   media: Media;
   large?: boolean;
+  onAddToList?: (media: Media) => void;
+  onRemove?: (media: Media) => void;
 }
 
-export function MediaCard({ media, large = false }: MediaCardProps) {
+export function MediaCard({ media, large = false, onAddToList, onRemove }: MediaCardProps) {
   const href = getMediaUrl(media);
   const year = media.releaseDate
     ? new Date(media.releaseDate).getFullYear()
@@ -27,7 +29,7 @@ export function MediaCard({ media, large = false }: MediaCardProps) {
       >
         {media.posterPath ? (
           <Image
-            src={media.posterPath}
+            src={resolveImage(media.posterPath) || ""}
             alt={media.title}
             fill
             unoptimized
@@ -71,13 +73,26 @@ export function MediaCard({ media, large = false }: MediaCardProps) {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    // TODO: Add to list
+                    onAddToList?.(media);
                   }}
                   className="p-1.5 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors focus:outline-none focus:bg-purple-600"
                   aria-label="Add to list"
                 >
                   <Plus className="h-3 w-3" />
                 </button>
+                {onRemove && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onRemove(media);
+                    }}
+                    className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-500 transition-colors focus:outline-none focus:bg-red-600"
+                    aria-label="Remove from list"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             </div>
             {media.genres && media.genres.length > 0 && (

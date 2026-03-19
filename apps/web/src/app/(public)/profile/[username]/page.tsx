@@ -9,6 +9,7 @@ import type {
   List,
   CurrentActivity,
   Scrobble,
+  Activity,
 } from "@/types";
 
 const API_URL =
@@ -104,10 +105,13 @@ export default async function ProfilePage({ params }: PageProps) {
   const user = userRes.data;
 
   // Phase 1.5: activity and scrobbles (need user.id)
-  const [activityNowRes, scrobblesRes] = await Promise.all([
+  const [activityNowRes, scrobblesRes, activitiesRes] = await Promise.all([
     fetchJson<{ data: CurrentActivity | null }>(`/activity/now/${user.id}`),
     fetchJson<{ data: Scrobble[]; total: number }>(
       `/activity/scrobbles/${user.id}?limit=20`,
+    ),
+    fetchJson<{ data: Activity[]; total: number }>(
+      `/feed/user/${user.id}?limit=20`,
     ),
   ]);
 
@@ -141,6 +145,7 @@ export default async function ProfilePage({ params }: PageProps) {
   const reviews = reviewsRes?.data ?? [];
   const lists = listsRes?.data ?? [];
   const stories = storiesRes?.data ?? [];
+  const activity = activitiesRes?.data ?? [];
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
@@ -155,6 +160,7 @@ export default async function ProfilePage({ params }: PageProps) {
         stories={stories}
         watchingNow={activityNowRes?.data}
         scrobbles={scrobblesRes?.data || []}
+        activity={activity}
       />
     </div>
   );

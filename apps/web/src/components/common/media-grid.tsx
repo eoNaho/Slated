@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, LayoutGrid } from "lucide-react";
+import { Star, LayoutGrid, Plus, Trash2 } from "lucide-react";
 import { cn, getMediaUrl, resolveImage } from "@/lib/utils";
 import { SearchResult } from "@/types";
 
@@ -14,9 +14,11 @@ interface MediaGridProps {
     xl?: number;
   };
   renderOverlay?: (item: any) => React.ReactNode;
+  onAddToList?: (item: any) => void;
+  onRemove?: (item: any) => void;
 }
 
-export function MediaGrid({ items, isLoading, columns = {}, renderOverlay }: MediaGridProps) {
+export function MediaGrid({ items, isLoading, columns = {}, renderOverlay, onAddToList, onRemove }: MediaGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -51,13 +53,29 @@ export function MediaGrid({ items, isLoading, columns = {}, renderOverlay }: Med
   return (
     <div className={gridCols}>
       {items.map((item) => (
-        <MediaCard key={item.id} item={item} renderOverlay={renderOverlay} />
+        <MediaCard 
+          key={item.id} 
+          item={item} 
+          renderOverlay={renderOverlay} 
+          onAddToList={onAddToList}
+          onRemove={onRemove}
+        />
       ))}
     </div>
   );
 }
 
-function MediaCard({ item, renderOverlay }: { item: any; renderOverlay?: (item: any) => React.ReactNode }) {
+function MediaCard({ 
+  item, 
+  renderOverlay,
+  onAddToList,
+  onRemove
+}: { 
+  item: any; 
+  renderOverlay?: (item: any) => React.ReactNode;
+  onAddToList?: (item: any) => void;
+  onRemove?: (item: any) => void;
+}) {
   const mediaType = item.type || item.mediaType || "movie";
   const url = getMediaUrl({ ...item, type: mediaType });
   const poster = resolveImage(item.posterPath);
@@ -90,14 +108,46 @@ function MediaCard({ item, renderOverlay }: { item: any; renderOverlay?: (item: 
 
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-          {renderOverlay ? renderOverlay(item) : (
-             <>
-               <span className="text-white text-xs font-bold line-clamp-2">{item.title}</span>
-               <span className="text-white/60 text-[10px] font-medium mt-0.5">
-                 {item.releaseDate ? new Date(item.releaseDate).getFullYear() : 'N/A'}
-               </span>
-             </>
-          )}
+          <div className="flex items-end justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              {renderOverlay ? renderOverlay(item) : (
+                 <>
+                   <span className="text-white text-xs font-bold line-clamp-2">{item.title}</span>
+                   <span className="text-white/60 text-[10px] font-medium mt-0.5 block">
+                     {item.releaseDate ? new Date(item.releaseDate).getFullYear() : 'N/A'}
+                   </span>
+                 </>
+              )}
+            </div>
+
+            {onAddToList && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAddToList(item);
+                }}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 shadow-lg backdrop-blur-md"
+                title="Add to List"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+
+            {onRemove && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRemove(item);
+                }}
+                className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/40 border border-red-500/20 flex items-center justify-center text-red-500 transition-all hover:scale-110 active:scale-95 shadow-lg backdrop-blur-md"
+                title="Remove from List"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </Link>

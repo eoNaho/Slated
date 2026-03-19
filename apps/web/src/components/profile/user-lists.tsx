@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { List, Heart, ChevronRight } from "lucide-react";
+import { List, Heart, ChevronRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { resolveImage } from "@/lib/utils";
 import type { List as ListType } from "@/types";
 
 type ListVariant =
@@ -23,6 +25,8 @@ interface UserListsProps {
   showViewAll?: boolean;
   variant?: ListVariant;
   gridLayout?: boolean; // Enable grid layout for multiple lists
+  isOwnProfile?: boolean;
+  onCreateClick?: () => void;
 }
 
 interface ListItemProps {
@@ -147,7 +151,7 @@ function ListItem({ list, variant }: ListItemProps) {
   // Horizontal layouts (title on right)
   if (titlePosition === "right") {
     return (
-      <Link href={`/lists/${list.id}`} className="group block">
+      <Link href={`/lists/${list.user?.username}/${list.slug}`} className="group block">
         <div className="flex gap-4 items-start">
           {/* Poster Strip */}
           <div className={`${height} ${width} grid ${gridCols} gap-0.5 rounded-lg overflow-hidden bg-zinc-900 border border-white/5 flex-shrink-0`}>
@@ -157,7 +161,7 @@ function ListItem({ list, variant }: ListItemProps) {
                 <div key={i} className="relative w-full h-full bg-zinc-800/50">
                   {image ? (
                     <img
-                      src={image}
+                      src={resolveImage(image) || ""}
                       alt=""
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -180,7 +184,7 @@ function ListItem({ list, variant }: ListItemProps) {
               {list.user && (
                 <div className="flex items-center gap-1.5">
                   {list.user.avatarUrl ? (
-                    <img src={list.user.avatarUrl} alt="" className="w-4 h-4 rounded-full" />
+                    <img src={resolveImage(list.user.avatarUrl) || ""} alt="" className="w-4 h-4 rounded-full" />
                   ) : (
                     <div className="w-4 h-4 rounded-full bg-zinc-800" />
                   )}
@@ -213,7 +217,7 @@ function ListItem({ list, variant }: ListItemProps) {
   // Thumbnail layouts (title overlay)
   if (titlePosition === "overlay") {
     return (
-      <Link href={`/lists/${list.id}`} className="group block">
+      <Link href={`/lists/${list.user?.username}/${list.slug}`} className="group block">
         <div className="relative rounded-lg overflow-hidden border border-white/5">
           <div className={`${height} ${width} grid ${gridCols} gap-0.5 bg-zinc-900`}>
             {slotArray.map((_, i) => {
@@ -222,7 +226,7 @@ function ListItem({ list, variant }: ListItemProps) {
                 <div key={i} className="relative w-full h-full bg-zinc-800/50">
                   {image ? (
                     <img
-                      src={image}
+                      src={resolveImage(image) || ""}
                       alt=""
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -246,7 +250,7 @@ function ListItem({ list, variant }: ListItemProps) {
               {list.user && (
                 <div className="flex items-center gap-1.5">
                   {list.user.avatarUrl ? (
-                    <img src={list.user.avatarUrl} alt="" className="w-3.5 h-3.5 rounded-full" />
+                    <img src={resolveImage(list.user.avatarUrl) || ""} alt="" className="w-3.5 h-3.5 rounded-full" />
                   ) : (
                     <div className="w-3.5 h-3.5 rounded-full bg-zinc-800" />
                   )}
@@ -264,7 +268,7 @@ function ListItem({ list, variant }: ListItemProps) {
 
   // Default vertical layouts (title on bottom)
   return (
-    <Link href={`/lists/${list.id}`} className="group block">
+    <Link href={`/lists/${list.user?.username}/${list.slug}`} className="group block">
       {/* Poster Strip */}
       <div className={`${height} ${width} grid ${gridCols} gap-0.5 rounded-lg overflow-hidden bg-zinc-900 border border-white/5`}>
         {slotArray.map((_, i) => {
@@ -273,7 +277,7 @@ function ListItem({ list, variant }: ListItemProps) {
             <div key={i} className="relative w-full h-full bg-zinc-800/50">
               {image ? (
                 <img
-                  src={image}
+                  src={resolveImage(image) || ""}
                   alt=""
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
@@ -296,7 +300,7 @@ function ListItem({ list, variant }: ListItemProps) {
           {list.user && (
             <div className="flex items-center gap-1.5">
               {list.user.avatarUrl ? (
-                <img src={list.user.avatarUrl} alt="" className="w-4 h-4 rounded-full" />
+                <img src={resolveImage(list.user.avatarUrl) || ""} alt="" className="w-4 h-4 rounded-full" />
               ) : (
                 <div className="w-4 h-4 rounded-full bg-zinc-800" />
               )}
@@ -331,6 +335,8 @@ export function UserLists({
   showViewAll = true,
   variant = "lg01",
   gridLayout = false,
+  isOwnProfile = false,
+  onCreateClick,
 }: UserListsProps) {
   const displayLists = limit ? lists.slice(0, limit) : lists;
 
@@ -366,13 +372,39 @@ export function UserLists({
             <List className="h-5 w-5 text-purple-400" />
             Curated Lists
           </h2>
-          <Link
-            href="#"
-            className="text-sm font-medium text-zinc-500 hover:text-white transition-colors flex items-center gap-1 group"
-          >
-            View all
-            <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
-          </Link>
+          <div className="flex items-center gap-4">
+            {isOwnProfile && onCreateClick && (
+              <button 
+                onClick={onCreateClick}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-bold text-white group/btn"
+              >
+                <Plus className="w-3.5 h-3.5 text-purple-400 group-hover/btn:scale-110 transition-transform" />
+                Create New List
+              </button>
+            )}
+            <Link
+              href="#"
+              className="text-sm font-medium text-zinc-500 hover:text-white transition-colors flex items-center gap-1 group"
+            >
+              View all
+              <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {displayLists.length === 0 && isOwnProfile && onCreateClick && (
+        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-white/5 rounded-3xl gap-4">
+           <div className="w-12 h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-zinc-700">
+              <List className="w-6 h-6" />
+           </div>
+           <p className="text-zinc-500 text-sm">You haven't created any lists yet.</p>
+           <Button 
+            onClick={onCreateClick}
+            className="rounded-xl bg-white text-black font-bold h-11"
+           >
+              Create Your First List
+           </Button>
         </div>
       )}
 

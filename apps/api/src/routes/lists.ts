@@ -38,6 +38,9 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
             displayName: userTable.displayName,
             avatarUrl: userTable.avatarUrl,
           },
+          isInList: query.membership_media_id
+            ? sql<boolean>`EXISTS(SELECT 1 FROM ${listItems} WHERE ${listItems.listId} = ${lists.id} AND ${listItems.mediaId} = ${query.membership_media_id})`
+            : sql<boolean>`false`,
         })
         .from(lists)
         .innerJoin(userTable, eq(lists.userId, userTable.id))
@@ -46,13 +49,38 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         .limit(limit)
         .offset(offset);
 
+      // Fetch cover images for each list
+      const resultsWithImages = await Promise.all(
+        results.map(async (r) => {
+          const items = await db
+            .select({ posterPath: media.posterPath })
+            .from(listItems)
+            .innerJoin(media, eq(listItems.mediaId, media.id))
+            .where(eq(listItems.listId, r.list.id))
+            .orderBy(listItems.position)
+            .limit(5);
+
+          return {
+            ...r,
+            coverImages: items
+              .map((i) => i.posterPath)
+              .filter(Boolean) as string[],
+          };
+        }),
+      );
+
       const [{ total }] = await db
         .select({ total: count() })
         .from(lists)
         .where(whereClause);
 
       return {
-        data: results.map((r) => ({ ...r.list, user: r.user })),
+        data: resultsWithImages.map((r) => ({
+          ...r.list,
+          user: r.user,
+          isInList: r.isInList,
+          coverImages: r.coverImages,
+        })),
         total,
         page,
         limit,
@@ -66,6 +94,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         user_id: t.Optional(t.String()),
+        membership_media_id: t.Optional(t.String()),
       }),
     },
   )
@@ -124,22 +153,102 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
   )
 
+  // Get list by username and slug
+  .get(
+    "/by-slug/:username/:slug",
+    async ({ params, set }) => {
+      const { username, slug } = params;
+
+      const result = await db
+        .select({
+          list: lists,
+          user: {
+            id: userTable.id,
+            username: userTable.username,
+            displayName: userTable.displayName,
+            avatarUrl: userTable.avatarUrl,
+          },
+        })
+        .from(lists)
+        .innerJoin(userTable, eq(lists.userId, userTable.id))
+        .where(and(eq(userTable.username, username), eq(lists.slug, slug)))
+        .limit(1)
+        .then((res) => res[0]);
+
+      if (!result) {
+        set.status = 404;
+        return { error: "List not found" };
+      }
+
+      // Fetch items
+      const items = await db
+        .select({
+          item: listItems,
+          media: media,
+        })
+        .from(listItems)
+        .innerJoin(media, eq(listItems.mediaId, media.id))
+        .where(eq(listItems.listId, result.list.id))
+        .orderBy(listItems.position);
+
+      return {
+        data: {
+          ...result.list,
+          user: result.user,
+          items: items.map((i) => ({ ...i.item, media: i.media })),
+        },
+      };
+    },
+    {
+      params: t.Object({
+        username: t.String(),
+        slug: t.String(),
+      }),
+    },
+  )
+
   // Create list
   .post(
     "/",
     async (ctx: any) => {
       const { user, body } = ctx;
 
+      // Generate a URL-friendly slug from the name
+      const baseSlug = body.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+
+      // Append a timestamp or random string to ensure it's unique
+      const uniqueSlug = `${baseSlug}-${Date.now()}`;
+
       const [newList] = await db
         .insert(lists)
         .values({
           userId: user.id,
           name: body.name,
+          slug: uniqueSlug,
           description: body.description,
           isPublic: body.is_public ?? true,
           isRanked: body.is_ranked ?? false,
         })
         .returning();
+
+      // If initial items provided, add them
+      if (body.item_ids && body.item_ids.length > 0) {
+        const itemValues = body.item_ids.map((mediaId: string, index: number) => ({
+          listId: newList.id,
+          mediaId,
+          position: index,
+        }));
+        await db.insert(listItems).values(itemValues);
+        
+        // Update items count
+        await db
+          .update(lists)
+          .set({ itemsCount: body.item_ids.length })
+          .where(eq(lists.id, newList.id));
+      }
 
       // Create activity
       await db.insert(activities).values({
@@ -147,7 +256,11 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         type: "list",
         targetType: "list",
         targetId: newList.id,
-        metadata: JSON.stringify({ name: body.name }),
+        metadata: JSON.stringify({ 
+          name: newList.name,
+          slug: newList.slug,
+          username: user.username 
+        }),
       });
 
       return { data: newList };
@@ -159,6 +272,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         description: t.Optional(t.String()),
         is_public: t.Optional(t.Boolean()),
         is_ranked: t.Optional(t.Boolean()),
+        item_ids: t.Optional(t.Array(t.String())),
       }),
     },
   )

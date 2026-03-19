@@ -8,10 +8,14 @@ import {
   follows,
   clubs,
   clubMembers,
+  lists,
+  reviews,
+  diary,
   eq,
   and,
   count,
   desc,
+  gte,
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
@@ -280,24 +284,76 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "User not found" };
       }
 
-      const [stats] = await db
+      const stats = await db
         .select()
         .from(userStats)
         .where(eq(userStats.userId, profile.id))
-        .limit(1);
+        .limit(1)
+        .then((res) => res[0]);
+
+      const followersRes = await db
+        .select({ total: count() })
+        .from(follows)
+        .where(eq(follows.followingId, profile.id));
+      const followersCount = Number(followersRes[0]?.total || 0);
+
+      const followingRes = await db
+        .select({ total: count() })
+        .from(follows)
+        .where(eq(follows.followerId, profile.id));
+      const followingCount = Number(followingRes[0]?.total || 0);
+
+      const moviesWatchedRes = await db
+        .select({ total: count() })
+        .from(diary)
+        .where(eq(diary.userId, profile.id));
+      const moviesWatched = Number(moviesWatchedRes[0]?.total || 0);
+
+      const reviewsRes = await db
+        .select({ total: count() })
+        .from(reviews)
+        .where(eq(reviews.userId, profile.id));
+      const reviewsCount = Number(reviewsRes[0]?.total || 0);
+
+      const listsRes = await db
+        .select({ total: count() })
+        .from(lists)
+        .where(eq(lists.userId, profile.id));
+      const listsCount = Number(listsRes[0]?.total || 0);
+
+      // Films watched this year
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      const thisYearRes = await db
+        .select({ total: count() })
+        .from(diary)
+        .where(
+          and(
+            eq(diary.userId, profile.id),
+            gte(diary.watchedAt, startOfYear.toISOString().split("T")[0])
+          )
+        );
+      const thisYearCount = Number(thisYearRes[0]?.total || 0);
+
+      const clubsCountRes = await db
+        .select({ total: count() })
+        .from(clubMembers)
+        .where(eq(clubMembers.userId, profile.id));
+      const clubsCount = Number(clubsCountRes[0]?.total || 0);
 
       if (!stats) {
-        // Return zeroed stats if not yet created
+        // Return zeroed stats if not yet created, but with accurate dynamic counts
         return {
           data: {
             userId: profile.id,
-            moviesWatched: 0,
+            moviesWatched,
             seriesWatched: 0,
             watchTimeMins: 0,
-            reviewsCount: 0,
-            listsCount: 0,
-            followersCount: 0,
-            followingCount: 0,
+            reviewsCount,
+            listsCount,
+            followersCount,
+            followingCount,
+            thisYearCount,
+            clubsCount,
             xp: 0,
             level: 1,
             averageRating: null,
@@ -305,26 +361,18 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         };
       }
 
-      const [{ followersCount }] = await db
-        .select({ followersCount: count() })
-        .from(follows)
-        .where(eq(follows.followingId, profile.id));
-
-      const [{ followingCount }] = await db
-        .select({ followingCount: count() })
-        .from(follows)
-        .where(eq(follows.followerId, profile.id));
-
       return {
         data: {
           userId: profile.id,
-          moviesWatched: stats.moviesWatched ?? 0,
+          moviesWatched,
           seriesWatched: stats.seriesWatched ?? 0,
           watchTimeMins: stats.watchTimeMins ?? 0,
-          reviewsCount: stats.reviewsCount ?? 0,
-          listsCount: stats.listsCount ?? 0,
-          followersCount: Number(followersCount),
-          followingCount: Number(followingCount),
+          reviewsCount,
+          listsCount,
+          followersCount,
+          followingCount,
+          thisYearCount,
+          clubsCount,
           xp: stats.xp ?? 0,
           level: stats.level ?? 1,
           averageRating: stats.averageRating ?? null,

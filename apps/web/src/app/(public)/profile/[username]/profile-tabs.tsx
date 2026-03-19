@@ -13,7 +13,9 @@ import {
   Lock,
   Users,
   History,
+  Plus,
 } from "lucide-react";
+import { CreateListModal } from "@/components/lists/CreateListModal";
 import {
   ProfileHeader,
   FavoriteFilms,
@@ -98,6 +100,7 @@ export function ProfileTabs({
   const [activeTab, setActiveTab] = useState("overview");
   const [clubs, setClubs] = useState<Club[]>([]);
   const [clubsLoaded, setClubsLoaded] = useState(false);
+  const [showCreateList, setShowCreateList] = useState(false);
 
   useEffect(() => {
     if (activeTab !== "clubs" || clubsLoaded) return;
@@ -152,9 +155,9 @@ export function ProfileTabs({
                     {profile.stats.listsCount}
                   </span>
                 )}
-                {tab.value === "clubs" && clubsLoaded && clubs.length > 0 && (
+                {tab.value === "clubs" && (profile.stats.clubsCount || (clubsLoaded && clubs.length > 0)) && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-500">
-                    {clubs.length}
+                    {profile.stats.clubsCount || clubs.length}
                   </span>
                 )}
               </button>
@@ -193,8 +196,14 @@ export function ProfileTabs({
                 <EmptyState icon={Star} message="No reviews yet." />
               ))}
             {activeTab === "lists" &&
-              (lists.length > 0 ? (
-                <UserLists lists={lists} showViewAll={false} variant="lg01" />
+              (lists.length > 0 || isOwnProfile ? (
+                <UserLists 
+                  lists={lists} 
+                  showViewAll={false} 
+                  variant="lg01" 
+                  isOwnProfile={isOwnProfile}
+                  onCreateClick={() => setShowCreateList(true)}
+                />
               ) : (
                 <EmptyState icon={List} message="No lists yet." />
               ))}
@@ -224,6 +233,16 @@ export function ProfileTabs({
           </>
         )}
       </div>
+
+      {showCreateList && (
+        <CreateListModal 
+          onClose={() => setShowCreateList(false)}
+          onSuccess={() => {
+            // Refresh logic - in a real app we might use a router refresh or a global state update
+            window.location.reload();
+          }}
+        />
+      )}
     </>
   );
 }

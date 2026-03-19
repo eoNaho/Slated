@@ -293,34 +293,53 @@ export const reviewsApi = {
 // ==================== LISTS ====================
 
 export const listsApi = {
-  list: (params: { userId?: string; page?: number } = {}) => {
-    const searchParams = new URLSearchParams();
-    if (params.userId) searchParams.set("user_id", params.userId);
-    if (params.page) searchParams.set("page", String(params.page));
-    return fetcher<PaginatedResponse<List>>(`/lists?${searchParams}`);
+  get: (options: { page?: number; limit?: number; user_id?: string; membership_media_id?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.page) params.set("page", String(options.page));
+    if (options.limit) params.set("limit", String(options.limit));
+    if (options.user_id) params.set("user_id", options.user_id);
+    if (options.membership_media_id) params.set("membership_media_id", options.membership_media_id);
+    return fetcher<PaginatedResponse<List & { isInList?: boolean }>>(`/lists?${params}`);
   },
 
-  getById: (id: string) => fetcher<ListDetails>(`/lists/${id}`),
+  getById: (id: string) => fetcher<{ data: ListDetails }>(`/lists/${id}`),
+
+  getBySlug: (username: string, slug: string) => 
+    fetcher<{ data: ListDetails }>(`/lists/by-slug/${username}/${slug}`),
 
   create: (data: CreateListInput) =>
-    fetcher<List>("/lists", {
+    fetcher<{ data: List }>("/lists", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description,
+        is_public: data.isPublic,
+        is_ranked: data.isRanked,
+        category: data.category,
+        item_ids: data.item_ids,
+      }),
     }),
 
   update: (id: string, data: Partial<CreateListInput>) =>
-    fetcher<List>(`/lists/${id}`, {
+    fetcher<{ data: List }>(`/lists/${id}`, {
       method: "PATCH",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description,
+        is_public: data.isPublic,
+        is_ranked: data.isRanked,
+        category: data.category,
+        item_ids: data.item_ids,
+      }),
     }),
 
   delete: (id: string) =>
     fetcher<{ message: string }>(`/lists/${id}`, { method: "DELETE" }),
 
   addItem: (listId: string, mediaId: string) =>
-    fetcher<{ message: string }>(`/lists/${listId}/items`, {
+    fetcher<{ data: any }>(`/lists/${listId}/items`, {
       method: "POST",
-      body: JSON.stringify({ mediaId }),
+      body: JSON.stringify({ media_id: mediaId }),
     }),
 
   removeItem: (listId: string, mediaId: string) =>
@@ -374,6 +393,9 @@ export const feedApi = {
 
   getGlobal: (page = 1) =>
     fetcher<PaginatedResponse<Activity>>(`/feed/global?page=${page}`),
+
+  getUser: (userId: string, page = 1) =>
+    fetcher<PaginatedResponse<Activity>>(`/feed/user/${userId}?page=${page}`),
 };
 
 // ==================== SEARCH ====================

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronRight, LayoutGrid, Sparkles, Dices } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { AddToListModal } from "@/components/lists/AddToListModal";
 
 export default function DiscoverPage() {
   const [items, setItems] = React.useState<any[]>([]);
@@ -27,6 +28,7 @@ export default function DiscoverPage() {
   const [isRoulette, setIsRoulette] = React.useState(false);
   const [rouletteCount, setRouletteCount] = React.useState(1);
   const [isSpinning, setIsSpinning] = React.useState(false);
+  const [listMedia, setListMedia] = React.useState<any>(null);
 
   // Load initial static data (genres, streaming)
   React.useEffect(() => {
@@ -234,7 +236,11 @@ export default function DiscoverPage() {
             </div>
           </div>
 
-          <MediaGrid items={items} isLoading={isLoading && page === 1 && !isRoulette} />
+          <MediaGrid 
+            items={items} 
+            isLoading={isLoading && page === 1 && !isRoulette} 
+            onAddToList={(item) => setListMedia(item)}
+          />
 
           {/* Load More */}
           {!isRoulette && page < totalPages && (
@@ -258,6 +264,16 @@ export default function DiscoverPage() {
           )}
         </section>
       </div>
+
+      <AnimatePresence>
+        {listMedia && (
+          <AddToListModal 
+            mediaId={listMedia.id}
+            mediaTitle={listMedia.title}
+            onClose={() => setListMedia(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

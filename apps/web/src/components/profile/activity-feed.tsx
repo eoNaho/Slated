@@ -90,7 +90,10 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
             {/* Poster (if applicable) */}
             {activity.data?.posterPath && (
               <Link
-                href="#"
+                href={activity.type === 'list' 
+                  ? `/lists/${activity.data?.username || activity.user?.username}/${activity.data?.slug}`
+                  : `/${activity.data?.mediaType === 'series' ? 'series' : 'movies'}/${activity.data?.id || activity.targetId}`
+                }
                 className="flex-shrink-0 w-12 h-16 rounded overflow-hidden bg-zinc-800"
               >
                 <img
@@ -105,14 +108,17 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-zinc-400 text-sm">{label}</span>
-                {activity.data?.title && (
+                {activity.data?.name || activity.data?.title ? (
                   <Link
-                    href="#"
+                    href={activity.type === 'list' 
+                      ? `/lists/${activity.data?.username || activity.user?.username}/${activity.data?.slug}`
+                      : `/${activity.data?.mediaType === 'series' ? 'series' : 'movies'}/${activity.data?.id || activity.targetId}`
+                    }
                     className="font-bold text-white hover:text-purple-400 transition-colors"
                   >
-                    {activity.data.title}
+                    {activity.data?.name || activity.data?.title}
                   </Link>
-                )}
+                ) : null}
                 {activity.data?.username && (
                   <Link
                     href={`/profile/${activity.data.username}`}

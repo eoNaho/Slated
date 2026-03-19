@@ -105,7 +105,17 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
         .offset(offset);
 
       return {
-        data: results.map((r) => ({ ...r.activity, user: r.user })),
+        data: results.map((r) => {
+          let data = {};
+          try {
+            data = typeof r.activity.metadata === 'string' 
+              ? JSON.parse(r.activity.metadata) 
+              : r.activity.metadata || {};
+          } catch (e) {
+            console.error("Failed to parse activity metadata", e);
+          }
+          return { ...r.activity, data, user: r.user };
+        }),
         page,
         limit,
         hasNext: results.length === limit,
@@ -113,6 +123,58 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
       };
     },
     {
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // Get user-specific feed
+  .get(
+    "/user/:userId",
+    async ({ params, query }) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      const results = await db
+        .select({
+          activity: activities,
+          user: {
+            id: userTable.id,
+            username: userTable.username,
+            displayName: userTable.displayName,
+            avatarUrl: userTable.avatarUrl,
+          },
+        })
+        .from(activities)
+        .innerJoin(userTable, eq(activities.userId, userTable.id))
+        .where(eq(activities.userId, params.userId))
+        .orderBy(desc(activities.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      return {
+        data: results.map((r) => {
+          let data = {};
+          try {
+            data = typeof r.activity.metadata === 'string' 
+              ? JSON.parse(r.activity.metadata) 
+              : r.activity.metadata || {};
+          } catch (e) {
+            console.error("Failed to parse activity metadata", e);
+          }
+          return { ...r.activity, data, user: r.user };
+        }),
+        page,
+        limit,
+        hasNext: results.length === limit,
+        hasPrev: page > 1,
+      };
+    },
+    {
+      params: t.Object({ userId: t.String() }),
       query: t.Object({
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
