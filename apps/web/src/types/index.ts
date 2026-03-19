@@ -416,6 +416,61 @@ export interface SearchResults {
   lists: List[];
 }
 
+// ==================== ACTIVITY TRACKING ====================
+
+export interface ActivityToken {
+  id: string;
+  userId: string;
+  name: string;
+  tokenHash: string;
+  lastUsedAt?: string | null;
+  createdAt: string;
+  token?: string; // Only present on creation
+}
+
+export interface CurrentActivity {
+  userId: string;
+  tmdbId?: number | null;
+  mediaType?: "movie" | "episode" | null;
+  title: string;
+  season?: number | null;
+  episode?: number | null;
+  progress?: number | null;
+  source?: string | null;
+  status: "watching" | "paused" | "finished";
+  updatedAt: string;
+}
+
+export interface Scrobble {
+  id: string;
+  userId: string;
+  tmdbId?: number | null;
+  mediaType: "movie" | "episode";
+  title: string;
+  season?: number | null;
+  episode?: number | null;
+  runtimeMinutes?: number | null;
+  source: string;
+  progress?: number | null;
+  isManual: boolean;
+  watchedAt: string;
+  createdAt: string;
+}
+
+export interface ActivityStats {
+  totalScrobbles: number;
+  totalMovies: number;
+  totalEpisodes: number;
+  totalHours: number | null;
+  sourceBreakdown: { source: string; count: number }[];
+  monthly: {
+    year: number;
+    month: number;
+    count: number;
+    minutes: number | null;
+  }[];
+}
+
 // ==================== API ERROR ====================
 
 export interface ApiError {

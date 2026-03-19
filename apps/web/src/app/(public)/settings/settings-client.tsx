@@ -28,13 +28,21 @@ import {
   Trash2,
   Sparkles,
   RefreshCw,
+  Puzzle,
+  Copy,
+  Plus,
 } from "lucide-react";
 import { useSession, authClient } from "@/lib/auth-client";
 import { resolveImage } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Section = "profile" | "account" | "privacy" | "notifications";
+type Section =
+  | "profile"
+  | "account"
+  | "privacy"
+  | "notifications"
+  | "extension";
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
@@ -178,13 +186,7 @@ function ToggleRow({
 
 // ── SaveButton ─────────────────────────────────────────────────────────────────
 
-function SaveButton({
-  loading,
-  saved,
-}: {
-  loading: boolean;
-  saved: boolean;
-}) {
+function SaveButton({ loading, saved }: { loading: boolean; saved: boolean }) {
   return (
     <button
       type="submit"
@@ -240,6 +242,7 @@ const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "account", label: "Account", icon: Lock },
   { id: "privacy", label: "Privacy", icon: Eye },
   { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "extension", label: "Browser Extension", icon: Puzzle },
 ];
 
 export function SettingsClient() {
@@ -277,6 +280,26 @@ export function SettingsClient() {
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [coverLoading, setCoverLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number>(0);
+
+  // ── Extension / API Tokens state
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(false);
+  const [newTokenName, setNewTokenName] = useState("");
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Fetch tokens when opening extension section
+  useEffect(() => {
+    if (section === "extension") {
+      setTokensLoading(true);
+      fetch(`${API}/activity/tokens`, { credentials: "include" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.data) setTokens(data.data);
+        })
+        .finally(() => setTokensLoading(false));
+    }
+  }, [section]);
 
   // Pre-fill from session
   useEffect(() => {
@@ -331,7 +354,8 @@ export function SettingsClient() {
   };
 
   const handleImageUpload = async (file: File, type: "avatar" | "cover") => {
-    const loadingSetter = type === "avatar" ? setAvatarLoading : setCoverLoading;
+    const loadingSetter =
+      type === "avatar" ? setAvatarLoading : setCoverLoading;
     loadingSetter(true);
 
     try {
@@ -357,7 +381,8 @@ export function SettingsClient() {
   };
 
   const handleRemoveImage = async (type: "avatar" | "cover") => {
-    const loadingSetter = type === "avatar" ? setAvatarLoading : setCoverLoading;
+    const loadingSetter =
+      type === "avatar" ? setAvatarLoading : setCoverLoading;
     loadingSetter(true);
 
     try {
@@ -430,6 +455,44 @@ export function SettingsClient() {
     toast.success("Notification preferences saved");
   };
 
+  const handleCreateToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTokenName.trim()) return;
+    setIsGenerating(true);
+    try {
+      const res = await fetch(`${API}/activity/tokens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newTokenName.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to create token");
+      const data = await res.json();
+      setGeneratedToken(data.data.token);
+      setTokens([data.data, ...tokens]);
+      setNewTokenName("");
+      toast.success("Token created successfully");
+    } catch {
+      toast.error("Failed to create token");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRevokeToken = async (tokenId: string) => {
+    try {
+      const res = await fetch(`${API}/activity/tokens/${tokenId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to revoke token");
+      setTokens(tokens.filter((t) => t.id !== tokenId));
+      toast.success("Token revoked");
+    } catch {
+      toast.error("Failed to revoke token");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Page header */}
@@ -455,19 +518,18 @@ export function SettingsClient() {
       {/* Layout */}
       <div className="container mx-auto px-6 py-10">
         <div className="flex gap-10 max-w-4xl mx-auto">
-
           {/* ── Sidebar ────────────────────────────────────────────────── */}
           <aside className="w-52 flex-shrink-0">
             {/* Avatar block */}
-                <div className="flex items-center gap-3 mb-8 px-1">
-                  <img
-                    src={`${
-                      resolveImage(u.image || u.avatarUrl) ||
-                      `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
-                    }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
-                    alt={username}
-                    className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10"
-                  />
+            <div className="flex items-center gap-3 mb-8 px-1">
+              <img
+                src={`${
+                  resolveImage(u.image || u.avatarUrl) ||
+                  `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
+                }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                alt={username}
+                className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10"
+              />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white truncate">
                   {u.displayName || u.name || username}
@@ -510,7 +572,6 @@ export function SettingsClient() {
 
           {/* ── Content ────────────────────────────────────────────────── */}
           <main className="flex-1 min-w-0">
-
             {/* ── PROFILE ────────────────────────────────────────────── */}
             {section === "profile" && (
               <form onSubmit={handleProfileSave} className="space-y-5">
@@ -535,7 +596,7 @@ export function SettingsClient() {
                       className={`w-full h-full object-cover transition-all duration-500 ${coverLoading ? "opacity-40 blur-sm" : "group-hover:scale-105"}`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    
+
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 gap-3">
                       <label className="cursor-pointer h-10 px-4 rounded-xl bg-white text-zinc-950 text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-xl">
                         <Camera className="h-3.5 w-3.5" />
@@ -584,7 +645,7 @@ export function SettingsClient() {
                         alt={username}
                         className={`w-full h-full object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
                       />
-                      
+
                       {/* Avatar Overlay */}
                       <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer">
                         <Camera className="h-6 w-6 text-white" />
@@ -605,7 +666,7 @@ export function SettingsClient() {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Floating Delete Badge */}
                     {u.avatarUrl && !avatarLoading && (
                       <button
@@ -624,7 +685,8 @@ export function SettingsClient() {
                       Profile Picture
                     </h3>
                     <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
-                      Click the image to upload a new avatar. Square images work best. Max 5MB.
+                      Click the image to upload a new avatar. Square images work
+                      best. Max 5MB.
                     </p>
                   </div>
                 </div>
@@ -845,6 +907,143 @@ export function SettingsClient() {
                   <SaveButton loading={false} saved={false} />
                 </div>
               </form>
+            )}
+
+            {/* ── EXTENSION ────────────────────────────────────────── */}
+            {section === "extension" && (
+              <div className="space-y-8">
+                <SectionHeader
+                  title="Browser Extension"
+                  description="Manage API tokens for the PixelReel browser extension."
+                />
+
+                <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/20">
+                  <h3 className="text-white font-bold mb-2">
+                    Track Activity Automatically
+                  </h3>
+                  <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                    Install the PixelReel extension on your browser to
+                    automatically track what you're watching on Netflix, Prime
+                    Video, and Disney+. Generate a token below and paste it into
+                    the extension to connect your account.
+                  </p>
+                  <a
+                    href="/extension.zip"
+                    download
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500 text-white font-bold text-sm hover:bg-purple-600 transition-colors shadow-lg shadow-purple-500/20"
+                  >
+                    <Puzzle className="h-4 w-4" />
+                    Download Extension
+                  </a>
+                </div>
+
+                {/* Create Token */}
+                <form
+                  onSubmit={handleCreateToken}
+                  className="space-y-4 pt-4 border-t border-zinc-800/60"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                    Create new token
+                  </p>
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <Field
+                        label="Token Name"
+                        placeholder="e.g., Chrome Laptop"
+                        value={newTokenName}
+                        onChange={(e) => setNewTokenName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isGenerating || !newTokenName.trim()}
+                      className="h-10 px-5 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2 mb-1"
+                    >
+                      {isGenerating ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Generate
+                    </button>
+                  </div>
+                </form>
+
+                {/* Newly Generated Token */}
+                {generatedToken && (
+                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-bold text-green-400">
+                        Token generated!
+                      </p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedToken);
+                          toast.success("Copied to clipboard");
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-green-400 hover:text-green-300 transition-colors bg-green-500/10 px-2 py-1 rounded-md"
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy token
+                      </button>
+                    </div>
+                    <div className="p-3 bg-black/50 rounded-lg border border-black/50 break-all">
+                      <code className="text-green-300 font-mono text-sm">
+                        {generatedToken}
+                      </code>
+                    </div>
+                    <p className="text-xs text-green-500/70 mt-3 font-medium">
+                      Make sure to copy your personal token now. You won't be
+                      able to see it again!
+                    </p>
+                  </div>
+                )}
+
+                {/* Active Tokens */}
+                <div className="space-y-4 pt-4 border-t border-zinc-800/60">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+                    Active tokens
+                  </p>
+
+                  {tokensLoading ? (
+                    <div className="flex justify-center py-8">
+                      <RefreshCw className="h-5 w-5 animate-spin text-zinc-600" />
+                    </div>
+                  ) : tokens.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-500 text-sm bg-zinc-900/40 rounded-xl border border-dashed border-zinc-800">
+                      No active tokens.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {tokens.map((token) => (
+                        <div
+                          key={token.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-900 border border-zinc-800/80"
+                        >
+                          <div>
+                            <p className="font-semibold text-white text-sm">
+                              {token.name}
+                            </p>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                              Created on{" "}
+                              {new Date(token.createdAt).toLocaleDateString()}
+                              {token.lastUsedAt &&
+                                ` · Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRevokeToken(token.id)}
+                            className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent shadow-sm"
+                          >
+                            Revoke
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </main>
         </div>

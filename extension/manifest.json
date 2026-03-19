@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "PixelReel",
+  "version": "1.0.0",
+  "description": "Rastreia o que você está assistindo e sincroniza com seu perfil PixelReel.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "*://*.netflix.com/*",
+    "*://*.hbomax.com/*",
+    "*://*.max.com/*",
+    "*://*.disneyplus.com/*",
+    "*://*.primevideo.com/*",
+    "*://*.bamgrid.com/*",
+    "http://localhost:3001/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["content/scraper-base.js", "content/netflix.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.primevideo.com/*"],
+      "js": ["content/scraper-base.js", "content/prime.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.disneyplus.com/*"],
+      "js": ["content/scraper-base.js", "content/disney.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.hbomax.com/*", "*://*.max.com/*"],
+      "js": ["content/scraper-base.js", "content/hbo.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "48": "icons/icon-48.png"
+    }
+  },
+  "icons": {
+    "48": "icons/icon-48.png"
+  }
+}

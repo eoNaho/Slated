@@ -31,8 +31,8 @@ export function startCronJobs(): void {
 
   // ── Media pre-population ─────────────────────────────────────────────────
 
-  registerJob("sync-trending", 24 * 60 * 60 * 1000, syncTrending);
-  registerJob("sync-popular",  7 * 24 * 60 * 60 * 1000, syncPopular);
+  // registerJob("sync-trending", 24 * 60 * 60 * 1000, syncTrending);
+  // registerJob("sync-popular",  7 * 24 * 60 * 60 * 1000, syncPopular);
 
   // ── Platform maintenance ─────────────────────────────────────────────────
 
@@ -58,6 +58,7 @@ export function startCronJobs(): void {
     logger.info({ job: job.name, intervalMs: job.interval }, "Registered cron job");
   }
 
+  /*
   // Run media sync once on startup so the DB is populated from day one
   setTimeout(async () => {
     logger.info("Running initial media sync on startup...");
@@ -68,6 +69,7 @@ export function startCronJobs(): void {
       logger.error({ err }, "Initial media sync failed");
     }
   }, 15_000); // 15s delay — let DB connections settle first
+  */
 
   logger.info(`Started ${jobs.length} cron jobs`);
 }

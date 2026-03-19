@@ -11,8 +11,8 @@ import { api } from "@/lib/api";
 import type { SearchResult } from "@/types";
 
 interface MediaSearchInputProps {
-  value?: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType"> | null;
-  onChange: (value: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType"> | null) => void;
+  value?: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId"> | null;
+  onChange: (value: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId"> | null) => void;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -44,8 +44,8 @@ export function MediaSearchInput({
 
       setIsLoading(true);
       try {
-        const response = await api.media.search(debouncedQuery);
-        setResults(response.results || []);
+        const response = await api.search.search(debouncedQuery, { type: "all" });
+        setResults(response.media || []);
         setIsOpen(true);
       } catch (error) {
         console.error("Failed to search media:", error);
@@ -76,6 +76,7 @@ export function MediaSearchInput({
       title: item.title,
       posterPath: item.posterPath,
       mediaType: item.mediaType,
+      localId: item.localId,
     });
     setQuery("");
     setIsOpen(false);

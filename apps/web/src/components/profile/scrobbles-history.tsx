@@ -2,61 +2,17 @@
 
 import { Calendar, Star, Info } from "lucide-react";
 
-interface ScrobbleItem {
-  id: string;
-  title: string;
-  season?: number;
-  episode?: number;
-  source: string;
-  rating?: number;
-  watchedAt: string;
-}
+import type { Scrobble } from "@/types";
 
 interface ScrobblesHistoryProps {
-  scrobbles?: ScrobbleItem[];
+  scrobbles?: Scrobble[];
 }
 
-export function ScrobblesHistory({ scrobbles }: ScrobblesHistoryProps) {
-  const data = scrobbles || [
-    {
-      id: "1",
-      title: "Alien: Romulus",
-      source: "Netflix",
-      rating: 4,
-      watchedAt: "28/10/2025",
-    },
-    {
-      id: "2",
-      title: "The Bear",
-      season: 3,
-      episode: 5,
-      source: "Prime",
-      watchedAt: "27/10/2025",
-    },
-    {
-      id: "3",
-      title: "The Bear",
-      season: 3,
-      episode: 4,
-      source: "Prime",
-      watchedAt: "27/10/2025",
-    },
-    {
-      id: "4",
-      title: "Conclave",
-      source: "Cinema",
-      rating: 5,
-      watchedAt: "25/10/2025",
-    },
-    {
-      id: "5",
-      title: "The Bear",
-      season: 3,
-      episode: 3,
-      source: "Prime",
-      watchedAt: "22/10/2025",
-    },
-  ];
+export function ScrobblesHistory({ scrobbles = [] }: ScrobblesHistoryProps) {
+  const data = scrobbles;
+
+  const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
+  const currentYear = new Date().getFullYear();
 
   return (
     <div className="space-y-6">
@@ -65,11 +21,18 @@ export function ScrobblesHistory({ scrobbles }: ScrobblesHistoryProps) {
           <Calendar className="h-4 w-4 text-purple-400" />
           Scrobble History
         </h3>
-        <span className="text-xs text-zinc-500 font-medium lowercase">October 2025</span>
+        <span className="text-xs text-zinc-500 font-medium lowercase">{currentMonth} {currentYear}</span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
+      {data.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-white/5 bg-zinc-900/20">
+          <Calendar className="h-8 w-8 text-zinc-700 mb-3" />
+          <p className="text-zinc-500 text-sm font-medium">No scrobbles yet</p>
+          <p className="text-zinc-600 text-xs mt-1">Install the extension to track automatically</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
           <thead>
             <tr className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-white/5">
               <th className="pb-3 pr-4 font-bold">Date</th>
@@ -83,7 +46,11 @@ export function ScrobblesHistory({ scrobbles }: ScrobblesHistoryProps) {
               <tr key={item.id} className="group hover:bg-white/[0.02] transition-colors">
                 <td className="py-4 pr-4">
                   <span className="text-xs font-medium text-zinc-400 whitespace-nowrap">
-                    {item.watchedAt.split("/").slice(0, 2).join("/")}
+                    {new Date(item.watchedAt).toLocaleDateString(undefined, {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
                   </span>
                 </td>
                 <td className="py-4 pr-4">
@@ -104,28 +71,14 @@ export function ScrobblesHistory({ scrobbles }: ScrobblesHistoryProps) {
                   </span>
                 </td>
                 <td className="py-4 text-right">
-                  {item.rating ? (
-                    <div className="flex items-center justify-end gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`h-3 w-3 ${
-                            i < (item.rating || 0)
-                              ? "text-yellow-500 fill-yellow-500"
-                              : "text-zinc-800 fill-zinc-800"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-zinc-700">—</span>
-                  )}
+                  <span className="text-zinc-700">—</span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      )}
 
       <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 flex gap-3 items-start">
         <Info className="h-4 w-4 text-purple-400 mt-0.5" />

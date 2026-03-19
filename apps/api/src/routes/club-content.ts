@@ -18,6 +18,7 @@ import {
   asc,
   count,
   or,
+  sql,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 
@@ -843,7 +844,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       // Increment comment counter
       await db
         .update(clubPosts)
-        .set({ commentsCount: db.sql`${clubPosts.commentsCount} + 1` } as any)
+        .set({ commentsCount: sql`${clubPosts.commentsCount} + 1` })
         .where(eq(clubPosts.id, params.postId));
 
       return { data: comment };
@@ -881,7 +882,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       await db.delete(clubPostComments).where(eq(clubPostComments.id, params.commentId));
       await db
         .update(clubPosts)
-        .set({ commentsCount: db.sql`GREATEST(${clubPosts.commentsCount} - 1, 0)` } as any)
+        .set({ commentsCount: sql`GREATEST(${clubPosts.commentsCount} - 1, 0)` })
         .where(eq(clubPosts.id, params.postId));
 
       return { success: true };
@@ -1103,7 +1104,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         // Change vote: decrement old option, increment new
         await db
           .update(clubPollOptions)
-          .set({ votesCount: db.sql`GREATEST(${clubPollOptions.votesCount} - 1, 0)` } as any)
+          .set({ votesCount: sql`GREATEST(${clubPollOptions.votesCount} - 1, 0)` })
           .where(eq(clubPollOptions.id, existing.optionId));
 
         await db
@@ -1119,14 +1120,14 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
 
         await db
           .update(clubPolls)
-          .set({ totalVotes: db.sql`${clubPolls.totalVotes} + 1` } as any)
+          .set({ totalVotes: sql`${clubPolls.totalVotes} + 1` })
           .where(eq(clubPolls.id, params.pollId));
       }
 
       // Increment new option count
       await db
         .update(clubPollOptions)
-        .set({ votesCount: db.sql`${clubPollOptions.votesCount} + 1` } as any)
+        .set({ votesCount: sql`${clubPollOptions.votesCount} + 1` })
         .where(eq(clubPollOptions.id, body.optionId));
 
       return { success: true, votedFor: body.optionId };

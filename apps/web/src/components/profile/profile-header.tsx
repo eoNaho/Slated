@@ -11,19 +11,21 @@ import {
   Settings,
 } from "lucide-react";
 import type { UserProfile, FavoriteFilm } from "@/types";
-import { WatchingNow } from "./watching-now";
 import { resolveImage } from "@/lib/utils";
+import { WatchingNow } from "./watching-now";
 
 interface ProfileHeaderProps {
   profile: UserProfile; // Keep original type
   favorites: FavoriteFilm[]; // Keep original type
   isOwnProfile?: boolean;
+  watchingNow?: any;
 }
 
 export function ProfileHeader({
   profile,
   favorites,
   isOwnProfile,
+  watchingNow = null,
 }: ProfileHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(false);
 
@@ -161,9 +163,23 @@ export function ProfileHeader({
               </span>
             </div>
           </div>
-          
+
           <div className="mt-8 md:mt-0 md:ml-auto shrink-0">
-            <WatchingNow />
+            {watchingNow && watchingNow.status !== "finished" && (
+              <WatchingNow
+                item={{
+                  title: watchingNow.title,
+                  season: watchingNow.season ?? undefined,
+                  episode: watchingNow.episode ?? undefined,
+                  progress: watchingNow.progress ?? 0,
+                  source: watchingNow.source ?? "unknown",
+                  status: watchingNow.status,
+                  timestamp: new Date(
+                    watchingNow.updatedAt,
+                  ).toLocaleTimeString(),
+                }}
+              />
+            )}
           </div>
         </div>
 

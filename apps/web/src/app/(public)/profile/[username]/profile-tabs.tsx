@@ -40,6 +40,8 @@ import type {
   WatchlistItem,
   LikeItem,
   Activity,
+  CurrentActivity,
+  Scrobble,
 } from "@/types";
 
 interface ProfileTabsProps {
@@ -54,6 +56,8 @@ interface ProfileTabsProps {
   watchlist?: WatchlistItem[];
   likes?: LikeItem[];
   activity?: Activity[];
+  watchingNow?: CurrentActivity | null;
+  scrobbles?: Scrobble[];
 }
 
 const tabs = [
@@ -71,7 +75,8 @@ const tabs = [
 
 const PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
 export function ProfileTabs({
   profile,
@@ -84,6 +89,8 @@ export function ProfileTabs({
   watchlist = [],
   likes = [],
   activity = [],
+  watchingNow = null,
+  scrobbles = [],
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -92,8 +99,11 @@ export function ProfileTabs({
   useEffect(() => {
     if (activeTab !== "clubs" || clubsLoaded) return;
     fetch(`${API_URL}/users/${username}/clubs`, { credentials: "include" })
-      .then((r) => r.ok ? r.json() : { data: [] })
-      .then((json) => { setClubs(json.data ?? []); setClubsLoaded(true); })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((json) => {
+        setClubs(json.data ?? []);
+        setClubsLoaded(true);
+      })
       .catch(() => setClubsLoaded(true));
   }, [activeTab, clubsLoaded, username]);
 
@@ -106,6 +116,7 @@ export function ProfileTabs({
         profile={profile}
         favorites={favorites}
         isOwnProfile={isOwnProfile}
+        watchingNow={watchingNow}
       />
 
       {/* Tabs Navigation */}
@@ -122,7 +133,9 @@ export function ProfileTabs({
                     : "border-transparent text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                <tab.icon className={`h-4 w-4 ${activeTab === tab.value ? "text-purple-500" : ""}`} />
+                <tab.icon
+                  className={`h-4 w-4 ${activeTab === tab.value ? "text-purple-500" : ""}`}
+                />
                 {tab.label}
                 {/* Count badge */}
                 {tab.value === "reviews" && reviews.length > 0 && (
@@ -148,7 +161,6 @@ export function ProfileTabs({
 
       {/* Tab Content */}
       <div className="container mx-auto px-6 py-10 min-h-[500px]">
-
         {/* Private tab guard */}
         {isPrivateTab ? (
           <PrivateTabGuard username={profile.username} tab={activeTab} />
@@ -170,18 +182,20 @@ export function ProfileTabs({
 
             {activeTab === "films" && <FilmsGrid entries={diary} />}
             {activeTab === "diary" && <FilmsDiary entries={diary} />}
-            {activeTab === "reviews" && (
-              reviews.length > 0
-                ? <ReviewsList reviews={reviews} showViewAll={false} />
-                : <EmptyState icon={Star} message="No reviews yet." />
-            )}
-            {activeTab === "lists" && (
-              lists.length > 0
-                ? <UserLists lists={lists} showViewAll={false} variant="lg01" />
-                : <EmptyState icon={List} message="No lists yet." />
-            )}
-            {activeTab === "clubs" && (
-              !clubsLoaded ? (
+            {activeTab === "reviews" &&
+              (reviews.length > 0 ? (
+                <ReviewsList reviews={reviews} showViewAll={false} />
+              ) : (
+                <EmptyState icon={Star} message="No reviews yet." />
+              ))}
+            {activeTab === "lists" &&
+              (lists.length > 0 ? (
+                <UserLists lists={lists} showViewAll={false} variant="lg01" />
+              ) : (
+                <EmptyState icon={List} message="No lists yet." />
+              ))}
+            {activeTab === "clubs" &&
+              (!clubsLoaded ? (
                 <div className="flex justify-center py-20">
                   <div className="w-6 h-6 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
                 </div>
@@ -193,15 +207,14 @@ export function ProfileTabs({
                 </div>
               ) : (
                 <EmptyState icon={Users} message="Nenhum club ainda." />
-              )
-            )}
+              ))}
             {activeTab === "watchlist" && <WatchlistGrid items={watchlist} />}
             {activeTab === "likes" && <LikesGrid items={likes} />}
             {activeTab === "activity" && <ActivityFeed activities={activity} />}
             {activeTab === "scrobbles" && (
               <div className="space-y-12">
-                <ScrobblesStats />
-                <ScrobblesHistory />
+                <ScrobblesStats userId={profile.id} />
+                <ScrobblesHistory scrobbles={scrobbles} />
               </div>
             )}
           </>
@@ -219,13 +232,20 @@ function PrivateTabGuard({ username, tab }: { username: string; tab: string }) {
       </div>
       <h3 className="text-xl font-bold text-white mb-2 capitalize">{tab}</h3>
       <p className="text-zinc-500 text-sm max-w-xs">
-        This section is only visible to <span className="text-zinc-300">@{username}</span>.
+        This section is only visible to{" "}
+        <span className="text-zinc-300">@{username}</span>.
       </p>
     </div>
   );
 }
 
-function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+function EmptyState({
+  icon: Icon,
+  message,
+}: {
+  icon: React.ElementType;
+  message: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">

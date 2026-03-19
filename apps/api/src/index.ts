@@ -32,6 +32,7 @@ import { searchRoutes } from "./routes/search";
 import { notificationsRoutes } from "./routes/notifications";
 import { stripeRoutes } from "./routes/stripeWebhook";
 import { imageRoutes } from "./routes/images";
+import { activityRoutes } from "./routes/activity";
 
 // Explicit list of allowed origins (never use `true` which allows all origins)
 const ALLOWED_ORIGINS = [
@@ -70,7 +71,8 @@ const app = new Elysia()
         info: {
           title: "PixelReel API",
           version: "1.0.0",
-          description: "Complete API for PixelReel - Media, Social, Gamification",
+          description:
+            "Complete API for PixelReel - Media, Social, Gamification",
         },
         tags: [
           { name: "Auth", description: "Authentication and OAuth" },
@@ -80,6 +82,7 @@ const app = new Elysia()
           { name: "Gamification", description: "Achievements and XP" },
           { name: "Admin", description: "System management" },
           { name: "Payments", description: "Stripe and Plans" },
+          { name: "Activity", description: "Scrobbles, Tokens, Watching Now" },
         ],
         components: {
           securitySchemes: {
@@ -98,8 +101,18 @@ const app = new Elysia()
   .onError(({ error, code, set }: any) => {
     const errorMessage =
       "message" in error ? String(error.message) : "Unknown error";
-    const cause = error?.cause ? String((error.cause as any)?.message ?? error.cause) : undefined;
-    logger.error({ code, error: errorMessage, cause, stack: error?.stack?.split("\n")[1]?.trim() }, "Request error");
+    const cause = error?.cause
+      ? String((error.cause as any)?.message ?? error.cause)
+      : undefined;
+    logger.error(
+      {
+        code,
+        error: errorMessage,
+        cause,
+        stack: error?.stack?.split("\n")[1]?.trim(),
+      },
+      "Request error",
+    );
 
     switch (code) {
       case "VALIDATION": {
@@ -149,7 +162,8 @@ const app = new Elysia()
       .use(searchRoutes)
       .use(notificationsRoutes)
       .use(stripeRoutes)
-      .use(imageRoutes),
+      .use(imageRoutes)
+      .use(activityRoutes),
   )
 
   .listen(process.env.PORT || 3001);

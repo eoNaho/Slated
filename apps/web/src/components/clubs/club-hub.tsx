@@ -247,7 +247,7 @@ export function ClubHub({
     eventType: "watch" as "watch" | "discussion",
     media: null as Pick<
       SearchResult,
-      "id" | "title" | "posterPath" | "mediaType"
+      "id" | "title" | "posterPath" | "mediaType" | "localId"
     > | null,
     scheduledAt: "",
     meetLink: "",
@@ -259,7 +259,7 @@ export function ClubHub({
   const [newWatchlist, setNewWatchlist] = useState({
     media: null as Pick<
       SearchResult,
-      "id" | "title" | "posterPath" | "mediaType"
+      "id" | "title" | "posterPath" | "mediaType" | "localId"
     > | null,
     note: "",
   });
@@ -507,7 +507,7 @@ export function ClubHub({
           eventType: newEvent.eventType,
           scheduledAt: newEvent.scheduledAt,
           meetLink: newEvent.meetLink || undefined,
-          mediaId: newEvent.media?.id ? String(newEvent.media.id) : undefined,
+          mediaId: newEvent.media?.localId || undefined,
           mediaTitle: newEvent.media?.title,
           mediaPosterPath: newEvent.media?.posterPath,
         }),
@@ -591,7 +591,7 @@ export function ClubHub({
       const data = await apiFetch(`/clubs/${club.id}/watchlist`, {
         method: "POST",
         body: JSON.stringify({
-          mediaId: String(newWatchlist.media.id),
+          mediaId: newWatchlist.media.localId || undefined,
           mediaTitle: newWatchlist.media.title,
           mediaPosterPath: newWatchlist.media.posterPath,
           mediaType: newWatchlist.media.mediaType,

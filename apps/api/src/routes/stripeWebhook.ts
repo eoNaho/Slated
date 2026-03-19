@@ -3,7 +3,10 @@ import { db, user as userTable, subscriptions, eq, and } from "../db";
 import { StripeService, stripe } from "../services/stripe";
 import { betterAuthPlugin } from "../lib/auth";
 
-export const stripeRoutes = new Elysia({ prefix: "/stripe", tags: ["Payments"] })
+export const stripeRoutes = new Elysia({
+  prefix: "/stripe",
+  tags: ["Payments"],
+})
   .use(betterAuthPlugin)
 
   // Create checkout session
@@ -12,7 +15,10 @@ export const stripeRoutes = new Elysia({ prefix: "/stripe", tags: ["Payments"] }
     async (ctx: any) => {
       const { user, body, set } = ctx;
 
-      const [userData] = await db.select().from(userTable).where(eq(userTable.id, user.id));
+      const [userData] = await db
+        .select()
+        .from(userTable)
+        .where(eq(userTable.id, user.id));
       if (!userData?.email) {
         set.status = 400;
         return { error: "User email required" };
@@ -22,18 +28,21 @@ export const stripeRoutes = new Elysia({ prefix: "/stripe", tags: ["Payments"] }
         const { url, sessionId } = await StripeService.createCheckoutSession(
           user.id,
           body.priceId,
-          userData.email
+          userData.email,
         );
         return { url, sessionId };
       } catch (e: any) {
         set.status = 500;
-        return { error: "Failed to create checkout session", details: e.message };
+        return {
+          error: "Failed to create checkout session",
+          details: e.message,
+        };
       }
     },
     {
       requireAuth: true,
       body: t.Object({ priceId: t.String() }),
-    }
+    },
   )
 
   // Create portal session (manage subscription)
@@ -54,14 +63,16 @@ export const stripeRoutes = new Elysia({ prefix: "/stripe", tags: ["Payments"] }
       }
 
       try {
-        const { url } = await StripeService.createPortalSession(sub.stripeCustomerId);
+        const { url } = await StripeService.createPortalSession(
+          sub.stripeCustomerId,
+        );
         return { url };
       } catch (e: any) {
         set.status = 500;
         return { error: "Failed to create portal session", details: e.message };
       }
     },
-    { requireAuth: true }
+    { requireAuth: true },
   )
 
   // Webhook handler (no auth — uses Stripe signature)
@@ -105,7 +116,6 @@ export const stripeRoutes = new Elysia({ prefix: "/stripe", tags: ["Payments"] }
               stripeCustomerId: customerId,
               stripeSubscriptionId: session.subscription,
               status: "active",
-              plan: "premium",
             });
           } else {
             await db

@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import {
   db,
   activities,
-  user,
+  user as userTable,
   media,
   reviews,
   follows,

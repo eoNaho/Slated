@@ -7,6 +7,8 @@ import type {
   UserStats,
   Review,
   List,
+  CurrentActivity,
+  Scrobble,
 } from "@/types";
 
 const API_URL =
@@ -101,6 +103,14 @@ export default async function ProfilePage({ params }: PageProps) {
 
   const user = userRes.data;
 
+  // Phase 1.5: activity and scrobbles (need user.id)
+  const [activityNowRes, scrobblesRes] = await Promise.all([
+    fetchJson<{ data: CurrentActivity | null }>(`/activity/now/${user.id}`),
+    fetchJson<{ data: Scrobble[]; total: number }>(
+      `/activity/scrobbles/${user.id}?limit=20`,
+    ),
+  ]);
+
   const stats: UserStats = statsRes?.data ?? {
     userId: user.id,
     moviesWatched: 0,
@@ -140,6 +150,8 @@ export default async function ProfilePage({ params }: PageProps) {
         favorites={[]}
         reviews={reviews}
         lists={lists}
+        watchingNow={activityNowRes?.data}
+        scrobbles={scrobblesRes?.data || []}
       />
     </div>
   );

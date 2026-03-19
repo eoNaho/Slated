@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import {
   db,
-  user,
+  user as userTable,
   userStats,
   diary,
   ratings,
@@ -142,7 +142,7 @@ export const statsRoutes = new Elysia({ prefix: "/stats", tags: ["Admin"] })
               acc[String(item.rating)] = item.count;
               return acc;
             },
-            {} as Record<string, number>
+            {} as Record<string, number>,
           ),
           filmsByYear: filmsByYear.map((f) => ({
             year: f.year,
@@ -162,26 +162,30 @@ export const statsRoutes = new Elysia({ prefix: "/stats", tags: ["Admin"] })
     },
     {
       params: t.Object({ username: t.String() }),
-    }
+    },
   )
 
   // ==========================================================================
   // Get my stats
   // ==========================================================================
 
-  .get("/me", async (ctx: any) => {
-    const { user: authUser } = ctx;
+  .get(
+    "/me",
+    async (ctx: any) => {
+      const { user: authUser } = ctx;
 
-    // Get user
-    const [userData] = await db
-      .select({ username: userTable.username })
-      .from(userTable)
-      .where(eq(userTable.id, authUser.id))
-      .limit(1);
+      // Get user
+      const [userData] = await db
+        .select({ username: userTable.username })
+        .from(userTable)
+        .where(eq(userTable.id, authUser.id))
+        .limit(1);
 
-    // Redirect to public stats (reuse logic)
-    // This could be refactored to a shared function
-    return {
-      redirect: `/api/v1/stats/user/${userData?.username}`,
-    };
-  }, { requireAuth: true });
+      // Redirect to public stats (reuse logic)
+      // This could be refactored to a shared function
+      return {
+        redirect: `/api/v1/stats/user/${userData?.username}`,
+      };
+    },
+    { requireAuth: true },
+  );

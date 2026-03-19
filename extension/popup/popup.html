@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PixelReel</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="48" height="48" rx="12" fill="url(#grad)" />
+          <path d="M19 15L33 24L19 33V15Z" fill="white" />
+          <defs>
+            <linearGradient id="grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#8b5cf6" />
+              <stop offset="1" stop-color="#5b21b6" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div>
+          <h1 class="brand">PixelReel</h1>
+          <p class="brand-sub">Activity Tracker</p>
+        </div>
+      </header>
+
+      <div class="card" id="status-card">
+        <div class="status-dot" id="status-dot"></div>
+        <div class="status-info">
+          <p class="status-label" id="status-label">Verificando…</p>
+          <p class="status-title" id="status-title"></p>
+          <p class="status-meta" id="status-meta"></p>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="toggle-label">Tracking ativo</span>
+        <label class="toggle" aria-label="Ativar ou pausar tracking">
+          <input type="checkbox" id="toggle-tracking" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="section">
+        <label class="field-label" for="token-input">API Token</label>
+        
+        <div class="input-wrapper">
+          <input
+            type="password"
+            id="token-input"
+            class="field-input"
+            placeholder="Cole o token do perfil…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn-eye" id="btn-eye" aria-label="Mostrar token" title="Mostrar/ocultar token">
+            <!-- Ícone de Olho Aberto -->
+            <svg id="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <!-- Ícone de Olho Fechado -->
+            <svg id="icon-eye-off" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+          </button>
+        </div>
+
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-save">Salvar Token</button>
+          <button class="btn btn-ghost" id="btn-clear">Limpar</button>
+        </div>
+        <p class="hint" id="save-hint"></p>
+      </div>
+
+      <footer class="footer">
+        <a id="token-link" href="#" target="_blank" class="link">Obter token no site ↗</a>
+      </footer>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
