@@ -446,6 +446,107 @@ export const plansApi = {
   getBySlug: (slug: string) => fetcher<Plan>(`/plans/${slug}`),
 };
 
+// ==================== STORIES ====================
+
+export interface Story {
+  id: string;
+  userId: string;
+  type: "watch" | "list" | "rating" | "poll" | "hot_take" | "rewind";
+  content: Record<string, unknown>;
+  imageUrl: string | null;
+  isPinned: boolean;
+  isExpired: boolean;
+  expiresAt: string;
+  viewsCount: number;
+  reactionsCount: number;
+  createdAt: string;
+  user?: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
+  hasViewed?: boolean;
+}
+
+export const storiesApi = {
+  create: (data: { type: string; content: Record<string, unknown>; expires_at?: string }) =>
+    fetcher<{ data: Story }>("/stories", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getFeed: (page = 1, limit = 20) =>
+    fetcher<{ data: Story[]; page: number; limit: number; hasNext: boolean; hasPrev: boolean }>(
+      `/stories/feed?page=${page}&limit=${limit}`
+    ),
+
+  getByUser: (username: string, page = 1) =>
+    fetcher<{ data: Story[]; page: number; limit: number; hasNext: boolean; hasPrev: boolean }>(
+      `/stories/user/${username}?page=${page}`
+    ),
+
+  getById: (id: string) =>
+    fetcher<{
+      data: Story & {
+        reactions: { reaction: string; count: number }[];
+        pollResults?: { optionIndex: number; count: number }[];
+        userReaction: string | null;
+        userPollVote: number | null;
+      };
+    }>(`/stories/${id}`),
+
+  delete: (id: string) =>
+    fetcher<null>(`/stories/${id}`, { method: "DELETE" }),
+
+  view: (id: string) =>
+    fetcher<{ success: boolean; already_viewed?: boolean }>(`/stories/${id}/view`, {
+      method: "POST",
+    }),
+
+  react: (id: string, reaction: string, textReply?: string) =>
+    fetcher<{ data: { id: string; reaction: string; textReply?: string } }>(
+      `/stories/${id}/react`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reaction, text_reply: textReply }),
+      }
+    ),
+
+  removeReaction: (id: string) =>
+    fetcher<{ success: boolean }>(`/stories/${id}/react`, { method: "DELETE" }),
+
+  pollVote: (id: string, optionIndex: number) =>
+    fetcher<{ success: boolean; pollResults: { optionIndex: number; count: number }[] }>(
+      `/stories/${id}/poll-vote`,
+      {
+        method: "POST",
+        body: JSON.stringify({ option_index: optionIndex }),
+      }
+    ),
+
+  pin: (id: string, pinned?: boolean) =>
+    fetcher<{ data: Story }>(`/stories/${id}/pin`, {
+      method: "PATCH",
+      body: JSON.stringify({ pinned }),
+    }),
+
+  uploadImage: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+    const res = await fetch(`${API_URL}/stories/${id}/image`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+      // No Content-Type header — browser sets it with boundary for multipart
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: "Upload failed" }));
+      throw new ApiError(error.error || "Upload failed", res.status);
+    }
+
+    return res.json() as Promise<{ data: Story; imageUrl: string }>;
+  },
+};
+
 // ==================== EXPORT ALL ====================
 
 export const api = {
@@ -461,6 +562,7 @@ export const api = {
   notifications: notificationsApi,
   people: peopleApi,
   plans: plansApi,
+  stories: storiesApi,
 };
 
 export { ApiError };

@@ -12,3 +12,4 @@ export * from "./ratings";
 export * from "./series";
 export * from "./clubs";
 export * from "./activity";
+export * from "./stories";

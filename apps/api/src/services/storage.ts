@@ -263,6 +263,27 @@ export class StorageService {
   }
 
   /**
+   * Optimize and upload a story image
+   * Full-width format (1080px max, story-style vertical or square)
+   */
+  async uploadStoryImage(
+    buffer: ArrayBuffer,
+    folder: string
+  ): Promise<{ path: string }> {
+    const input = Buffer.from(buffer);
+
+    const optimized = await sharp(input)
+      .resize({ width: 1080, withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    const path = `${folder}/story.webp`;
+    await this.upload(optimized, path, "image/webp");
+
+    return { path };
+  }
+
+  /**
    * Optimize and upload a user profile cover/banner
    * Wide format (1920px max width)
    */

@@ -44,6 +44,22 @@ export function startCronJobs(): void {
     logger.info("Subscription check — Stripe webhooks handle real-time; this is a safety net");
   });
 
+  // Stories expiration — mark expired stories every hour
+  registerJob("expire-stories", 60 * 60 * 1000, async () => {
+    const { sql: rawSql } = await import("drizzle-orm");
+    const { stories } = await import("../db/schema/stories");
+    const result = await db
+      .update(stories)
+      .set({ isExpired: true })
+      .where(
+        rawSql`${stories.expiresAt} < now() AND ${stories.isPinned} = false AND ${stories.isExpired} = false`
+      )
+      .returning({ id: stories.id });
+    if (result.length > 0) {
+      logger.info({ expired: result.length }, "expire-stories: marked stories as expired");
+    }
+  });
+
   // ── Start all ────────────────────────────────────────────────────────────
 
   for (const job of jobs) {

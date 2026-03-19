@@ -33,6 +33,7 @@ import { notificationsRoutes } from "./routes/notifications";
 import { stripeRoutes } from "./routes/stripeWebhook";
 import { imageRoutes } from "./routes/images";
 import { activityRoutes } from "./routes/activity";
+import { storiesRoutes } from "./routes/stories";
 
 // Explicit list of allowed origins (never use `true` which allows all origins)
 const ALLOWED_ORIGINS = [
@@ -163,7 +164,8 @@ const app = new Elysia()
       .use(notificationsRoutes)
       .use(stripeRoutes)
       .use(imageRoutes)
-      .use(activityRoutes),
+      .use(activityRoutes)
+      .use(storiesRoutes),
   )
 
   .listen(process.env.PORT || 3001);
