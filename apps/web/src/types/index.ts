@@ -21,6 +21,15 @@ export interface User {
   status: "active" | "suspended" | "banned";
   createdAt: string;
   lastActiveAt?: string | null;
+  socialLinks?: UserSocialLinks | null;
+}
+
+export interface UserSocialLinks {
+  userId: string;
+  twitter?: string | null;
+  instagram?: string | null;
+  letterboxd?: string | null;
+  imdb?: string | null;
 }
 
 export interface UserStats {

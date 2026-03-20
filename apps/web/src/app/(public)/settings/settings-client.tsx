@@ -31,6 +31,10 @@ import {
   Puzzle,
   Copy,
   Plus,
+  Twitter,
+  Instagram,
+  Clapperboard,
+  Film,
 } from "lucide-react";
 import { useSession, authClient } from "@/lib/auth-client";
 import { resolveImage } from "@/lib/utils";
@@ -255,6 +259,10 @@ export function SettingsClient() {
   const [bio, setBio] = useState("");
   const [location, setLocation] = useState("");
   const [website, setWebsite] = useState("");
+  const [twitter, setTwitter] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [letterboxd, setLetterboxd] = useState("");
+  const [imdb, setImdb] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -301,14 +309,26 @@ export function SettingsClient() {
     }
   }, [section]);
 
-  // Pre-fill from session
+  // Fetch full profile (including social links)
   useEffect(() => {
     if (session?.user) {
-      const u = session.user as any;
-      setDisplayName(u.displayName || u.name || "");
-      setBio(u.bio || "");
-      setLocation(u.location || "");
-      setWebsite(u.website || "");
+      fetch(`${API}/users/me`, { credentials: "include" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.data) {
+            const u = data.data;
+            setDisplayName(u.displayName || u.name || "");
+            setBio(u.bio || "");
+            setLocation(u.location || "");
+            setWebsite(u.website || "");
+            if (u.socialLinks) {
+              setTwitter(u.socialLinks.twitter || "");
+              setInstagram(u.socialLinks.instagram || "");
+              setLetterboxd(u.socialLinks.letterboxd || "");
+              setImdb(u.socialLinks.imdb || "");
+            }
+          }
+        });
     }
   }, [session]);
 
@@ -336,13 +356,21 @@ export function SettingsClient() {
     e.preventDefault();
     setProfileLoading(true);
     try {
-      const res = await fetch(`${API}/users/me`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ displayName, bio, location, website }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
+      const [profileRes, socialRes] = await Promise.all([
+        fetch(`${API}/users/me`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ displayName, bio, location, website }),
+        }),
+        fetch(`${API}/users/me/social-links`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ twitter, instagram, letterboxd, imdb }),
+        }),
+      ]);
+      if (!profileRes.ok || !socialRes.ok) throw new Error("Failed to save");
       setProfileSaved(true);
       toast.success("Profile updated");
       setTimeout(() => setProfileSaved(false), 2500);
@@ -574,175 +602,224 @@ export function SettingsClient() {
           <main className="flex-1 min-w-0">
             {/* ── PROFILE ────────────────────────────────────────────── */}
             {section === "profile" && (
-              <form onSubmit={handleProfileSave} className="space-y-5">
-                <SectionHeader
-                  title="Profile"
-                  description="Your public-facing identity on PixelReel."
-                />
+              <>
+                <form onSubmit={handleProfileSave} className="space-y-5">
+                  <SectionHeader
+                    title="Profile"
+                    description="Your public-facing identity on PixelReel."
+                  />
 
-                {/* Banner Upload */}
-                <div className="space-y-3">
-                  <label className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3" />
-                    Profile Banner
-                  </label>
-                  <div className="relative h-40 w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 group shadow-2xl">
-                    <img
-                      src={`${
-                        resolveImage(u.coverUrl) ||
-                        "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200"
-                      }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
-                      alt="Banner Preview"
-                      className={`w-full h-full object-cover transition-all duration-500 ${coverLoading ? "opacity-40 blur-sm" : "group-hover:scale-105"}`}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  {/* Banner Upload */}
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                      <Sparkles className="h-3 w-3" />
+                      Profile Banner
+                    </label>
+                    <div className="relative h-40 w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 group shadow-2xl">
+                      <img
+                        src={`${
+                          resolveImage(u.coverUrl) ||
+                          "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200"
+                        }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                        alt="Banner Preview"
+                        className={`w-full h-full object-cover transition-all duration-500 ${coverLoading ? "opacity-40 blur-sm" : "group-hover:scale-105"}`}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 gap-3">
-                      <label className="cursor-pointer h-10 px-4 rounded-xl bg-white text-zinc-950 text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-xl">
-                        <Camera className="h-3.5 w-3.5" />
-                        Change Banner
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImageUpload(file, "cover");
-                          }}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 gap-3">
+                        <label className="cursor-pointer h-10 px-4 rounded-xl bg-white text-zinc-950 text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-xl">
+                          <Camera className="h-3.5 w-3.5" />
+                          Change Banner
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(file, "cover");
+                            }}
+                          />
+                        </label>
+                        {u.coverUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage("cover")}
+                            className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center hover:bg-red-500/30 transition-all backdrop-blur-md"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {coverLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                          <RefreshCw className="h-6 w-6 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-600">
+                      Recommended size: 1920x480px. Max 10MB.
+                    </p>
+                  </div>
+
+                  {/* Avatar & Info Row */}
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-sm">
+                    <div className="relative group">
+                      <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-purple-500/20 bg-zinc-900 shadow-2xl relative">
+                        <img
+                          src={`${
+                            resolveImage(u.image || u.avatarUrl) ||
+                            `https://ui-avatars.com/api/?name=${username}&size=120&background=7c3aed&color=fff`
+                          }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                          alt={username}
+                          className={`w-full h-full object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
                         />
-                      </label>
-                      {u.coverUrl && (
+
+                        {/* Avatar Overlay */}
+                        <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer">
+                          <Camera className="h-6 w-6 text-white" />
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(file, "avatar");
+                            }}
+                          />
+                        </label>
+
+                        {avatarLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                            <RefreshCw className="h-5 w-5 text-white animate-spin" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Floating Delete Badge */}
+                      {u.avatarUrl && !avatarLoading && (
                         <button
                           type="button"
-                          onClick={() => handleRemoveImage("cover")}
-                          className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center hover:bg-red-500/30 transition-all backdrop-blur-md"
+                          onClick={() => handleRemoveImage("avatar")}
+                          className="absolute -top-2 -right-2 h-6 w-6 rounded-lg bg-zinc-900 border border-red-500/30 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-75 group-hover:scale-100"
+                          title="Remove avatar"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       )}
                     </div>
 
-                    {coverLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                        <RefreshCw className="h-6 w-6 text-white animate-spin" />
-                      </div>
-                    )}
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-sm font-bold text-white mb-1">
+                        Profile Picture
+                      </h3>
+                      <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
+                        Click the image to upload a new avatar. Square images
+                        work best. Max 5MB.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-zinc-600">
-                    Recommended size: 1920x480px. Max 10MB.
-                  </p>
-                </div>
 
-                {/* Avatar & Info Row */}
-                <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-sm">
-                  <div className="relative group">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-purple-500/20 bg-zinc-900 shadow-2xl relative">
-                      <img
-                        src={`${
-                          resolveImage(u.image || u.avatarUrl) ||
-                          `https://ui-avatars.com/api/?name=${username}&size=120&background=7c3aed&color=fff`
-                        }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
-                        alt={username}
-                        className={`w-full h-full object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
-                      />
+                  <div className="grid grid-cols-1 gap-4">
+                    <Field
+                      label="Display name"
+                      icon={User}
+                      placeholder="Your name"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      maxLength={50}
+                    />
 
-                      {/* Avatar Overlay */}
-                      <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer">
-                        <Camera className="h-6 w-6 text-white" />
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImageUpload(file, "avatar");
-                          }}
-                        />
-                      </label>
+                    <Field
+                      label="Username"
+                      icon={AtSign}
+                      value={username}
+                      readOnly
+                      hint="Username can't be changed yet."
+                    />
 
-                      {avatarLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                          <RefreshCw className="h-5 w-5 text-white animate-spin" />
-                        </div>
-                      )}
+                    <TextareaField
+                      label="Bio"
+                      icon={FileText}
+                      placeholder="Tell people about yourself…"
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={3}
+                      maxLength={200}
+                    />
+
+                    <Field
+                      label="Location"
+                      icon={MapPin}
+                      placeholder="City, Country"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      maxLength={80}
+                    />
+
+                    <Field
+                      label="Website"
+                      icon={Globe}
+                      placeholder="https://yoursite.com"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      type="url"
+                      maxLength={120}
+                    />
+                  </div>
+
+                  {/* Social Presence */}
+                  <div className="pt-6 mt-2 border-t border-zinc-800/60 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">
+                        Social Presence
+                      </h3>
+                      <p className="text-[11px] text-zinc-500 mt-1">
+                        Connect your other film-related social profiles.
+                      </p>
                     </div>
 
-                    {/* Floating Delete Badge */}
-                    {u.avatarUrl && !avatarLoading && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage("avatar")}
-                        className="absolute -top-2 -right-2 h-6 w-6 rounded-lg bg-zinc-900 border border-red-500/30 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-75 group-hover:scale-100"
-                        title="Remove avatar"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Field
+                        label="Twitter / X"
+                        icon={Twitter}
+                        placeholder="username"
+                        value={twitter}
+                        onChange={(e) => setTwitter(e.target.value)}
+                        maxLength={50}
+                      />
+                      <Field
+                        label="Instagram"
+                        icon={Instagram}
+                        placeholder="username"
+                        value={instagram}
+                        onChange={(e) => setInstagram(e.target.value)}
+                        maxLength={50}
+                      />
+                      <Field
+                        label="Letterboxd"
+                        icon={Clapperboard}
+                        placeholder="username"
+                        value={letterboxd}
+                        onChange={(e) => setLetterboxd(e.target.value)}
+                        maxLength={50}
+                      />
+                      <Field
+                        label="IMDb"
+                        icon={Film}
+                        placeholder="nm0000000"
+                        value={imdb}
+                        onChange={(e) => setImdb(e.target.value)}
+                        maxLength={20}
+                      />
+                    </div>
                   </div>
 
-                  <div className="flex-1 text-center sm:text-left">
-                    <h3 className="text-sm font-bold text-white mb-1">
-                      Profile Picture
-                    </h3>
-                    <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
-                      Click the image to upload a new avatar. Square images work
-                      best. Max 5MB.
-                    </p>
+                  <div className="flex justify-end pt-2">
+                    <SaveButton loading={profileLoading} saved={profileSaved} />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <Field
-                    label="Display name"
-                    icon={User}
-                    placeholder="Your name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    maxLength={50}
-                  />
-
-                  <Field
-                    label="Username"
-                    icon={AtSign}
-                    value={username}
-                    readOnly
-                    hint="Username can't be changed yet."
-                  />
-
-                  <TextareaField
-                    label="Bio"
-                    icon={FileText}
-                    placeholder="Tell people about yourself…"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    rows={3}
-                    maxLength={200}
-                  />
-
-                  <Field
-                    label="Location"
-                    icon={MapPin}
-                    placeholder="City, Country"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    maxLength={80}
-                  />
-
-                  <Field
-                    label="Website"
-                    icon={Globe}
-                    placeholder="https://yoursite.com"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    type="url"
-                    maxLength={120}
-                  />
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <SaveButton loading={profileLoading} saved={profileSaved} />
-                </div>
-              </form>
+                </form>
+              </>
             )}
 
             {/* ── ACCOUNT ────────────────────────────────────────────── */}

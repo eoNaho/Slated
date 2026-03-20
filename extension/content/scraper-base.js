@@ -73,6 +73,21 @@ window.createScraper = function ({
 
   const extractSE = parseSeasonEpisode ?? defaultParseSeasonEpisode;
 
+  // ── Seleciona o <video> ativo (ignora elementos ocultos) ──────────────────
+  // Disney+ (e outros) renderizam dois <video>: um oculto (display:none)
+  // e o real. querySelector("video") sempre pega o primeiro — o errado.
+
+  function getActiveVideo() {
+    const all = Array.from(document.querySelectorAll("video"));
+    return (
+      all.find((v) => !v.paused && v.readyState >= 2) ||
+      all.find((v) => v.src && getComputedStyle(v).display !== "none") ||
+      all.find((v) => v.src) ||
+      all[0] ||
+      null
+    );
+  }
+
   // ── Coleta via API interna (estratégia primária) ───────────────────────────
 
   async function collectViaApi() {
@@ -81,12 +96,10 @@ window.createScraper = function ({
       const info = await fetchInfo();
       if (!info?.title) return null;
 
-      const video = document.querySelector("video");
+      const video = getActiveVideo();
 
       if (info.progress == null && video && video.duration > 0) {
-        info.progress = Math.round(
-          (video.currentTime / video.duration) * 100,
-        );
+        info.progress = Math.round((video.currentTime / video.duration) * 100);
       }
 
       // Detectar status do vídeo
@@ -121,7 +134,7 @@ window.createScraper = function ({
 
   function collectViaDom() {
     try {
-      const video = document.querySelector("video");
+      const video = getActiveVideo();
       if (!video || video.readyState < 2) return null;
 
       const title = getTitle?.()?.trim();
@@ -208,7 +221,7 @@ window.createScraper = function ({
   // ── Aguarda <video> aparecer ───────────────────────────────────────────────
 
   function waitForVideo() {
-    if (fetchInfo || document.querySelector("video")) {
+    if (fetchInfo || getActiveVideo()) {
       startPolling();
       return;
     }
@@ -218,7 +231,7 @@ window.createScraper = function ({
           videoObserver.disconnect();
           return;
         }
-        if (document.querySelector("video")) {
+        if (getActiveVideo()) {
           videoObserver.disconnect();
           startPolling();
         }

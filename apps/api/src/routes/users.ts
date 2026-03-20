@@ -29,27 +29,31 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
   .use(betterAuthPlugin)
 
   // Get current user profile
-  .get("/me", async (ctx: any) => {
-    const { user } = ctx;
-    const [settings] = await db
-      .select()
-      .from(userSettings)
-      .where(eq(userSettings.userId, user.id));
-    const [socialLinks] = await db
-      .select()
-      .from(userSocialLinks)
-      .where(eq(userSocialLinks.userId, user.id));
+  .get(
+    "/me",
+    async (ctx: any) => {
+      const { user } = ctx;
+      const [settings] = await db
+        .select()
+        .from(userSettings)
+        .where(eq(userSettings.userId, user.id));
+      const [socialLinks] = await db
+        .select()
+        .from(userSocialLinks)
+        .where(eq(userSocialLinks.userId, user.id));
 
-    return {
-      data: {
-        ...user,
-        avatarUrl: resolveImageUrl(user.avatarUrl),
-        coverUrl: resolveImageUrl(user.coverUrl),
-        settings,
-        socialLinks,
-      },
-    };
-  }, { requireAuth: true })
+      return {
+        data: {
+          ...user,
+          avatarUrl: resolveImageUrl(user.avatarUrl),
+          coverUrl: resolveImageUrl(user.coverUrl),
+          settings,
+          socialLinks,
+        },
+      };
+    },
+    { requireAuth: true },
+  )
 
   // Get user by username (public)
   .get(
@@ -124,6 +128,47 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     },
   )
 
+  // Update current user social links
+  .patch(
+    "/me/social-links",
+    async (ctx: any) => {
+      const { user, body } = ctx;
+
+      const [updated] = await db
+        .insert(userSocialLinks)
+        .values({
+          userId: user.id,
+          twitter: body.twitter,
+          instagram: body.instagram,
+          letterboxd: body.letterboxd,
+          imdb: body.imdb,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: userSocialLinks.userId,
+          set: {
+            twitter: body.twitter,
+            instagram: body.instagram,
+            letterboxd: body.letterboxd,
+            imdb: body.imdb,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      return { data: updated };
+    },
+    {
+      requireAuth: true,
+      body: t.Object({
+        twitter: t.Optional(t.Nullable(t.String())),
+        instagram: t.Optional(t.Nullable(t.String())),
+        letterboxd: t.Optional(t.Nullable(t.String())),
+        imdb: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+
   // ── Upload avatar ──────────────────────────────────────────────────────────
   .post(
     "/me/avatar",
@@ -162,7 +207,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       const buffer = await file.arrayBuffer();
       const { path } = await storageService.uploadAvatar(
         buffer,
-        `users/${user.id}`
+        `users/${user.id}`,
       );
 
       const [updated] = await db
@@ -173,7 +218,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
       return { data: { avatarUrl: resolveImageUrl(updated.avatarUrl) } };
     },
-    { requireAuth: true }
+    { requireAuth: true },
   )
 
   // ── Remove avatar ──────────────────────────────────────────────────────────
@@ -197,7 +242,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
       return { data: { avatarUrl: null } };
     },
-    { requireAuth: true }
+    { requireAuth: true },
   )
 
   // ── Upload cover/banner ────────────────────────────────────────────────────
@@ -234,7 +279,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       const buffer = await file.arrayBuffer();
       const { path } = await storageService.uploadCover(
         buffer,
-        `users/${user.id}`
+        `users/${user.id}`,
       );
 
       const [updated] = await db
@@ -245,7 +290,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
       return { data: { coverUrl: resolveImageUrl(updated.coverUrl) } };
     },
-    { requireAuth: true }
+    { requireAuth: true },
   )
 
   // ── Remove cover/banner ────────────────────────────────────────────────────
@@ -266,7 +311,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
       return { data: { coverUrl: null } };
     },
-    { requireAuth: true }
+    { requireAuth: true },
   )
 
   // Get user stats (public)
@@ -276,7 +321,12 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       const [profile] = await db
         .select({ id: userTable.id })
         .from(userTable)
-        .where(and(eq(userTable.username, params.username), eq(userTable.status, "active")))
+        .where(
+          and(
+            eq(userTable.username, params.username),
+            eq(userTable.status, "active"),
+          ),
+        )
         .limit(1);
 
       if (!profile) {
@@ -329,8 +379,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         .where(
           and(
             eq(diary.userId, profile.id),
-            gte(diary.watchedAt, startOfYear.toISOString().split("T")[0])
-          )
+            gte(diary.watchedAt, startOfYear.toISOString().split("T")[0]),
+          ),
         );
       const thisYearCount = Number(thisYearRes[0]?.total || 0);
 
@@ -556,12 +606,15 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       const isSelf = viewerId === target.id;
 
       // alias for club owners
-      const ownerTable = db.select({
-        id: userTable.id,
-        username: userTable.username,
-        displayName: userTable.displayName,
-        avatarUrl: userTable.avatarUrl,
-      }).from(userTable).as("owner");
+      const ownerTable = db
+        .select({
+          id: userTable.id,
+          username: userTable.username,
+          displayName: userTable.displayName,
+          avatarUrl: userTable.avatarUrl,
+        })
+        .from(userTable)
+        .as("owner");
 
       const condition = isSelf
         ? eq(clubMembers.userId, target.id)
@@ -593,7 +646,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         })),
       };
     },
-    { params: t.Object({ username: t.String() }) }
+    { params: t.Object({ username: t.String() }) },
   )
 
   // Unfollow a user

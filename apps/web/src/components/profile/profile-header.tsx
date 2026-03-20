@@ -9,6 +9,10 @@ import {
   Star,
   Check,
   Settings,
+  Twitter,
+  Instagram,
+  Clapperboard,
+  Film,
 } from "lucide-react";
 import type { UserProfile, FavoriteFilm } from "@/types";
 import { resolveImage, cn } from "@/lib/utils";
@@ -176,6 +180,52 @@ export function ProfileHeader({
                 >
                   <Link2 className="h-3 w-3" />
                   {profile.website.replace(/^https?:\/\//, "")}
+                </a>
+              )}
+
+              {/* Social Links */}
+              {profile.socialLinks?.twitter && (
+                <a
+                  href={profile.socialLinks.twitter.startsWith("http") ? profile.socialLinks.twitter : `https://twitter.com/${profile.socialLinks.twitter}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                  title="Twitter / X"
+                >
+                  <Twitter className="h-3 w-3" />
+                </a>
+              )}
+              {profile.socialLinks?.instagram && (
+                <a
+                  href={profile.socialLinks.instagram.startsWith("http") ? profile.socialLinks.instagram : `https://instagram.com/${profile.socialLinks.instagram}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                  title="Instagram"
+                >
+                  <Instagram className="h-3 w-3" />
+                </a>
+              )}
+              {profile.socialLinks?.letterboxd && (
+                <a
+                  href={profile.socialLinks.letterboxd.startsWith("http") ? profile.socialLinks.letterboxd : `https://letterboxd.com/${profile.socialLinks.letterboxd}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                  title="Letterboxd"
+                >
+                  <Clapperboard className="h-3 w-3" />
+                </a>
+              )}
+              {profile.socialLinks?.imdb && (
+                <a
+                  href={profile.socialLinks.imdb.startsWith("http") ? profile.socialLinks.imdb : `https://imdb.com/name/${profile.socialLinks.imdb}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                  title="IMDb"
+                >
+                  <Film className="h-3 w-3" />
                 </a>
               )}
               <span className="flex items-center gap-1">
