@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 interface MovieActionsProps {
   movie: {
     id: string;
@@ -19,6 +20,63 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const [liked, setLiked] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watched, setWatched] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+  const [review, setReview] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.media.getState(movie.id)
+      .then((res) => {
+        if (mounted && res.data) {
+          setLiked(res.data.liked);
+          setWatched(res.data.watched);
+          setInWatchlist(res.data.inWatchlist);
+          setRating(res.data.rating);
+          setReview(res.data.review);
+        }
+      })
+      .catch((err) => console.error("Failed to load user state", err));
+    return () => { mounted = false; };
+  }, [movie.id]);
+
+  const toggleLiked = async () => {
+    const prev = liked;
+    setLiked(!prev);
+    try {
+      if (prev) await api.likes.unlike("media", movie.id);
+      else await api.likes.like("media", movie.id);
+    } catch {
+      setLiked(prev);
+      toast.error("Failed to update like status");
+    }
+  };
+
+  const toggleWatchlist = async () => {
+    const prev = inWatchlist;
+    setInWatchlist(!prev);
+    try {
+      if (prev) await api.watchlist.remove(movie.id);
+      else await api.watchlist.add(movie.id);
+    } catch {
+      setInWatchlist(prev);
+      toast.error("Failed to update watchlist");
+    }
+  };
+
+  const toggleWatched = async () => {
+    if (watched) {
+      toast.info("Already marked as watched. Edit from your diary if needed.");
+      return;
+    }
+    setWatched(true);
+    try {
+      await api.diary.add(movie.id, { isRewatch: false });
+      toast.success("Marked as watched!");
+    } catch {
+      setWatched(false);
+      toast.error("Failed to mark as watched");
+    }
+  };
 
   const year = movie.releaseDate
     ? new Date(movie.releaseDate).getFullYear()
@@ -67,7 +125,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
         {/* Watch Button */}
         <Button
           variant="outline"
-          onClick={() => setWatched(!watched)}
+          onClick={toggleWatched}
           className={`w-full border-white/20 hover:bg-white/5 justify-start ${
             watched
               ? "bg-green-500/10 border-green-500/30 text-green-400"
@@ -82,7 +140,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
         {/* Watchlist Button */}
         <Button
           variant="outline"
-          onClick={() => setInWatchlist(!inWatchlist)}
+          onClick={toggleWatchlist}
           className={`w-full border-white/20 hover:bg-white/5 justify-start ${
             inWatchlist
               ? "bg-purple-500/10 border-purple-500/30 text-purple-400"
@@ -99,7 +157,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
       <div className="flex gap-2 mt-4">
         <Button
           variant="ghost"
-          onClick={() => setLiked(!liked)}
+          onClick={toggleLiked}
           className={`flex-1 hover:bg-white/5 ${
             liked ? "text-red-400" : "text-zinc-400"
           }`}
@@ -128,10 +186,25 @@ export function MovieActions({ movie }: MovieActionsProps) {
           year,
           type: "movie",
         }}
-        onSubmit={(data) => {
-          console.log("Log submitted:", data);
-          // TODO: Send to API
-          setWatched(true);
+        onSubmit={async (data) => {
+          try {
+            await api.diary.add(movie.id, {
+              rating: data.rating,
+              notes: data.review,
+              isRewatch: data.isRewatch,
+            });
+            toast.success("Logged successfully!");
+            setWatched(true);
+          } catch (err) {
+            console.error("Failed to log:", err);
+            toast.error("Failed to log media");
+          }
+        }}
+        initialData={{
+          rating: rating ?? 0,
+          review: review ?? "",
+          liked: liked,
+          isRewatch: watched,
         }}
       />
     </>

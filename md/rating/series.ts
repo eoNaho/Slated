@@ -20,10 +20,13 @@ import {
   eq,
   and,
   asc,
+  desc,
+  count,
   inArray,
   sql,
 } from "../db";
 import { seasonRatings } from "../db/schema/series";
+import { ratings } from "../db/schema/ratings";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 import {
@@ -53,7 +56,8 @@ async function ensureSeasonsSynced(mediaId: string, tmdbId: number, slug: string
     .limit(1);
 
   if (existing.length === 0) {
-    // Sync seasons now — await so the response has data
+    // Fire-and-forget the deep sync (episodes included)
+    // Return after seasons are done so the response isn't too slow
     await syncSeriesSeasons(mediaId, tmdbId, slug);
 
     // Kick off episode sync in background
@@ -355,6 +359,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
   /**
    * POST /series/:id/sync
    * Full deep sync: seasons + episodes + images.
+   * Useful after TMDB data changes or for admin backfills.
    */
   .post(
     "/:id/sync",
@@ -536,6 +541,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
   /**
    * POST /series/:id/seasons/:seasonNumber/watch-all
    * Mark all episodes in a season as watched in one call.
+   * Useful for "I already watched this" bulk action.
    */
   .post(
     "/:id/seasons/:seasonNumber/watch-all",

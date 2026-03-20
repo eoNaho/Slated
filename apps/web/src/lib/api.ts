@@ -218,12 +218,18 @@ export const mediaApi = {
   getBySlug: (slug: string) =>
     fetcher<{ data: MediaDetails }>(`/media/slug/${slug}`),
 
+  getState: (id: string) =>
+    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null } }>(
+      `/media/${id}/state`
+    ),
+
   // Import to DB
   import: (tmdbId: number, type: "movie" | "series") =>
     fetcher<{
       success: true;
       message: string;
       mediaId: string;
+      slug: string;
       data: EnrichedMediaData;
     }>("/media/import", {
       method: "POST",
@@ -439,6 +445,21 @@ export const notificationsApi = {
     }),
 };
 
+// ==================== LIKES ====================
+
+export const likesApi = {
+  like: (targetType: "media" | "review" | "list", targetId: string) =>
+    fetcher<{ data: any; isNew: boolean }>("/likes", {
+      method: "POST",
+      body: JSON.stringify({ targetType, targetId }),
+    }),
+
+  unlike: (targetType: "media" | "review" | "list", targetId: string) =>
+    fetcher<{ success: boolean; message: string }>(`/likes/${targetType}/${targetId}`, {
+      method: "DELETE",
+    }),
+};
+
 // ==================== PEOPLE ====================
 
 export const peopleApi = {
@@ -582,6 +603,7 @@ export const api = {
   feed: feedApi,
   search: searchApi,
   notifications: notificationsApi,
+  likes: likesApi,
   people: peopleApi,
   plans: plansApi,
   stories: storiesApi,

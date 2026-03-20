@@ -11,8 +11,8 @@ import { api } from "@/lib/api";
 import type { SearchResult } from "@/types";
 
 interface MediaSearchInputProps {
-  value?: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId"> | null;
-  onChange: (value: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId"> | null) => void;
+  value?: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"> | null;
+  onChange: (value: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"> | null) => void;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -77,6 +77,7 @@ export function MediaSearchInput({
       posterPath: item.posterPath,
       mediaType: item.mediaType,
       localId: item.localId,
+      localSlug: item.localSlug,
     });
     setQuery("");
     setIsOpen(false);

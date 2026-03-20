@@ -16,9 +16,6 @@ export { WatchingNow } from "./watching-now";
 export { ScrobblesHistory } from "./scrobbles-history";
 export { ScrobblesStats } from "./scrobbles-stats";
 
-// Mock Data
-export * from "./mock-data";
-
 // Re-export types from central location for convenience
 export type {
   UserProfile,

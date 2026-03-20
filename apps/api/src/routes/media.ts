@@ -301,7 +301,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       try {
         // Check if exists
         const [existing] = await db
-          .select({ id: media.id })
+          .select({ id: media.id, slug: media.slug })
           .from(media)
           .where(eq(media.tmdbId, tmdbId))
           .limit(1);
@@ -311,6 +311,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
             success: true,
             message: "Media already exists",
             mediaId: existing.id,
+            slug: existing.slug,
             alreadyExists: true,
           };
         }
@@ -341,8 +342,10 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           success: true,
           message: "Media imported successfully",
           mediaId: importedMedia.id,
+          slug: importedMedia.slug,
           data: {
             id: importedMedia.id,
+            slug: importedMedia.slug,
             title: enrichedData.title,
             ratings: enrichedData.ratings,
           },
@@ -675,6 +678,82 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
     {
       params: t.Object({ id: t.String({ format: "uuid" }) }),
     },
+  )
+
+  /**
+   * GET /media/:id/state
+   * Get authenticated user's state for this media
+   */
+  .get(
+    "/:id/state",
+    async (ctx: any) => {
+      const { user, params } = ctx;
+      if (!user) {
+        return { data: { liked: false, watched: false, inWatchlist: false, rating: null, review: null } };
+      }
+
+      const { likes, diary, watchlist, reviews } = await import("../db");
+
+      const [likeRecord] = await db
+        .select({ id: likes.id })
+        .from(likes)
+        .where(
+          and(
+            eq(likes.userId, user.id),
+            eq(likes.targetType, "media"),
+            eq(likes.targetId, params.id)
+          )
+        )
+        .limit(1);
+
+      const [watchRecord] = await db
+        .select({ id: diary.id, notes: diary.notes, rating: diary.rating })
+        .from(diary)
+        .where(
+          and(
+            eq(diary.userId, user.id),
+            eq(diary.mediaId, params.id)
+          )
+        )
+        .orderBy(desc(diary.watchedAt))
+        .limit(1);
+
+      const [watchlistRecord] = await db
+        .select({ id: watchlist.id })
+        .from(watchlist)
+        .where(
+          and(
+            eq(watchlist.userId, user.id),
+            eq(watchlist.mediaId, params.id)
+          )
+        )
+        .limit(1);
+
+      const [reviewRecord] = await db
+        .select({ rating: reviews.rating, content: reviews.content })
+        .from(reviews)
+        .where(
+          and(
+            eq(reviews.userId, user.id),
+            eq(reviews.mediaId, params.id)
+          )
+        )
+        .limit(1);
+
+      return {
+        data: {
+          liked: !!likeRecord,
+          watched: !!watchRecord,
+          inWatchlist: !!watchlistRecord,
+          rating: reviewRecord?.rating ?? watchRecord?.rating ?? null,
+          review: reviewRecord?.content ?? watchRecord?.notes ?? null,
+        },
+      };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String({ format: "uuid" }) }),
+    }
   )
 
   /**

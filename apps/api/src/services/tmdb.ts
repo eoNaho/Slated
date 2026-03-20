@@ -690,6 +690,16 @@ export class TMDBService {
       );
 
       return insertedMedia;
+    }).then((insertedMedia) => {
+      // Fire-and-forget deep sync for series (seasons + episodes)
+      if (type === "series") {
+        import("./tmdb-series").then(({ deepSyncSeries }) => {
+          deepSyncSeries(insertedMedia.id, insertedMedia.tmdbId, insertedMedia.slug).catch((err) =>
+            logger.warn({ err }, "Background series sync failed")
+          );
+        });
+      }
+      return insertedMedia;
     });
   }
 

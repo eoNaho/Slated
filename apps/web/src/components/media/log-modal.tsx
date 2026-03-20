@@ -29,6 +29,7 @@ interface LogModalProps {
     type: "movie" | "series";
   };
   onSubmit?: (data: LogData) => void;
+  initialData?: Partial<LogData>;
 }
 
 export interface LogData {
@@ -45,17 +46,31 @@ const MAX_CHARS = 2000;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function LogModal({ isOpen, onClose, media, onSubmit }: LogModalProps) {
-  const [rating, setRating] = useState(0);
-  const [liked, setLiked] = useState(false);
+export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogModalProps) {
+  const [rating, setRating] = useState(initialData?.rating || 0);
+  const [liked, setLiked] = useState(initialData?.liked || false);
   const [watchedDate, setWatchedDate] = useState(
-    () => new Date().toISOString().split("T")[0],
+    initialData?.watchedDate || new Date().toISOString().split("T")[0],
   );
-  const [isRewatch, setIsRewatch] = useState(false);
-  const [review, setReview] = useState("");
-  const [reviewExpanded, setReviewExpanded] = useState(false);
-  const [containsSpoilers, setContainsSpoilers] = useState(false);
+  const [isRewatch, setIsRewatch] = useState(initialData?.isRewatch || false);
+  const [review, setReview] = useState(initialData?.review || "");
+  const [reviewExpanded, setReviewExpanded] = useState(!!initialData?.review);
+  const [containsSpoilers, setContainsSpoilers] = useState(initialData?.containsSpoilers || false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setRating(initialData.rating || 0);
+      setLiked(initialData.liked || false);
+      if (initialData.watchedDate) setWatchedDate(initialData.watchedDate);
+      setIsRewatch(initialData.isRewatch || false);
+      setReview(initialData.review || "");
+      setReviewExpanded(!!initialData.review);
+      setContainsSpoilers(initialData.containsSpoilers || false);
+      setTags(initialData.tags || []);
+    }
+  }, [isOpen, initialData]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPanelRef = useRef<HTMLDivElement>(null);

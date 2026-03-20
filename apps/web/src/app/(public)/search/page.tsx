@@ -359,14 +359,18 @@ export default function SearchPage() {
 
   const handleMediaClick = async (item: SearchResult) => {
     const segment = item.mediaType === "movie" ? "movies" : "series";
-    if (item.isLocal && item.localId) {
-      router.push(`/${segment}/${item.localId}`);
+    
+    // 1. Prioridade: Slug local já conhecido
+    if (item.isLocal && item.localSlug) {
+      router.push(`/${segment}/${item.localSlug}`);
       return;
     }
+
+    // 2. Fallback: Importar e usar o slug retornado
     setNavigating(item.tmdbId);
     try {
-      const { mediaId } = await mediaApi.import(item.tmdbId, item.mediaType);
-      router.push(`/${segment}/${mediaId}`);
+      const { slug } = await mediaApi.import(item.tmdbId, item.mediaType);
+      router.push(`/${segment}/${slug}`);
     } catch {
       setError("Falha ao carregar detalhes. Tente novamente.");
       setNavigating(null);

@@ -34,6 +34,10 @@ export const seasons = pgTable(
     posterPath: text("poster_path"),
     airDate: date("air_date"),
     episodeCount: integer("episode_count").default(0),
+    /** Cached average of all episode ratings for this season */
+    averageEpisodeRating: real("average_episode_rating"),
+    /** Last time seasons/episodes were synced from TMDB */
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
@@ -75,6 +79,7 @@ export const episodes = pgTable(
     unique("unique_season_episode").on(table.seasonId, table.episodeNumber),
     index("idx_episodes_season").on(table.seasonId),
     index("idx_episodes_tmdb").on(table.tmdbId),
+    index("idx_episodes_air_date").on(table.airDate),
   ]
 );
 
@@ -108,3 +113,41 @@ export const episodeProgress = pgTable(
     index("idx_episode_progress_watched").on(table.watchedAt),
   ]
 );
+
+// ============================================================================
+// Season Ratings (rating por temporada)
+// ============================================================================
+
+/**
+ * Rating por temporada — separado do rating geral da série.
+ *
+ * source:
+ *   "manual" — usuário definiu explicitamente
+ *   "auto"   — calculado como média dos ratings de episódios
+ *
+ * Regra: rating manual NUNCA é sobrescrito pelo auto.
+ * Deletar o manual reabilita o auto.
+ */
+export const seasonRatings = pgTable(
+  "season_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    seasonId: uuid("season_id")
+      .references(() => seasons.id, { onDelete: "cascade" })
+      .notNull(),
+    rating: real("rating").notNull(),
+    /** "manual" = user set explicitly; "auto" = calculated from episode avg */
+    isManual: text("source").notNull().default("manual"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    unique("unique_user_season_rating").on(table.userId, table.seasonId),
+    index("idx_season_ratings_user").on(table.userId),
+    index("idx_season_ratings_season").on(table.seasonId),
+  ]
+);
+

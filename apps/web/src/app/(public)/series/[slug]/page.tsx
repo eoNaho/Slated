@@ -15,23 +15,72 @@ import {
   MessageCircle,
   ChevronRight,
   Layers,
+  Film,
+  TrendingUp,
 } from "lucide-react";
-import { getMovie, getPopularReviews, getSimilarSeries } from "@/lib/queries/media";
-import { MovieActions } from "@/components/movies/movie-actions";
+import {
+  getMovie,
+  getPopularReviews,
+  getSimilarSeries,
+} from "@/lib/queries/media";
+import { SeriesActions } from "@/components/series/series-actions";
+import { SeasonsPanel } from "@/components/series/seasons-panel";
+import { SectionLabel } from "@/components/common/section-label";
+import { StarRating } from "@/components/common/star-rating";
+import { resolveImage } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const series = await getMovie(slug);
   const title = series?.title ?? slug.replace(/-/g, " ");
-  const year = series?.releaseDate ? new Date(series.releaseDate).getFullYear() : null;
+  const year = series?.releaseDate
+    ? new Date(series.releaseDate).getFullYear()
+    : null;
   return {
     title: year ? `${title} (${year}) | PixelReel` : `${title} | PixelReel`,
     description: series?.overview ?? `Watch ${title} on PixelReel.`,
+    openGraph: {
+      title,
+      description: series?.overview ?? undefined,
+      images: series?.backdropPath ? [series.backdropPath] : [],
+    },
   };
+}
+
+// Mock seasons data – in production this would come from an API call
+function buildMockSeasons(series: any) {
+  const genres = series.genres ?? [];
+  const totalSeasons = 3; // placeholder – ideally from TMDB data
+
+  return Array.from({ length: totalSeasons }, (_, i) => ({
+    id: `season-${i + 1}`,
+    seasonNumber: i + 1,
+    name: `Season ${i + 1}`,
+    overview: null,
+    posterPath: series.posterPath ?? null,
+    airDate: series.releaseDate ?? null,
+    episodeCount: 10,
+    watchedCount: 0,
+    episodes: Array.from({ length: 10 }, (_, j) => ({
+      id: `s${i + 1}e${j + 1}`,
+      seasonNumber: i + 1,
+      episodeNumber: j + 1,
+      title: `Episode ${j + 1}`,
+      overview: null,
+      stillPath: null,
+      airDate: series.releaseDate ?? null,
+      runtime: 45,
+      voteAverage: null,
+      userRating: null,
+      watched: false,
+    })),
+  }));
 }
 
 export default async function SeriesPage({ params }: PageProps) {
@@ -40,12 +89,16 @@ export default async function SeriesPage({ params }: PageProps) {
 
   if (!series) notFound();
 
-  const year = series.releaseDate ? new Date(series.releaseDate).getFullYear() : null;
-
+  const year = series.releaseDate
+    ? new Date(series.releaseDate).getFullYear()
+    : null;
   const cast = series.credits?.filter((c) => c.creditType === "cast") ?? [];
   const crew = series.credits?.filter((c) => c.creditType === "crew") ?? [];
   const creators = crew.filter(
-    (c) => c.job === "Creator" || c.job === "Series Creator" || c.department === "Creating"
+    (c) =>
+      c.job === "Creator" ||
+      c.job === "Series Creator" ||
+      c.department === "Creating",
   );
 
   const [reviews, similarSeries] = await Promise.all([
@@ -53,258 +106,471 @@ export default async function SeriesPage({ params }: PageProps) {
     getSimilarSeries(series.tmdbId),
   ]);
 
+  const genres = (series.genres ?? []).map((g) =>
+    typeof g === "string" ? g : g.name,
+  );
+  const seasons = buildMockSeasons(series);
+  const posterSrc = series.posterPath
+    ? resolveImage(series.posterPath) || series.posterPath
+    : null;
+  const backdropSrc = series.backdropPath
+    ? resolveImage(series.backdropPath) || series.backdropPath
+    : null;
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Backdrop */}
-      <div className="relative h-[60vh] w-full">
-        {series.backdropPath ? (
-          <Image src={series.backdropPath} alt={series.title} fill className="object-cover" priority />
+    <div
+      className="min-h-screen text-zinc-100"
+      style={{ background: "#0a0a0e" }}
+    >
+      {/* ── CINEMATIC HERO ──────────────────────────────────────────────── */}
+      <div
+        className="relative w-full overflow-hidden"
+        style={{ height: "70vh", minHeight: 420 }}
+      >
+        {backdropSrc ? (
+          <div className="absolute inset-0">
+            <Image
+              src={backdropSrc}
+              alt={series.title}
+              fill
+              className="object-cover object-[center_30%]"
+              priority
+              sizes="100vw"
+            />
+            {/* Overlay to ensure text readability and add depth */}
+            <div className="absolute inset-0 bg-zinc-950/20" />
+          </div>
         ) : (
-          <div className="h-full w-full bg-gradient-to-b from-zinc-900 to-zinc-950" />
+          <div className="absolute inset-0 bg-zinc-900" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-zinc-950/30" />
+
+        {/* Film grain */}
+        <div
+          className="absolute inset-0 opacity-[0.04] mix-blend-overlay"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "repeat",
+            backgroundSize: "200px 200px",
+          }}
+        />
+
+        {/* Edge vignette */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(13,13,15,0.8) 100%)" }}
+        />
+
+        {/* Bottom fade */}
+        <div
+          className="absolute inset-x-0 bottom-0"
+          style={{ height: "85%", background: "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 15%, rgba(13,13,15,0.95) 40%, rgba(13,13,15,0.4) 70%, transparent 100%)" }}
+        />
+
+        {/* Top fade */}
+        <div
+          className="absolute inset-x-0 top-0 h-40"
+          style={{ background: "linear-gradient(to bottom, rgba(13,13,15,0.7) 0%, rgba(13,13,15,0.3) 50%, transparent 100%)" }}
+        />
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 lg:px-8 -mt-72 relative z-10">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Column */}
-          <div className="lg:w-72 flex-shrink-0">
-            <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 mb-4">
-              {series.posterPath ? (
-                <Image src={series.posterPath} alt={series.title} fill className="object-cover" priority />
-              ) : (
-                <div className="h-full w-full bg-zinc-800 flex items-center justify-center">
-                  <Tv className="h-16 w-16 text-zinc-700" />
-                </div>
-              )}
+      {/* ── MAIN LAYOUT ─────────────────────────────────────────────────── */}
+      <div className="container mx-auto px-4 lg:px-8 -mt-64 relative z-10 pb-24">
+        <div className="flex flex-col lg:flex-row gap-8 xl:gap-14">
+          {/* ── SIDEBAR ──────────────────────────────────────────────────── */}
+          <div className="w-full lg:w-60 xl:w-68 flex-shrink-0">
+            {/* Poster */}
+            <div className="relative group mb-6">
+              <div className="absolute -inset-3 bg-indigo-600/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div
+                className="relative rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-transform duration-500 group-hover:scale-[1.02]"
+                style={{ aspectRatio: "2/3" }}
+              >
+                {posterSrc ? (
+                  <Image
+                    src={posterSrc}
+                    alt={series.title}
+                    fill
+                    className="object-cover"
+                    priority
+                    sizes="(max-width: 1024px) 160px, 240px"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                    <Tv className="h-12 w-12 text-zinc-800" />
+                  </div>
+                )}
+              </div>
             </div>
 
-            <MovieActions movie={series} />
+            {/* MediaActions (watchlist, share, etc.) */}
+            <SeriesActions series={series} />
 
+            {/* TMDB Score */}
             {series.voteAverage && series.voteAverage > 0 ? (
-              <div className="mt-6 p-4 rounded-xl bg-zinc-900/50 border border-white/5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-zinc-400">Rating</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xl font-bold text-white">{series.voteAverage.toFixed(1)}</span>
-                    <span className="text-zinc-500">/10</span>
+              <div
+                className="mt-5 p-4 rounded-xl border border-white/[0.06]"
+                style={{ background: "rgba(255,255,255,0.02)" }}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">
+                    TMDB
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <span className="text-lg font-bold text-white">
+                      {series.voteAverage.toFixed(1)}
+                    </span>
+                    <span className="text-zinc-600 text-sm">/10</span>
                   </div>
                 </div>
+                <StarRating rating={series.voteAverage} />
                 {series.voteCount ? (
-                  <p className="text-xs text-zinc-500">{series.voteCount.toLocaleString()} votes</p>
+                  <p className="text-[11px] text-zinc-600 mt-2">
+                    {series.voteCount.toLocaleString()} ratings
+                  </p>
                 ) : null}
               </div>
             ) : null}
 
+            {/* Where to Watch */}
             {series.streaming && series.streaming.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
-                  Where to Watch
-                </h3>
-                <div className="space-y-2">
-                  {series.streaming.map((service) => (
-                    <div
-                      key={service.serviceId}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5 hover:border-white/10 transition-colors cursor-pointer"
+                <SectionLabel>Where to Watch</SectionLabel>
+                <div className="mt-3 space-y-2">
+                  {Object.values(
+                    series.streaming.reduce(
+                      (acc, curr) => {
+                        if (!acc[curr.serviceId]) {
+                          acc[curr.serviceId] = {
+                            ...curr,
+                            countries: [curr.country],
+                          };
+                        } else {
+                          acc[curr.serviceId].countries.push(curr.country);
+                        }
+                        return acc;
+                      },
+                      {} as Record<
+                        string,
+                        (typeof series.streaming)[0] & { countries: string[] }
+                      >,
+                    ),
+                  ).map((mapping) => (
+                    <a
+                      key={mapping.serviceId}
+                      href={mapping.url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between px-4 py-3 rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all"
                     >
-                      <Play className="h-4 w-4 text-purple-400" />
-                      <span className="text-sm text-white">{service.service.name}</span>
-                    </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden border border-white/5">
+                          {mapping.service.logoPath ? (
+                            <img
+                              src={mapping.service.logoPath}
+                              alt={mapping.service.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Play className="h-3.5 w-3.5 text-indigo-400 fill-indigo-400/20" />
+                          )}
+                        </div>
+                        <span className="text-sm font-medium text-zinc-200">
+                          {mapping.service.name}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
+                        Watch
+                      </span>
+                    </a>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Details */}
+            <div className="mt-5 space-y-3">
+              {series.runtime ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Episode
+                  </span>
+                  <span className="text-zinc-300 font-medium">
+                    {series.runtime}m
+                  </span>
+                </div>
+              ) : null}
+              {series.releaseDate ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    First Aired
+                  </span>
+                  <span className="text-zinc-300 font-medium">
+                    {new Date(series.releaseDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+              ) : null}
+              {series.status ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5" />
+                    Status
+                  </span>
+                  <span
+                    className={`font-medium text-sm px-2 py-0.5 rounded-full ${series.status === "Ended" ? "text-red-400 bg-red-500/10" : "text-emerald-400 bg-emerald-500/10"}`}
+                  >
+                    {series.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-600 flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5" />
+                  Seasons
+                </span>
+                <span className="text-zinc-300 font-medium">
+                  {seasons.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Genres */}
+            {genres.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-1.5">
+                {genres.map((name, i) => (
+                  <Link
+                    key={i}
+                    href={`/series?genre=${name.toLowerCase()}`}
+                    className="px-3 py-1 rounded-full text-xs border border-white/[0.07] text-zinc-400 hover:border-indigo-500/40 hover:text-indigo-300 transition-all"
+                    style={{ background: "rgba(255,255,255,0.03)" }}
+                  >
+                    {name}
+                  </Link>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Right Column */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2 py-0.5 rounded text-xs bg-indigo-600 text-white font-medium">Series</span>
-                {year && <span className="text-zinc-400">{year}</span>}
+          {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
+          <div className="flex-1 min-w-0 pt-2 lg:pt-10">
+            {/* Title block */}
+            <header className="mb-8">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-[10px] uppercase font-bold tracking-widest border border-indigo-500/20 flex items-center gap-1.5">
+                  <Tv className="h-3 w-3" /> TV Series
+                </span>
+                {year && (
+                  <span className="px-2 py-0.5 rounded bg-white/10 text-white text-xs font-bold tracking-wider">
+                    {year}
+                  </span>
+                )}
+                {series.status && (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] uppercase font-bold tracking-widest border border-amber-500/20">
+                    {series.status.replace(/_/g, " ")}
+                  </span>
+                )}
+                {genres.slice(0, 3).map((name, i) => (
+                  <span key={i} className="text-xs text-zinc-500 font-medium">
+                    {i > 0 && " • "} {name}
+                  </span>
+                ))}
               </div>
 
-              <h1 className="text-4xl lg:text-5xl font-bold text-white mb-3">{series.title}</h1>
+              <h1
+                className="font-black text-white leading-[0.9] tracking-tight mb-4"
+                style={{ 
+                  fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
+                  textShadow: "0 10px 30px rgba(0,0,0,0.5)"
+                }}
+              >
+                {series.title}
+              </h1>
 
-              {series.originalTitle && series.originalTitle !== series.title && (
-                <p className="text-lg text-zinc-500 mb-2">{series.originalTitle}</p>
-              )}
-
-              {creators.length > 0 && (
-                <p className="text-zinc-400">
-                  Created by{" "}
-                  {creators.map((c, i) => (
-                    <span key={c.id}>
-                      <Link href={`/people/${c.person.id}`} className="text-white hover:text-purple-400 transition-colors">
-                        {c.person.name}
-                      </Link>
-                      {i < creators.length - 1 && ", "}
-                    </span>
-                  ))}
-                </p>
-              )}
-            </div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                {creators.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-500">Created by</span>
+                    <div className="flex gap-1.5">
+                      {creators.map((c, i) => (
+                        <span key={c.id}>
+                          <Link
+                            href={`/people/${c.person.id}`}
+                            className="text-zinc-200 hover:text-amber-400 transition-colors font-semibold"
+                          >
+                            {c.person.name}
+                          </Link>
+                          {i < creators.length - 1 && <span className="text-zinc-700">,</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {series.originalTitle && series.originalTitle !== series.title && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-600 italic">{series.originalTitle}</span>
+                  </div>
+                )}
+              </div>
+            </header>
 
             {series.tagline && (
-              <p className="text-xl italic text-zinc-400 mb-6 border-l-2 border-indigo-500 pl-4">
-                {series.tagline}
-              </p>
+              <blockquote
+                className="text-lg text-zinc-400 italic mb-6 pl-4"
+                style={{ borderLeft: "2px solid rgba(99,102,241,0.5)" }}
+              >
+                &ldquo;{series.tagline}&rdquo;
+              </blockquote>
             )}
 
             {series.overview && (
-              <p className="text-zinc-300 leading-relaxed text-lg mb-8">{series.overview}</p>
+              <p className="text-[15px] text-zinc-300 leading-relaxed mb-8 max-w-2xl">
+                {series.overview}
+              </p>
             )}
 
-            {/* Tabs */}
-            <div className="border-b border-white/10 mb-8">
-              <nav className="flex gap-8">
-                <span className="pb-3 text-sm font-medium text-white border-b-2 border-indigo-500">Overview</span>
-                <Link href={`/series/${slug}/cast`} className="pb-3 text-sm font-medium text-zinc-500 hover:text-white transition-colors">Cast</Link>
-                <Link href={`/series/${slug}/crew`} className="pb-3 text-sm font-medium text-zinc-500 hover:text-white transition-colors">Crew</Link>
-                <Link href={`/series/${slug}/reviews`} className="pb-3 text-sm font-medium text-zinc-500 hover:text-white transition-colors">Reviews</Link>
-              </nav>
-            </div>
+            <div className="border-t border-white/[0.04] mb-10" />
 
-            {/* Cast */}
-            {cast.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Users className="h-5 w-5 text-indigo-400" />
-                    Cast
+            {/* ── SEASONS & EPISODES ──────────────────────────────────────── */}
+            <section className="mb-16">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <SectionLabel>Seasons & Episodes</SectionLabel>
+                  <h2 className="text-xl font-bold text-white mt-1">
+                    {seasons.length} Season{seasons.length !== 1 && "s"}
+                    <span className="text-zinc-600 text-base font-normal ml-2">
+                      · {seasons.reduce((a, s) => a + s.episodeCount, 0)}{" "}
+                      episodes
+                    </span>
                   </h2>
+                </div>
+              </div>
+
+              <SeasonsPanel
+                seasons={seasons}
+                seriesId={series.id}
+                seriesTitle={series.title}
+              />
+            </section>
+
+            <div className="border-t border-white/[0.04] mb-10" />
+
+            {/* ── TOP CAST ──────────────────────────────────────────────── */}
+            {cast.length > 0 && (
+              <section className="mb-14">
+                <div className="flex items-center justify-between mb-5">
+                  <SectionLabel>Top Cast</SectionLabel>
                   {cast.length > 6 && (
-                    <Link href={`/series/${slug}/cast`} className="text-sm text-zinc-400 hover:text-white flex items-center gap-1">
-                      View all {cast.length} <ChevronRight className="h-4 w-4" />
+                    <Link
+                      href={`/series/${slug}/cast`}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1"
+                    >
+                      View all {cast.length}{" "}
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
                   )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
                   {cast.slice(0, 6).map((credit) => (
-                    <Link key={credit.id} href={`/people/${credit.person.id}`} className="group">
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 mb-2 ring-1 ring-white/10 group-hover:ring-indigo-500/50 transition-all">
+                    <Link
+                      key={credit.id}
+                      href={`/people/${credit.person.id}`}
+                      className="group"
+                    >
+                      <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 mb-2.5 ring-1 ring-white/[0.06] group-hover:ring-indigo-500/40 transition-all duration-300">
                         {credit.person.profilePath ? (
-                          <Image src={credit.person.profilePath} alt={credit.person.name} fill className="object-cover group-hover:scale-105 transition-transform" />
+                          <Image
+                            src={credit.person.profilePath}
+                            alt={credit.person.name}
+                            fill
+                            className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                            sizes="150px"
+                          />
                         ) : (
-                          <div className="h-full w-full flex items-center justify-center text-3xl text-zinc-600">👤</div>
+                          <div className="h-full w-full flex items-center justify-center text-3xl text-zinc-700">
+                            👤
+                          </div>
                         )}
                       </div>
-                      <p className="text-sm font-medium text-white group-hover:text-indigo-400 transition-colors truncate">{credit.person.name}</p>
-                      {credit.character && <p className="text-xs text-zinc-500 truncate">{credit.character}</p>}
+                      <p className="text-xs font-semibold text-zinc-200 group-hover:text-indigo-400 transition-colors leading-tight truncate">
+                        {credit.person.name}
+                      </p>
+                      {credit.character && (
+                        <p className="text-[11px] text-zinc-600 truncate mt-0.5">
+                          {credit.character}
+                        </p>
+                      )}
                     </Link>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* Details */}
-            <section className="mb-12">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
-                <Tv className="h-5 w-5 text-indigo-400" />
-                Details
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {series.runtime ? (
-                  <div className="p-4 rounded-lg bg-zinc-900/50 border border-white/5">
-                    <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-xs uppercase">Ep. Runtime</span>
-                    </div>
-                    <p className="text-white font-medium">{series.runtime}m</p>
-                  </div>
-                ) : null}
-                {series.releaseDate ? (
-                  <div className="p-4 rounded-lg bg-zinc-900/50 border border-white/5">
-                    <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs uppercase">First Aired</span>
-                    </div>
-                    <p className="text-white font-medium">
-                      {new Date(series.releaseDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                    </p>
-                  </div>
-                ) : null}
-                {series.status ? (
-                  <div className="p-4 rounded-lg bg-zinc-900/50 border border-white/5">
-                    <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                      <Globe className="h-4 w-4" />
-                      <span className="text-xs uppercase">Status</span>
-                    </div>
-                    <p className="text-white font-medium capitalize">{series.status.replace("_", " ")}</p>
-                  </div>
-                ) : null}
-                <div className="p-4 rounded-lg bg-zinc-900/50 border border-white/5">
-                  <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                    <Layers className="h-4 w-4" />
-                    <span className="text-xs uppercase">Type</span>
-                  </div>
-                  <p className="text-white font-medium">TV Series</p>
-                </div>
-              </div>
-            </section>
+            <div className="border-t border-white/[0.04] mb-10" />
 
-            {/* Genres */}
-            {series.genres && series.genres.length > 0 && (
-              <section className="mb-12">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
-                  <Tag className="h-5 w-5 text-indigo-400" />
-                  Genres
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {series.genres.map((genre, i) => {
-                    const name = typeof genre === "string" ? genre : genre.name;
-                    return (
-                      <Link key={i} href={`/series?genre=${name.toLowerCase()}`} className="px-4 py-2 rounded-full bg-zinc-900/50 border border-white/10 text-white hover:bg-indigo-600/20 hover:border-indigo-500/50 transition-colors">
-                        {name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* Reviews */}
+            {/* ── POPULAR REVIEWS ──────────────────────────────────────── */}
             <section className="mb-12">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-indigo-400" />
-                  Popular Reviews
-                </h2>
-                <Link href={`/series/${slug}/reviews`} className="text-sm text-zinc-400 hover:text-white flex items-center gap-1">
-                  View all <ChevronRight className="h-4 w-4" />
-                </Link>
-              </div>
+              <SectionLabel>Popular Reviews</SectionLabel>
               {reviews.length > 0 ? (
-                <div className="space-y-4">
+                <div className="mt-4 space-y-3">
                   {reviews.slice(0, 3).map((review) => (
-                    <div key={review.id} className="p-4 rounded-xl bg-zinc-900/50 border border-white/5">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
+                    <div
+                      key={review.id}
+                      className="p-5 rounded-2xl border border-white/[0.05] hover:border-white/10 transition-all"
+                      style={{ background: "rgba(255,255,255,0.015)" }}
+                    >
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0 ring-1 ring-white/10">
                           {review.user?.avatarUrl ? (
-                            <Image src={review.user.avatarUrl} alt={review.user.username} width={40} height={40} className="rounded-full" />
+                            <Image
+                              src={
+                                resolveImage(review.user.avatarUrl) ||
+                                review.user.avatarUrl
+                              }
+                              alt={review.user.username}
+                              width={40}
+                              height={40}
+                              className="rounded-full object-cover"
+                            />
                           ) : (
-                            <span className="text-lg">👤</span>
+                            <span className="text-zinc-600 text-sm">👤</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link href={`/profile/${review.user?.username}`} className="font-medium text-white hover:text-indigo-400">
-                              {review.user?.displayName || review.user?.username}
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <Link
+                              href={`/profile/${review.user?.username}`}
+                              className="font-bold text-sm text-white hover:text-indigo-400 transition-colors"
+                            >
+                              {review.user?.displayName ||
+                                review.user?.username}
                             </Link>
                             {review.rating && (
-                              <div className="flex items-center gap-0.5">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star key={i} className={`h-3 w-3 ${i < Math.floor(review.rating! / 2) ? "fill-yellow-400 text-yellow-400" : "text-zinc-600"}`} />
-                                ))}
+                              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20">
+                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                <span className="text-xs font-bold text-amber-400">
+                                  {review.rating}/10
+                                </span>
                               </div>
                             )}
                           </div>
-                          <p className="text-zinc-300 text-sm line-clamp-3">{review.content}</p>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
-                            <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{review.likesCount}</span>
-                            <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{review.commentsCount}</span>
+                          <p className="text-zinc-300 text-sm leading-relaxed line-clamp-3">
+                            {review.content}
+                          </p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-zinc-600">
+                            <span className="flex items-center gap-1">
+                              <Heart className="h-3 w-3" />
+                              {review.likesCount}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MessageCircle className="h-3 w-3" />
+                              {review.commentsCount}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -312,36 +578,66 @@ export default async function SeriesPage({ params }: PageProps) {
                   ))}
                 </div>
               ) : (
-                <div className="p-8 rounded-xl bg-zinc-900/30 border border-white/5 text-center">
-                  <MessageCircle className="h-12 w-12 text-zinc-700 mx-auto mb-3" />
-                  <p className="text-zinc-500">No reviews yet. Be the first!</p>
+                <div
+                  className="mt-4 py-12 rounded-2xl flex flex-col items-center gap-3 border border-white/[0.04]"
+                  style={{ background: "rgba(255,255,255,0.01)" }}
+                >
+                  <MessageCircle className="h-10 w-10 text-zinc-800" />
+                  <p className="text-zinc-600 text-sm">
+                    No reviews yet. Be the first.
+                  </p>
                 </div>
               )}
             </section>
 
-            {/* Similar Series */}
+            {/* ── SIMILAR SERIES ───────────────────────────────────────── */}
             {similarSeries.length > 0 && (
-              <section className="mb-12">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
-                  <Tv className="h-5 w-5 text-indigo-400" />
-                  Similar Series
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {similarSeries.map((s) => (
+              <section>
+                <div className="border-t border-white/[0.04] mb-10" />
+                <div className="flex items-center justify-between mb-5">
+                  <SectionLabel>You Might Also Like</SectionLabel>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                  {similarSeries.slice(0, 6).map((s) => (
                     <Link
                       key={s.id}
-                      href={`/series/${s.localSlug ?? s.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`}
+                      href={`/series/${
+                        s.localSlug ??
+                        s.title
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/^-|-$/g, "")
+                      }`}
                       className="group"
                     >
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 mb-2 ring-1 ring-white/10 group-hover:ring-indigo-500/50 transition-all">
+                      <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 mb-2 ring-1 ring-white/[0.06] group-hover:ring-indigo-500/40 transition-all duration-300">
                         {s.posterPath ? (
-                          <Image src={s.posterPath} alt={s.title} fill className="object-cover group-hover:scale-105 transition-transform" />
+                          <Image
+                            src={s.posterPath}
+                            alt={s.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            sizes="150px"
+                          />
                         ) : (
-                          <div className="h-full w-full flex items-center justify-center"><Tv className="h-8 w-8 text-zinc-600" /></div>
+                          <div className="h-full w-full flex items-center justify-center">
+                            <Tv className="h-6 w-6 text-zinc-700" />
+                          </div>
                         )}
+                        {s.voteAverage && s.voteAverage > 0 ? (
+                          <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-400">
+                            ★{s.voteAverage.toFixed(1)}
+                          </div>
+                        ) : null}
                       </div>
-                      <p className="text-sm font-medium text-white group-hover:text-indigo-400 transition-colors truncate">{s.title}</p>
-                      {s.releaseDate && <p className="text-xs text-zinc-500">{new Date(s.releaseDate).getFullYear()}</p>}
+                      <p className="text-xs font-semibold text-zinc-200 group-hover:text-indigo-400 transition-colors leading-tight line-clamp-2">
+                        {s.title}
+                      </p>
+                      {s.releaseDate && (
+                        <p className="text-[11px] text-zinc-600 mt-0.5">
+                          {new Date(s.releaseDate).getFullYear()}
+                        </p>
+                      )}
                     </Link>
                   ))}
                 </div>
