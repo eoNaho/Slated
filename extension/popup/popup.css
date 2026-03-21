@@ -311,6 +311,117 @@ body {
   color: var(--red);
 }
 
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Buttons small ───────────────────────────────────────────────────────── */
+.btn-sm {
+  padding: 7px 12px;
+  font-size: 12px;
+  flex: unset;
+}
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+.hidden {
+  display: none !important;
+}
+
+/* ── Watch Party ─────────────────────────────────────────────────────────── */
+.wp-join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wp-room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wp-code-badge {
+  background: rgba(139, 92, 246, 0.2);
+  color: var(--primary);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.15s;
+}
+.wp-code-badge:hover {
+  background: rgba(139, 92, 246, 0.35);
+}
+.wp-room-title {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wp-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wp-member-chip {
+  font-size: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 8px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.wp-member-chip.host::before {
+  content: "★";
+  color: var(--amber);
+  font-size: 10px;
+}
+.wp-chat-messages {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  height: 100px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scroll-behavior: smooth;
+}
+.wp-chat-msg {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+}
+.wp-chat-msg .wp-msg-author {
+  font-weight: 600;
+  color: var(--primary);
+  margin-right: 4px;
+}
+.wp-chat-input-row {
+  display: flex;
+  gap: 6px;
+}
+.wp-chat-input {
+  flex: 1;
+  padding: 7px 10px;
+  font-family: var(--font);
+}
+
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 .footer {
   text-align: center;

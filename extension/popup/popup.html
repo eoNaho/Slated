@@ -69,6 +69,64 @@
         <p class="hint" id="save-hint"></p>
       </div>
 
+      <!-- ── Watch Party ─────────────────────────────────────────────────── -->
+      <div class="divider"></div>
+
+      <!-- Estado: sem sala -->
+      <div id="wp-idle" class="section">
+        <p class="field-label">Watch Party</p>
+        <div class="field-row">
+          <button class="btn btn-primary btn-sm" id="wp-btn-create">Criar Sala</button>
+          <button class="btn btn-ghost btn-sm" id="wp-btn-join-toggle">Entrar</button>
+        </div>
+        <div id="wp-join-form" class="wp-join-form hidden">
+          <input
+            type="text"
+            id="wp-code-input"
+            class="field-input"
+            placeholder="Código da sala (ex: XK9M2P)"
+            maxlength="6"
+            style="text-transform:uppercase"
+          />
+          <button class="btn btn-primary btn-sm" id="wp-btn-join-confirm" style="margin-top:6px;width:100%">Entrar na sala</button>
+        </div>
+        <!-- Form de criação -->
+        <div id="wp-create-form" class="wp-join-form hidden">
+          <input
+            type="text"
+            id="wp-title-input"
+            class="field-input"
+            placeholder="Nome da sessão (ex: Sexta de Terror)"
+            maxlength="80"
+          />
+          <button class="btn btn-primary btn-sm" id="wp-btn-create-confirm" style="margin-top:6px;width:100%">Criar</button>
+        </div>
+        <p class="hint" id="wp-hint-idle"></p>
+      </div>
+
+      <!-- Estado: em sala -->
+      <div id="wp-active" class="section hidden">
+        <div class="wp-room-header">
+          <span class="field-label">Watch Party</span>
+          <span id="wp-badge-code" class="wp-code-badge" title="Clique para copiar"></span>
+        </div>
+        <p class="wp-room-title" id="wp-room-title"></p>
+        <div id="wp-members" class="wp-members"></div>
+
+        <!-- Mini chat -->
+        <div id="wp-chat-messages" class="wp-chat-messages"></div>
+        <div class="wp-chat-input-row">
+          <input type="text" id="wp-chat-input" class="field-input wp-chat-input" placeholder="Mensagem…" maxlength="500" />
+          <button class="btn btn-primary btn-sm" id="wp-btn-chat-send">↑</button>
+        </div>
+
+        <div class="field-row" style="margin-top:8px">
+          <button class="btn btn-ghost btn-sm" id="wp-btn-leave">Sair</button>
+          <button class="btn btn-danger btn-sm hidden" id="wp-btn-end">Encerrar</button>
+        </div>
+        <p class="hint" id="wp-hint-active"></p>
+      </div>
+
       <footer class="footer">
         <a id="token-link" href="#" target="_blank" class="link">Obter token no site ↗</a>
       </footer>

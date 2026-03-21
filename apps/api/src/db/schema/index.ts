@@ -13,3 +13,4 @@ export * from "./series";
 export * from "./clubs";
 export * from "./activity";
 export * from "./stories";
+export * from "./watch-party";

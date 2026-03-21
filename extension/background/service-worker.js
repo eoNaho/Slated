@@ -11,6 +11,14 @@
  */
 
 import { API_BASE } from "../config.js";
+import {
+  wpCreate,
+  wpJoin,
+  wpLeave,
+  wpSendChat,
+  wpGetState,
+  wpHandleHostAction,
+} from "./wp-manager.js";
 
 const ALARM_NAME = "pixelreel-heartbeat";
 const ALARM_PERIOD_MIN = 0.5; // Mínimo Chrome MV3 (30s)
@@ -134,6 +142,48 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     case "GET_STATUS":
       sendResponse({ state: currentState });
       break;
+
+    // ── Watch Party ─────────────────────────────────────────────────────────
+
+    case "WP_CREATE_ROOM": {
+      // Inject the current source from activity tracking if not provided explicitly
+      const params = {
+        ...message.params,
+        mediaSource: message.params.mediaSource ?? currentState?.source,
+      };
+      wpCreate(params, _sender?.tab?.id).then(sendResponse);
+      return true;
+    }
+
+    case "WP_JOIN_ROOM": {
+      // Pass current source (from activity tracking) so the server can warn on mismatch
+      wpJoin(message.code, _sender?.tab?.id, currentState?.source ?? message.source).then(sendResponse);
+      return true;
+    }
+
+    case "WP_LEAVE_ROOM": {
+      wpLeave().then(sendResponse);
+      return true;
+    }
+
+    case "WP_SEND_CHAT": {
+      sendResponse(wpSendChat(message.content));
+      break;
+    }
+
+    case "WP_GET_STATE": {
+      sendResponse(wpGetState());
+      break;
+    }
+
+    case "WP_HOST_PLAY":
+    case "WP_HOST_PAUSE":
+    case "WP_HOST_SEEK":
+    case "WP_HOST_SYNC_STATE": {
+      wpHandleHostAction(message.type, message);
+      sendResponse({ ok: true });
+      break;
+    }
 
     default:
       sendResponse({ ok: false, error: "Mensagem desconhecida" });

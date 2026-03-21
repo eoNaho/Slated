@@ -44,6 +44,12 @@ export function startCronJobs(): void {
     logger.info("Subscription check — Stripe webhooks handle real-time; this is a safety net");
   });
 
+  // Watch party — cleanup stale rooms every 5 minutes
+  registerJob("cleanup-watch-parties", 5 * 60 * 1000, async () => {
+    const { cleanupStaleRooms } = await import("./watch-party");
+    await cleanupStaleRooms();
+  });
+
   // Stories expiration — mark expired stories every hour
   registerJob("expire-stories", 60 * 60 * 1000, async () => {
     const { sql: rawSql } = await import("drizzle-orm");

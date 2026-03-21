@@ -3,7 +3,7 @@
   "name": "PixelReel",
   "version": "1.0.0",
   "description": "Rastreia o que você está assistindo e sincroniza com seu perfil PixelReel.",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "tabs"],
   "host_permissions": [
     "*://*.netflix.com/*",
     "*://*.hbomax.com/*",
@@ -20,22 +20,22 @@
   "content_scripts": [
     {
       "matches": ["*://*.netflix.com/*"],
-      "js": ["content/scraper-base.js", "content/netflix.js"],
+      "js": ["content/scraper-base.js", "content/watch-party-sync.js", "content/netflix.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["*://*.primevideo.com/*"],
-      "js": ["content/scraper-base.js", "content/prime.js"],
+      "js": ["content/scraper-base.js", "content/watch-party-sync.js", "content/prime.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["*://*.disneyplus.com/*"],
-      "js": ["content/scraper-base.js", "content/disney.js"],
+      "js": ["content/scraper-base.js", "content/watch-party-sync.js", "content/disney.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["*://*.hbomax.com/*", "*://*.max.com/*"],
-      "js": ["content/scraper-base.js", "content/hbo.js"],
+      "js": ["content/scraper-base.js", "content/watch-party-sync.js", "content/hbo.js"],
       "run_at": "document_idle"
     }
   ],

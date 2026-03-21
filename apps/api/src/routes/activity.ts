@@ -9,34 +9,7 @@ import {
 import { betterAuthPlugin } from "../lib/auth";
 import { eq, desc, and, count, sum, sql, lt, gte } from "drizzle-orm";
 import { generateSecureToken, hashData } from "../middleware/security";
-
-// ─── Bearer token auth for the extension ─────────────────────────────────────
-// Resolves the user from an "Authorization: Bearer <raw_token>" header.
-async function resolveExtensionToken(
-  headers: Headers
-): Promise<string | null> {
-  const auth = headers.get("Authorization") ?? headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return null;
-  const raw = auth.slice(7).trim();
-  if (!raw) return null;
-
-  const hash = await hashData(raw);
-  const [token] = await db
-    .select({ userId: activityTokens.userId, id: activityTokens.id })
-    .from(activityTokens)
-    .where(eq(activityTokens.tokenHash, hash))
-    .limit(1);
-
-  if (!token) return null;
-
-  // Update last_used_at without blocking the response
-  db.update(activityTokens)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(activityTokens.id, token.id))
-    .catch(() => {});
-
-  return token.userId;
-}
+import { resolveExtensionToken } from "../lib/extension-auth";
 
 // Scrobble threshold: auto-scrobble when progress >= this value
 const SCROBBLE_THRESHOLD = 80;
