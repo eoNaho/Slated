@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { db, diary, media, eq, and, desc, count } from "../db";
+import { db, diary, reviews, media, eq, and, desc, count, isNull } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 
 export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
@@ -77,6 +77,74 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
 
       // Note: User stats updated by trigger 'update_user_stats_on_watch'
 
+      // Auto-link a review when notes are present and no manual review exists
+      if (body.notes && body.notes.length >= 10) {
+        const [existingManual] = await db
+          .select({ id: reviews.id })
+          .from(reviews)
+          .where(
+            and(
+              eq(reviews.userId, user.id),
+              eq(reviews.mediaId, body.media_id),
+              eq(reviews.source, "manual"),
+              isNull(reviews.seasonId),
+              isNull(reviews.episodeId),
+            ),
+          )
+          .limit(1);
+
+        if (!existingManual) {
+          const [existingDiary] = await db
+            .select({ id: reviews.id })
+            .from(reviews)
+            .where(
+              and(
+                eq(reviews.userId, user.id),
+                eq(reviews.mediaId, body.media_id),
+                eq(reviews.source, "diary"),
+                isNull(reviews.seasonId),
+                isNull(reviews.episodeId),
+              ),
+            )
+            .limit(1);
+
+          let linkedReviewId: string;
+          if (existingDiary) {
+            const [updated] = await db
+              .update(reviews)
+              .set({
+                title: body.review_title ?? null,
+                content: body.notes,
+                rating: body.rating,
+                containsSpoilers: body.contains_spoilers ?? false,
+                updatedAt: new Date(),
+              })
+              .where(eq(reviews.id, existingDiary.id))
+              .returning({ id: reviews.id });
+            linkedReviewId = updated.id;
+          } else {
+            const [created] = await db
+              .insert(reviews)
+              .values({
+                userId: user.id,
+                mediaId: body.media_id,
+                title: body.review_title ?? null,
+                content: body.notes,
+                rating: body.rating,
+                containsSpoilers: body.contains_spoilers ?? false,
+                source: "diary",
+              })
+              .returning({ id: reviews.id });
+            linkedReviewId = created.id;
+          }
+
+          await db
+            .update(diary)
+            .set({ reviewId: linkedReviewId })
+            .where(eq(diary.id, newEntry.id));
+        }
+      }
+
       return { data: newEntry };
     },
     {
@@ -87,6 +155,8 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
         rating: t.Optional(t.Number({ minimum: 0.5, maximum: 5 })),
         is_rewatch: t.Optional(t.Boolean()),
         notes: t.Optional(t.String()),
+        review_title: t.Optional(t.String()),
+        contains_spoilers: t.Optional(t.Boolean()),
       }),
     }
   );

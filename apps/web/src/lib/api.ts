@@ -20,6 +20,7 @@ import type {
   SearchResult,
   EnrichedMediaData,
   SearchOptions,
+  Comment,
 } from "@/types";
 
 const API_URL =
@@ -294,6 +295,38 @@ export const reviewsApi = {
     fetcher<{ liked: boolean }>(`/reviews/${id}/like`, {
       method: "POST",
     }),
+
+  unlike: (id: string) =>
+    fetcher<{ success: boolean }>(`/reviews/${id}/like`, { method: "DELETE" }),
+};
+
+// ==================== COMMENTS ====================
+
+export const commentsApi = {
+  list: (targetType: "review" | "list", targetId: string, page = 1) =>
+    fetcher<PaginatedResponse<Comment>>(
+      `/comments?target_type=${targetType}&target_id=${targetId}&page=${page}`
+    ),
+
+  replies: (commentId: string) =>
+    fetcher<{ data: Comment[] }>(`/comments/${commentId}/replies`),
+
+  create: (data: {
+    target_type: "review" | "list";
+    target_id: string;
+    content: string;
+    parent_id?: string;
+  }) =>
+    fetcher<{ data: Comment }>("/comments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetcher<{ success: boolean }>(`/comments/${id}`, { method: "DELETE" }),
+
+  like: (id: string) =>
+    fetcher<{ success: boolean }>(`/comments/${id}/like`, { method: "POST" }),
 };
 
 // ==================== LISTS ====================
@@ -383,7 +416,14 @@ export const diaryApi = {
 
   add: (
     mediaId: string,
-    data: { rating?: number; notes?: string; isRewatch?: boolean }
+    data: {
+      rating?: number;
+      notes?: string;
+      reviewTitle?: string;
+      isRewatch?: boolean;
+      watchedAt?: string;
+      containsSpoilers?: boolean;
+    }
   ) =>
     fetcher<DiaryEntry>("/diary", {
       method: "POST",
@@ -391,7 +431,10 @@ export const diaryApi = {
         media_id: mediaId,
         rating: data.rating,
         notes: data.notes,
+        review_title: data.reviewTitle,
         is_rewatch: data.isRewatch,
+        watched_at: data.watchedAt,
+        contains_spoilers: data.containsSpoilers,
       }),
     }),
 };
@@ -469,6 +512,19 @@ export const seriesApi = {
   unwatchEpisode: (id: string, episodeId: string) =>
     fetcher<{ success: boolean }>(`/series/${id}/episodes/${episodeId}/watch`, {
       method: "DELETE",
+    }),
+  rateSeason: (id: string, seasonNumber: number, data: { rating: number; notes?: string }) =>
+    fetcher<{ data: any }>(`/series/${id}/seasons/${seasonNumber}/rate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteSeasonRating: (id: string, seasonNumber: number) =>
+    fetcher<{ success: boolean }>(`/series/${id}/seasons/${seasonNumber}/rate`, {
+      method: "DELETE",
+    }),
+  watchAllSeason: (id: string, seasonNumber: number) =>
+    fetcher<{ success: boolean; marked: number }>(`/series/${id}/seasons/${seasonNumber}/watch-all`, {
+      method: "POST",
     }),
 };
 
@@ -631,6 +687,7 @@ export const api = {
   search: searchApi,
   notifications: notificationsApi,
   likes: likesApi,
+  comments: commentsApi,
   people: peopleApi,
   plans: plansApi,
   stories: storiesApi,

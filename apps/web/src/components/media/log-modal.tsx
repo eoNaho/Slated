@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { StarRatingInput } from "./star-rating-input";
+import { resolveImage } from "@/lib/utils";
 
 // Heavy picker loaded client-side only
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
@@ -37,6 +38,7 @@ export interface LogData {
   liked: boolean;
   watchedDate: string;
   isRewatch: boolean;
+  reviewTitle: string;
   review: string;
   containsSpoilers: boolean;
   tags: string[];
@@ -53,8 +55,9 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
     initialData?.watchedDate || new Date().toISOString().split("T")[0],
   );
   const [isRewatch, setIsRewatch] = useState(initialData?.isRewatch || false);
+  const [reviewTitle, setReviewTitle] = useState(initialData?.reviewTitle || "");
   const [review, setReview] = useState(initialData?.review || "");
-  const [reviewExpanded, setReviewExpanded] = useState(!!initialData?.review);
+  const [reviewExpanded, setReviewExpanded] = useState(!!(initialData?.review || initialData?.reviewTitle));
   const [containsSpoilers, setContainsSpoilers] = useState(initialData?.containsSpoilers || false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
@@ -65,8 +68,9 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
       setLiked(initialData.liked || false);
       if (initialData.watchedDate) setWatchedDate(initialData.watchedDate);
       setIsRewatch(initialData.isRewatch || false);
+      setReviewTitle(initialData.reviewTitle || "");
       setReview(initialData.review || "");
-      setReviewExpanded(!!initialData.review);
+      setReviewExpanded(!!(initialData.review || initialData.reviewTitle));
       setContainsSpoilers(initialData.containsSpoilers || false);
       setTags(initialData.tags || []);
     }
@@ -151,6 +155,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
       liked,
       watchedDate,
       isRewatch,
+      reviewTitle,
       review,
       containsSpoilers,
       tags: [],
@@ -183,7 +188,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
         >
           {media.posterPath && (
             <img
-              src={media.posterPath}
+              src={resolveImage(media.posterPath) ?? ""}
               alt=""
               aria-hidden
               className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30"
@@ -208,7 +213,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
           <div className="absolute bottom-4 left-4 right-12 flex items-end gap-3">
             {media.posterPath && (
               <img
-                src={media.posterPath}
+                src={resolveImage(media.posterPath) ?? ""}
                 alt={media.title}
                 className="w-14 h-20 object-cover rounded-lg shadow-xl flex-shrink-0"
                 style={{
@@ -219,7 +224,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
             )}
             <div className="flex-1 min-w-0 pb-0.5">
               <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-500 mb-1">
-                {media.type === "movie" ? "Log Film" : "Log Episode"}
+                {media.type === "movie" ? "Log & Review" : "Log & Review · Série"}
               </p>
               <h2 className="text-lg font-black text-white leading-tight truncate tracking-tight">
                 {media.title}
@@ -285,14 +290,24 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
                 style={{ border: "1px dashed rgba(255,255,255,0.08)" }}
               >
                 <span className="truncate">
-                  {review
-                    ? review.slice(0, 50) + (review.length > 50 ? "…" : "")
+                  {reviewTitle || review
+                    ? (reviewTitle || review).slice(0, 50) + ((reviewTitle || review).length > 50 ? "…" : "")
                     : "Add a review…"}
                 </span>
                 <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
               </button>
             ) : (
               <div className="space-y-2">
+                {/* Title input */}
+                <input
+                  type="text"
+                  value={reviewTitle}
+                  onChange={(e) => setReviewTitle(e.target.value.slice(0, 100))}
+                  placeholder="Título da review (opcional)"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none bg-transparent"
+                  style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+
                 {/* Textarea wrapper */}
                 <div
                   className="relative rounded-xl overflow-hidden"
@@ -394,7 +409,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
             }}
           >
             <Send className="h-4 w-4" />
-            Salve Log
+            Salvar
           </button>
         </form>
       </div>

@@ -26,8 +26,11 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
       const offset = (page - 1) * limit;
 
       const conditions = [];
-      if (query.media_id) conditions.push(eq(reviews.mediaId, query.media_id));
-      if (query.user_id) conditions.push(eq(reviews.userId, query.user_id));
+      if (query.media_id)  conditions.push(eq(reviews.mediaId, query.media_id));
+      if (query.user_id)   conditions.push(eq(reviews.userId, query.user_id));
+      if (query.season_id) conditions.push(eq(reviews.seasonId, query.season_id));
+      if (query.episode_id) conditions.push(eq(reviews.episodeId, query.episode_id));
+      if (query.source)    conditions.push(eq(reviews.source, query.source));
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
       const results = await db
@@ -80,6 +83,9 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         limit: t.Optional(t.String()),
         media_id: t.Optional(t.String()),
         user_id: t.Optional(t.String()),
+        season_id: t.Optional(t.String()),
+        episode_id: t.Optional(t.String()),
+        source: t.Optional(t.String()),
       }),
     },
   )
@@ -130,10 +136,13 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         .values({
           userId: authUser.id,
           mediaId: body.media_id,
+          seasonId: body.season_id ?? null,
+          episodeId: body.episode_id ?? null,
           content: body.content,
           rating: body.rating,
           containsSpoilers: body.contains_spoilers ?? false,
           title: body.title,
+          source: "manual",
         })
         .returning();
 
@@ -143,7 +152,11 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         type: "review",
         targetType: "review",
         targetId: newReview.id,
-        metadata: JSON.stringify({ rating: body.rating }),
+        metadata: JSON.stringify({
+          rating: body.rating,
+          season_id: body.season_id,
+          episode_id: body.episode_id,
+        }),
       });
 
       return { data: newReview };
@@ -152,6 +165,8 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
       requireAuth: true,
       body: t.Object({
         media_id: t.String(),
+        season_id: t.Optional(t.String()),
+        episode_id: t.Optional(t.String()),
         content: t.String({ minLength: 10 }),
         rating: t.Optional(t.Number({ minimum: 0.5, maximum: 5 })),
         contains_spoilers: t.Optional(t.Boolean()),

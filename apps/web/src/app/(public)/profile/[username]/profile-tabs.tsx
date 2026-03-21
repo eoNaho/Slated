@@ -51,6 +51,7 @@ interface ProfileTabsProps {
   profile: UserProfile;
   username: string;
   isOwnProfile: boolean;
+  currentUserId?: string;
   favorites: FavoriteFilm[];
   reviews: Review[];
   lists: ListType[];
@@ -86,6 +87,7 @@ export function ProfileTabs({
   profile,
   username,
   isOwnProfile,
+  currentUserId,
   favorites,
   reviews,
   lists,
@@ -177,7 +179,7 @@ export function ProfileTabs({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-8 space-y-12">
                   <FavoriteFilms films={favorites} isEditable={isOwnProfile} />
-                  <ReviewsList reviews={reviews} limit={3} />
+                  <ReviewsList reviews={reviews} limit={3} currentUserId={currentUserId} />
                 </div>
                 <div className="lg:col-span-4 space-y-10">
                   <FavoriteGenres genres={[]} />
@@ -191,7 +193,7 @@ export function ProfileTabs({
             {activeTab === "diary" && <FilmsDiary entries={diary} />}
             {activeTab === "reviews" &&
               (reviews.length > 0 ? (
-                <ReviewsList reviews={reviews} showViewAll={false} />
+                <ReviewsList reviews={reviews} showViewAll={false} currentUserId={currentUserId} />
               ) : (
                 <EmptyState icon={Star} message="No reviews yet." />
               ))}

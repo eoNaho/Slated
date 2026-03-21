@@ -16,11 +16,13 @@ import {
   seasons,
   episodes,
   episodeProgress,
+  reviews,
   activities,
   eq,
   and,
   asc,
   inArray,
+  isNull,
   sql,
 } from "../db";
 import { seasonRatings } from "../db/schema/series";
@@ -470,6 +472,46 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
       // Recalculate season auto-rating if user has no manual override
       await maybeRecalcSeasonRating(user.id, episode.seasonId);
 
+      // Auto-link episode review when notes are present and no manual review exists
+      if (body?.notes && body.notes.length >= 10) {
+        const [existingManual] = await db
+          .select({ id: reviews.id })
+          .from(reviews)
+          .where(and(
+            eq(reviews.userId, user.id),
+            eq(reviews.episodeId, params.episodeId),
+            eq(reviews.source, "manual"),
+          ))
+          .limit(1);
+
+        if (!existingManual) {
+          const [existingDiary] = await db
+            .select({ id: reviews.id })
+            .from(reviews)
+            .where(and(
+              eq(reviews.userId, user.id),
+              eq(reviews.episodeId, params.episodeId),
+              eq(reviews.source, "diary"),
+            ))
+            .limit(1);
+
+          if (existingDiary) {
+            await db.update(reviews)
+              .set({ content: body.notes, rating: body.rating ?? null, updatedAt: new Date() })
+              .where(eq(reviews.id, existingDiary.id));
+          } else {
+            await db.insert(reviews).values({
+              userId:    user.id,
+              mediaId:   params.id,
+              episodeId: params.episodeId,
+              content:   body.notes,
+              rating:    body.rating ?? null,
+              source:    "diary",
+            });
+          }
+        }
+      }
+
       // Activity log
       await db.insert(activities).values({
         userId:     user.id,
@@ -628,12 +670,57 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
         })
         .returning();
 
+      // Auto-link season review when notes are present and no manual review exists
+      if (body.notes && body.notes.length >= 10) {
+        const [existingManual] = await db
+          .select({ id: reviews.id })
+          .from(reviews)
+          .where(and(
+            eq(reviews.userId, user.id),
+            eq(reviews.seasonId, season.id),
+            isNull(reviews.episodeId),
+            eq(reviews.source, "manual"),
+          ))
+          .limit(1);
+
+        if (!existingManual) {
+          const [existingDiary] = await db
+            .select({ id: reviews.id })
+            .from(reviews)
+            .where(and(
+              eq(reviews.userId, user.id),
+              eq(reviews.seasonId, season.id),
+              isNull(reviews.episodeId),
+              eq(reviews.source, "diary"),
+            ))
+            .limit(1);
+
+          if (existingDiary) {
+            await db.update(reviews)
+              .set({ content: body.notes, rating: body.rating, updatedAt: new Date() })
+              .where(eq(reviews.id, existingDiary.id));
+          } else {
+            await db.insert(reviews).values({
+              userId:   user.id,
+              mediaId:  params.id,
+              seasonId: season.id,
+              content:  body.notes,
+              rating:   body.rating,
+              source:   "diary",
+            });
+          }
+        }
+      }
+
       return { data: result };
     },
     {
       requireAuth: true,
       params: t.Object({ id: t.String(), seasonNumber: t.String() }),
-      body: t.Object({ rating: t.Number({ minimum: 0.5, maximum: 5 }) }),
+      body: t.Object({
+        rating: t.Number({ minimum: 0.5, maximum: 5 }),
+        notes:  t.Optional(t.String()),
+      }),
     }
   )
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, Plus, Heart, Share2, Eye, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
@@ -17,6 +18,7 @@ interface SeriesActionsProps {
 }
 
 export function SeriesActions({ series }: SeriesActionsProps) {
+  const router = useRouter();
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [liked, setLiked] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -210,11 +212,20 @@ export function SeriesActions({ series }: SeriesActionsProps) {
               rating: data.rating,
               notes: data.review,
               isRewatch: data.isRewatch,
+              watchedAt: data.watchedDate,
+              containsSpoilers: data.containsSpoilers,
+              reviewTitle: data.reviewTitle,
             });
             toast.success("Logged successfully!");
             setWatched(true);
-            setRating(data.rating);
-            setReview(data.review);
+            setRating(data.rating ?? null);
+            setReview(data.review ?? null);
+            if (data.liked !== liked) {
+              if (data.liked) await api.likes.like("media", series.id);
+              else await api.likes.unlike("media", series.id);
+              setLiked(data.liked ?? liked);
+            }
+            router.refresh();
           } catch (err) {
             console.error("Failed to log:", err);
             toast.error("Failed to log media");

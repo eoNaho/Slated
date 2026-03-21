@@ -9,9 +9,12 @@ import {
   timestamp,
   index,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { user } from "./auth-schema";
 import { media } from "./media";
+import { seasons, episodes } from "./series";
 
 // Reviews
 export const reviews = pgTable(
@@ -24,6 +27,11 @@ export const reviews = pgTable(
     mediaId: uuid("media_id")
       .references(() => media.id, { onDelete: "cascade" })
       .notNull(),
+    // Optional targeting for series sub-reviews
+    seasonId: uuid("season_id").references(() => seasons.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+    // 'manual' = user wrote it directly; 'diary' = auto-created from a diary log note
+    source: text("source").notNull().default("manual"),
     title: text("title"),
     content: text("content").notNull(),
     rating: real("rating"),
@@ -34,9 +42,17 @@ export const reviews = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [
-    unique("unique_user_media_review").on(table.userId, table.mediaId),
+    // Partial unique indexes — one review per user per scope
+    uniqueIndex("idx_review_unique_media").on(table.userId, table.mediaId)
+      .where(sql`${table.seasonId} IS NULL AND ${table.episodeId} IS NULL`),
+    uniqueIndex("idx_review_unique_season").on(table.userId, table.seasonId)
+      .where(sql`${table.seasonId} IS NOT NULL AND ${table.episodeId} IS NULL`),
+    uniqueIndex("idx_review_unique_episode").on(table.userId, table.episodeId)
+      .where(sql`${table.episodeId} IS NOT NULL`),
     index("idx_reviews_user").on(table.userId),
     index("idx_reviews_media").on(table.mediaId),
+    index("idx_reviews_season").on(table.seasonId),
+    index("idx_reviews_episode").on(table.episodeId),
     index("idx_reviews_created").on(table.createdAt),
   ]
 );

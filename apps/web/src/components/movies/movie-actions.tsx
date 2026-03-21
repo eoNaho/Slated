@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
@@ -16,6 +17,7 @@ interface MovieActionsProps {
 }
 
 export function MovieActions({ movie }: MovieActionsProps) {
+  const router = useRouter();
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [liked, setLiked] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -191,13 +193,27 @@ export function MovieActions({ movie }: MovieActionsProps) {
             await api.diary.add(movie.id, {
               rating: data.rating,
               notes: data.review,
+              reviewTitle: data.reviewTitle,
               isRewatch: data.isRewatch,
+              watchedAt: data.watchedDate,
+              containsSpoilers: data.containsSpoilers,
             });
-            toast.success("Logged successfully!");
+
+            // Sync liked state if it changed in the modal
+            if (data.liked !== liked) {
+              if (data.liked) await api.likes.like("media", movie.id);
+              else await api.likes.unlike("media", movie.id);
+              setLiked(data.liked);
+            }
+
             setWatched(true);
+            setRating(data.rating || null);
+            setReview(data.review || null);
+            toast.success("Salvo com sucesso!");
+            router.refresh();
           } catch (err) {
             console.error("Failed to log:", err);
-            toast.error("Failed to log media");
+            toast.error("Erro ao salvar");
           }
         }}
         initialData={{

@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
+  FileText,
 } from "lucide-react";
 import { RatingStars } from "./rating-stars";
 import type { DiaryEntry } from "@/types";
@@ -154,11 +155,16 @@ export function FilmsDiary({ entries }: FilmsDiaryProps) {
                         </div>
                       )}
                     </div>
-                    {entry.notes && (
+                    {entry.reviewId ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-purple-400/70 mt-1">
+                        <FileText className="h-3 w-3" />
+                        Review publicada
+                      </span>
+                    ) : entry.notes ? (
                       <p className="text-zinc-500 text-sm mt-1 truncate">
                         {entry.notes}
                       </p>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Rating */}

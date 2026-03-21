@@ -74,7 +74,7 @@ export async function generateMetadata({
   };
 }
 
-async function getSessionInfo(): Promise<{ username: string | null; cookieHeader: string }> {
+async function getSessionInfo(): Promise<{ username: string | null; userId: string | null; cookieHeader: string }> {
   try {
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.getAll()
@@ -85,11 +85,15 @@ async function getSessionInfo(): Promise<{ username: string | null; cookieHeader
       headers: { Cookie: cookieHeader },
       cache: "no-store",
     });
-    if (!res.ok) return { username: null, cookieHeader };
+    if (!res.ok) return { username: null, userId: null, cookieHeader };
     const data = await res.json();
-    return { username: data?.user?.username ?? null, cookieHeader };
+    return {
+      username: data?.user?.username ?? null,
+      userId: data?.user?.id ?? null,
+      cookieHeader,
+    };
   } catch {
-    return { username: null, cookieHeader: "" };
+    return { username: null, userId: null, cookieHeader: "" };
   }
 }
 
@@ -115,7 +119,7 @@ export default async function ProfilePage({ params }: PageProps) {
     fetchJson<{ data: UserStats }>(`/users/${username}/stats`),
     getSessionInfo(),
   ]);
-  const { username: sessionUsername, cookieHeader } = sessionInfo;
+  const { username: sessionUsername, userId: sessionUserId, cookieHeader } = sessionInfo;
 
   if (!userRes?.data) notFound();
 
@@ -179,6 +183,7 @@ export default async function ProfilePage({ params }: PageProps) {
         profile={profile}
         username={username}
         isOwnProfile={isOwnProfile}
+        currentUserId={sessionUserId ?? undefined}
         favorites={[]}
         reviews={reviews}
         lists={lists}

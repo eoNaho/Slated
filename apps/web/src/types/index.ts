@@ -229,6 +229,9 @@ export interface Review {
   id: string;
   userId: string;
   mediaId: string;
+  seasonId?: string | null;
+  episodeId?: string | null;
+  source?: "manual" | "diary";
   title?: string | null;
   content: string;
   rating?: number | null;
@@ -239,6 +242,20 @@ export interface Review {
   updatedAt: string;
   user?: User;
   media?: Media;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  targetType: "review" | "list";
+  targetId: string;
+  parentId?: string | null;
+  content: string;
+  likesCount: number;
+  repliesCount: number;
+  createdAt: string;
+  updatedAt: string;
+  user?: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
 }
 
 export interface CreateReviewInput {
