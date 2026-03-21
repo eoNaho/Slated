@@ -14,6 +14,7 @@ import {
   generateUniqueCode,
   serializeRoomPublic,
 } from "../services/watch-party";
+import { generateWsToken } from "../lib/ws-tokens";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { logger } from "../utils/logger";
 
@@ -191,6 +192,21 @@ export const watchPartyRoutes = new Elysia({
     }
 
     return { ok: true };
+  })
+
+  /**
+   * GET /api/v1/watch-party/ws-token
+   * Returns a short-lived token (2 min TTL) for the website to authenticate
+   * WebSocket connections. Requires a valid session or bearer token.
+   */
+  .get("/ws-token", async (ctx: any) => {
+    const authUser = await resolveUser(ctx.request.headers);
+    if (!authUser) {
+      ctx.set.status = 401;
+      return { error: "Autenticação necessária." };
+    }
+    const token = generateWsToken(authUser.id);
+    return { token };
   })
 
   /**

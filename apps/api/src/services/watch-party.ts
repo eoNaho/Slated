@@ -24,6 +24,15 @@ export interface MemberState {
   joinedAt: Date;
 }
 
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  content: string;
+  createdAt: string;
+}
+
 export interface RoomState {
   id: string;
   code: string;
@@ -36,6 +45,10 @@ export interface RoomState {
   status: "waiting" | "active" | "ended";
   members: Map<string, MemberState>;
   lastSync: SyncState | null;
+  /** Whether the host is currently streaming video via WebRTC */
+  streamActive: boolean;
+  /** Last 50 chat messages — in-memory only, cleared when room ends */
+  messages: ChatMessage[];
   createdAt: Date;
   // Timer to promote host when disconnected
   hostReconnectTimer?: ReturnType<typeof setTimeout>;
@@ -147,6 +160,8 @@ export async function createRoom(params: {
       ],
     ]),
     lastSync: null,
+    streamActive: false,
+    messages: [],
     createdAt: new Date(),
   };
 
@@ -196,6 +211,8 @@ export async function joinRoom(params: {
       status: row.status as "waiting" | "active" | "ended",
       members: new Map(),
       lastSync: null,
+      streamActive: false,
+      messages: [],
       createdAt: row.createdAt,
     };
     rooms.set(row.code, room);
@@ -226,12 +243,12 @@ export async function joinRoom(params: {
       set: { joinedAt: new Date(), leftAt: null },
     });
 
-  // Send room state to the new member
+  // Send room state to the new member (including last messages for late-joiners)
   sendToUser(member, {
     type: "room_state",
     room: serializeRoom(room),
     members: serializeMembers(room),
-    recentMessages: [],
+    recentMessages: room.messages,
     isHost: params.userId === room.hostUserId,
     lastSync: room.lastSync,
   });
@@ -383,54 +400,24 @@ export async function handleMessage(
   const isHost = userId === room.hostUserId;
 
   switch (msg.type) {
-    case "play":
-    case "pause":
-    case "seek": {
-      if (!isHost) return; // only host controls playback
-      const cmd = {
-        type: "sync_command",
-        action: msg.type,
-        currentTime: msg.currentTime ?? 0,
-        serverTimestamp: Date.now(),
-      };
-      if (room.status === "waiting") {
-        room.status = "active";
-        db.update(watchPartyRooms)
-          .set({ status: "active" })
-          .where(eq(watchPartyRooms.id, room.id))
-          .catch(() => {});
-      }
-      broadcast(room, cmd, userId); // send to all except host
-      break;
-    }
-
-    case "sync_state": {
-      if (!isHost) return;
-      const state: SyncState = {
-        currentTime: msg.currentTime ?? 0,
-        paused: msg.paused ?? false,
-        playbackRate: msg.playbackRate ?? 1,
-        serverTimestamp: Date.now(),
-      };
-      room.lastSync = state;
-      broadcast(room, { type: "sync_state", ...state }, userId);
-      break;
-    }
-
     case "chat": {
       const content = String(msg.content ?? "").trim().slice(0, 500);
       if (!content) return;
 
-      // Chat é efêmero — broadcast sem persistência
-      broadcast(room, {
-        type: "chat_message",
+      const chatMsg: ChatMessage = {
         id: crypto.randomUUID(),
         userId,
         username: member.username,
         avatarUrl: member.avatarUrl,
         content,
         createdAt: new Date().toISOString(),
-      });
+      };
+
+      // Keep last 50 messages in memory so late-joiners can catch up
+      room.messages.push(chatMsg);
+      if (room.messages.length > 50) room.messages.shift();
+
+      broadcast(room, { type: "chat_message", ...chatMsg });
       break;
     }
 
@@ -441,6 +428,59 @@ export async function handleMessage(
         userId,
         ready: member.ready,
       });
+      break;
+    }
+
+    // ── WebRTC signaling relay ────────────────────────────────────────────
+    // The server is a dumb relay — it never inspects SDP/ICE content.
+
+    case "webrtc_stream_start": {
+      if (!isHost) return;
+      room.streamActive = true;
+      if (room.status === "waiting") {
+        room.status = "active";
+        db.update(watchPartyRooms)
+          .set({ status: "active" })
+          .where(eq(watchPartyRooms.id, room.id))
+          .catch(() => {});
+      }
+      broadcast(room, { type: "webrtc_stream_started" }, userId);
+      break;
+    }
+
+    case "webrtc_stream_end": {
+      if (!isHost) return;
+      room.streamActive = false;
+      broadcast(room, { type: "webrtc_stream_ended" }, userId);
+      break;
+    }
+
+    case "webrtc_viewer_ready": {
+      // Viewer signals they're ready to receive stream — relay to host
+      const host = room.members.get(room.hostUserId);
+      if (host) sendToUser(host, { type: "webrtc_viewer_ready", viewerId: userId });
+      break;
+    }
+
+    case "webrtc_offer": {
+      // Host → specific viewer
+      if (!isHost) return;
+      const target = room.members.get(msg.targetUserId);
+      if (target) sendToUser(target, { ...msg, fromUserId: userId });
+      break;
+    }
+
+    case "webrtc_answer": {
+      // Viewer → host
+      const host = room.members.get(room.hostUserId);
+      if (host) sendToUser(host, { ...msg, fromUserId: userId });
+      break;
+    }
+
+    case "webrtc_ice": {
+      // Relay ICE candidate to the specified target
+      const iceTarget = room.members.get(msg.targetUserId);
+      if (iceTarget) sendToUser(iceTarget, { ...msg, fromUserId: userId });
       break;
     }
   }
@@ -458,6 +498,7 @@ function serializeRoom(room: RoomState) {
     mediaSource: room.mediaSource,
     mediaUrl: room.mediaUrl,
     status: room.status,
+    streamActive: room.streamActive,
     createdAt: room.createdAt,
   };
 }

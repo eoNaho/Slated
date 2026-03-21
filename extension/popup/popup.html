@@ -25,6 +25,7 @@
         </div>
       </header>
 
+      <!-- ── Tracking status ──────────────────────────────────────────────── -->
       <div class="card" id="status-card">
         <div class="status-dot" id="status-dot"></div>
         <div class="status-info">
@@ -42,9 +43,9 @@
         </label>
       </div>
 
+      <!-- ── Token ────────────────────────────────────────────────────────── -->
       <div class="section">
         <label class="field-label" for="token-input">API Token</label>
-        
         <div class="input-wrapper">
           <input
             type="password"
@@ -55,13 +56,10 @@
             spellcheck="false"
           />
           <button class="btn-eye" id="btn-eye" aria-label="Mostrar token" title="Mostrar/ocultar token">
-            <!-- Ícone de Olho Aberto -->
             <svg id="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            <!-- Ícone de Olho Fechado -->
             <svg id="icon-eye-off" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
           </button>
         </div>
-
         <div class="field-row">
           <button class="btn btn-primary" id="btn-save">Salvar Token</button>
           <button class="btn btn-ghost" id="btn-clear">Limpar</button>
@@ -69,62 +67,22 @@
         <p class="hint" id="save-hint"></p>
       </div>
 
-      <!-- ── Watch Party ─────────────────────────────────────────────────── -->
+      <!-- ── Watch Party ──────────────────────────────────────────────────── -->
       <div class="divider"></div>
-
-      <!-- Estado: sem sala -->
-      <div id="wp-idle" class="section">
+      <div class="section">
         <p class="field-label">Watch Party</p>
-        <div class="field-row">
-          <button class="btn btn-primary btn-sm" id="wp-btn-create">Criar Sala</button>
-          <button class="btn btn-ghost btn-sm" id="wp-btn-join-toggle">Entrar</button>
-        </div>
-        <div id="wp-join-form" class="wp-join-form hidden">
+        <p class="wp-desc">Digite o código da sala para abrir no site e assistir junto.</p>
+        <div class="field-row" style="align-items:center">
           <input
             type="text"
             id="wp-code-input"
-            class="field-input"
-            placeholder="Código da sala (ex: XK9M2P)"
+            class="field-input wp-code-input"
+            placeholder="Código (ex: XK9M2P)"
             maxlength="6"
-            style="text-transform:uppercase"
           />
-          <button class="btn btn-primary btn-sm" id="wp-btn-join-confirm" style="margin-top:6px;width:100%">Entrar na sala</button>
+          <a id="wp-open-room" href="#" target="_blank" class="btn btn-primary btn-sm">Abrir ↗</a>
         </div>
-        <!-- Form de criação -->
-        <div id="wp-create-form" class="wp-join-form hidden">
-          <input
-            type="text"
-            id="wp-title-input"
-            class="field-input"
-            placeholder="Nome da sessão (ex: Sexta de Terror)"
-            maxlength="80"
-          />
-          <button class="btn btn-primary btn-sm" id="wp-btn-create-confirm" style="margin-top:6px;width:100%">Criar</button>
-        </div>
-        <p class="hint" id="wp-hint-idle"></p>
-      </div>
-
-      <!-- Estado: em sala -->
-      <div id="wp-active" class="section hidden">
-        <div class="wp-room-header">
-          <span class="field-label">Watch Party</span>
-          <span id="wp-badge-code" class="wp-code-badge" title="Clique para copiar"></span>
-        </div>
-        <p class="wp-room-title" id="wp-room-title"></p>
-        <div id="wp-members" class="wp-members"></div>
-
-        <!-- Mini chat -->
-        <div id="wp-chat-messages" class="wp-chat-messages"></div>
-        <div class="wp-chat-input-row">
-          <input type="text" id="wp-chat-input" class="field-input wp-chat-input" placeholder="Mensagem…" maxlength="500" />
-          <button class="btn btn-primary btn-sm" id="wp-btn-chat-send">↑</button>
-        </div>
-
-        <div class="field-row" style="margin-top:8px">
-          <button class="btn btn-ghost btn-sm" id="wp-btn-leave">Sair</button>
-          <button class="btn btn-danger btn-sm hidden" id="wp-btn-end">Encerrar</button>
-        </div>
-        <p class="hint" id="wp-hint-active"></p>
+        <p class="hint" id="wp-hint"></p>
       </div>
 
       <footer class="footer">

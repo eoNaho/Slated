@@ -25,6 +25,7 @@ const navLinks = [
   { href: "/series", label: "Séries" },
   { href: "/lists", label: "Listas" },
   { href: "/clubs", label: "Clubs" },
+  { href: "/watch-party", label: "Watch Party" },
   { href: "/discover", label: "Descobrir" },
 ];
 

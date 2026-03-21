@@ -2,6 +2,7 @@ import { db } from "../db";
 import { activityTokens } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { hashData } from "../middleware/security";
+import { validateWsToken } from "./ws-tokens";
 
 /**
  * Resolves the user ID from an "Authorization: Bearer <raw_token>" header.
@@ -25,6 +26,10 @@ export async function resolveExtensionToken(
  */
 export async function resolveRawToken(raw: string): Promise<string | null> {
   if (!raw) return null;
+
+  // Check short-lived WS tokens first (generated for browser/website sessions)
+  const wsUserId = validateWsToken(raw);
+  if (wsUserId) return wsUserId;
 
   const hash = await hashData(raw);
   const [token] = await db

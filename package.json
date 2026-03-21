@@ -12,7 +12,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "db:generate": "cd apps/api && bun run db:generate",
     "db:migrate": "cd apps/api && bun run db:migrate",
-    "db:studio": "cd apps/api && bun run db:studio"
+    "db:studio": "cd apps/api && bun run db:studio",
+    "build:ext-chrome": "npx web-ext build --source-dir ./extension --artifacts-dir ./dist --overwrite-dest",
+    "build:ext-firefox": "node scripts/build-firefox.mjs"
   },
   "workspaces": [
     "apps/*",
