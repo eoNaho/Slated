@@ -376,7 +376,7 @@ export const listsApi = {
     fetcher<{ message: string }>(`/lists/${id}`, { method: "DELETE" }),
 
   addItem: (listId: string, mediaId: string) =>
-    fetcher<{ data: any }>(`/lists/${listId}/items`, {
+    fetcher<{ data: { id: string; listId: string; mediaId: string } }>(`/lists/${listId}/items`, {
       method: "POST",
       body: JSON.stringify({ media_id: mediaId }),
     }),
@@ -495,17 +495,66 @@ export const notificationsApi = {
 
 // ==================== SERIES ====================
 
+interface SeriesSeason {
+  id: string;
+  seriesId: string;
+  seasonNumber: number;
+  name: string;
+  overview?: string;
+  posterPath?: string;
+  episodeCount?: number;
+  airDate?: string;
+}
+
+interface SeriesEpisode {
+  id: string;
+  seasonId: string;
+  episodeNumber: number;
+  name: string;
+  overview?: string;
+  stillPath?: string;
+  airDate?: string;
+  runtime?: number;
+  watched?: boolean;
+  watchedAt?: string;
+  rating?: number;
+  notes?: string;
+}
+
+interface SeasonProgress {
+  watched: number;
+  total: number;
+  percentage: number;
+}
+
+interface EpisodeWatchRecord {
+  id: string;
+  episodeId: string;
+  userId: string;
+  watchedAt: string;
+  rating?: number;
+  notes?: string;
+}
+
+interface SeasonRating {
+  id: string;
+  seasonId: string;
+  userId: string;
+  rating: number;
+  notes?: string;
+}
+
 export const seriesApi = {
   sync: (id: string) =>
     fetcher<{ success: boolean; message: string }>(`/series/${id}/sync`, {
       method: "POST",
     }),
-  getSeasons: (id: string) => 
-    fetcher<{ data: any[] }>(`/series/${id}/seasons`),
+  getSeasons: (id: string) =>
+    fetcher<{ data: SeriesSeason[] }>(`/series/${id}/seasons`),
   getSeasonDetails: (id: string, seasonNumber: number) =>
-    fetcher<{ data: { season: any; episodes: any[]; progress: any } }>(`/series/${id}/seasons/${seasonNumber}`),
+    fetcher<{ data: { season: SeriesSeason; episodes: SeriesEpisode[]; progress: SeasonProgress } }>(`/series/${id}/seasons/${seasonNumber}`),
   watchEpisode: (id: string, episodeId: string, data?: { rating?: number; notes?: string }) =>
-    fetcher<{ data: any }>(`/series/${id}/episodes/${episodeId}/watch`, {
+    fetcher<{ data: EpisodeWatchRecord }>(`/series/${id}/episodes/${episodeId}/watch`, {
       method: "POST",
       body: JSON.stringify(data || {}),
     }),
@@ -514,7 +563,7 @@ export const seriesApi = {
       method: "DELETE",
     }),
   rateSeason: (id: string, seasonNumber: number, data: { rating: number; notes?: string }) =>
-    fetcher<{ data: any }>(`/series/${id}/seasons/${seasonNumber}/rate`, {
+    fetcher<{ data: SeasonRating }>(`/series/${id}/seasons/${seasonNumber}/rate`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -532,7 +581,7 @@ export const seriesApi = {
 
 export const likesApi = {
   like: (targetType: "media" | "review" | "list", targetId: string) =>
-    fetcher<{ data: any; isNew: boolean }>("/likes", {
+    fetcher<{ data: { id: string; targetType: string; targetId: string; userId: string }; isNew: boolean }>("/likes", {
       method: "POST",
       body: JSON.stringify({ targetType, targetId }),
     }),
@@ -675,6 +724,17 @@ export const storiesApi = {
 
 // ==================== EXPORT ALL ====================
 
+interface DiscoverOptions {
+  page?: number;
+  type?: string;
+  genre?: string;
+  year?: number;
+  sortBy?: string;
+  streaming?: string;
+  limit?: number;
+  period?: string;
+}
+
 export const api = {
   auth: authApi,
   users: usersApi,
@@ -693,7 +753,7 @@ export const api = {
   stories: storiesApi,
   series: seriesApi,
   discover: {
-    get: (options: any = {}) => {
+    get: (options: DiscoverOptions = {}) => {
       const params = new URLSearchParams();
       if (options.page) params.set("page", String(options.page));
       if (options.type) params.set("type", options.type);
@@ -701,24 +761,24 @@ export const api = {
       if (options.year) params.set("year", String(options.year));
       if (options.sortBy) params.set("sortBy", options.sortBy);
       if (options.streaming) params.set("streaming", options.streaming);
-      return fetcher<any>(`/discover?${params}`);
+      return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number }>(`/discover?${params}`);
     },
-    genres: () => fetcher<{ data: any[] }>("/discover/genres"),
-    streaming: () => fetcher<{ data: any[] }>("/discover/streaming"),
-    random: (options: any = {}) => {
+    genres: () => fetcher<{ data: { id: number; name: string }[] }>("/discover/genres"),
+    streaming: () => fetcher<{ data: { id: string; name: string; logoPath?: string }[] }>("/discover/streaming"),
+    random: (options: Omit<DiscoverOptions, "page" | "sortBy"> = {}) => {
       const params = new URLSearchParams();
       if (options.limit) params.set("limit", String(options.limit));
       if (options.type) params.set("type", options.type);
       if (options.genre) params.set("genre", options.genre);
       if (options.year) params.set("year", String(options.year));
       if (options.streaming) params.set("streaming", options.streaming);
-      return fetcher<{ data: any[] }>("/discover/random?" + params.toString());
+      return fetcher<{ data: SearchResult[] }>("/discover/random?" + params.toString());
     },
-    popular: (options: any = {}) => {
+    popular: (options: Pick<DiscoverOptions, "period" | "type"> = {}) => {
       const params = new URLSearchParams();
       if (options.period) params.set("period", options.period);
       if (options.type) params.set("type", options.type);
-      return fetcher<{ data: any[] }>(`/discover/popular?${params}`);
+      return fetcher<{ data: SearchResult[] }>(`/discover/popular?${params}`);
     }
   }
 };
