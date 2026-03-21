@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
+import { BookOpen, Plus, Heart, Share2, Eye, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ export function SeriesActions({ series }: SeriesActionsProps) {
   const [watched, setWatched] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [review, setReview] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -109,6 +110,18 @@ export function SeriesActions({ series }: SeriesActionsProps) {
     }
   };
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await api.series.sync(series.id);
+      toast.success("Series sync started. Data will update shortly.");
+    } catch {
+      toast.error("Failed to start sync");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <>
       <div className="space-y-2">
@@ -168,6 +181,16 @@ export function SeriesActions({ series }: SeriesActionsProps) {
         >
           <Share2 className="h-4 w-4 mr-2" />
           Share
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="flex-1 text-zinc-400 hover:bg-white/5"
+          title="Refresh episodes and seasons from TMDB"
+        >
+          <RotateCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+          Sync
         </Button>
       </div>
 

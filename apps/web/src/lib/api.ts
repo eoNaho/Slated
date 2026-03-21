@@ -366,7 +366,7 @@ export const watchlistApi = {
   ) =>
     fetcher<WatchlistItem>("/watchlist", {
       method: "POST",
-      body: JSON.stringify({ mediaId, priority }),
+      body: JSON.stringify({ media_id: mediaId, priority }),
     }),
 
   remove: (mediaId: string) =>
@@ -387,7 +387,12 @@ export const diaryApi = {
   ) =>
     fetcher<DiaryEntry>("/diary", {
       method: "POST",
-      body: JSON.stringify({ mediaId, ...data }),
+      body: JSON.stringify({
+        media_id: mediaId,
+        rating: data.rating,
+        notes: data.notes,
+        is_rewatch: data.isRewatch,
+      }),
     }),
 };
 
@@ -442,6 +447,28 @@ export const notificationsApi = {
   markAllAsRead: () =>
     fetcher<{ message: string }>("/notifications/read-all", {
       method: "POST",
+    }),
+};
+
+// ==================== SERIES ====================
+
+export const seriesApi = {
+  sync: (id: string) =>
+    fetcher<{ success: boolean; message: string }>(`/series/${id}/sync`, {
+      method: "POST",
+    }),
+  getSeasons: (id: string) => 
+    fetcher<{ data: any[] }>(`/series/${id}/seasons`),
+  getSeasonDetails: (id: string, seasonNumber: number) =>
+    fetcher<{ data: { season: any; episodes: any[]; progress: any } }>(`/series/${id}/seasons/${seasonNumber}`),
+  watchEpisode: (id: string, episodeId: string, data?: { rating?: number; notes?: string }) =>
+    fetcher<{ data: any }>(`/series/${id}/episodes/${episodeId}/watch`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }),
+  unwatchEpisode: (id: string, episodeId: string) =>
+    fetcher<{ success: boolean }>(`/series/${id}/episodes/${episodeId}/watch`, {
+      method: "DELETE",
     }),
 };
 
@@ -607,6 +634,7 @@ export const api = {
   people: peopleApi,
   plans: plansApi,
   stories: storiesApi,
+  series: seriesApi,
   discover: {
     get: (options: any = {}) => {
       const params = new URLSearchParams();

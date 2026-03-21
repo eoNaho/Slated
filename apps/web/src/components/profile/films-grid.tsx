@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Film, Grid, LayoutGrid, Filter } from "lucide-react";
 import type { DiaryEntry } from "@/types";
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, resolveImage } from "@/lib/utils";
 
 interface FilmsGridProps {
   entries: DiaryEntry[];
@@ -51,7 +51,7 @@ export function FilmsGrid({ entries }: FilmsGridProps) {
           >
             {film && (
               <img
-                src={film.posterPath || ""}
+                src={resolveImage(film.posterPath) ?? ""}
                 alt={film.title}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />

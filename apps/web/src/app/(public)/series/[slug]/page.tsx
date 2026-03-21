@@ -22,6 +22,7 @@ import {
   getMovie,
   getPopularReviews,
   getSimilarSeries,
+  getSeriesSeasons,
 } from "@/lib/queries/media";
 import { SeriesActions } from "@/components/series/series-actions";
 import { SeasonsPanel } from "@/components/series/seasons-panel";
@@ -53,36 +54,6 @@ export async function generateMetadata({
   };
 }
 
-// Mock seasons data – in production this would come from an API call
-function buildMockSeasons(series: any) {
-  const genres = series.genres ?? [];
-  const totalSeasons = 3; // placeholder – ideally from TMDB data
-
-  return Array.from({ length: totalSeasons }, (_, i) => ({
-    id: `season-${i + 1}`,
-    seasonNumber: i + 1,
-    name: `Season ${i + 1}`,
-    overview: null,
-    posterPath: series.posterPath ?? null,
-    airDate: series.releaseDate ?? null,
-    episodeCount: 10,
-    watchedCount: 0,
-    episodes: Array.from({ length: 10 }, (_, j) => ({
-      id: `s${i + 1}e${j + 1}`,
-      seasonNumber: i + 1,
-      episodeNumber: j + 1,
-      title: `Episode ${j + 1}`,
-      overview: null,
-      stillPath: null,
-      airDate: series.releaseDate ?? null,
-      runtime: 45,
-      voteAverage: null,
-      userRating: null,
-      watched: false,
-    })),
-  }));
-}
-
 export default async function SeriesPage({ params }: PageProps) {
   const { slug } = await params;
   const series = await getMovie(slug);
@@ -109,7 +80,11 @@ export default async function SeriesPage({ params }: PageProps) {
   const genres = (series.genres ?? []).map((g) =>
     typeof g === "string" ? g : g.name,
   );
-  const seasons = buildMockSeasons(series);
+
+  const seasonsData = await getSeriesSeasons(series.id);
+  // Filter out any invalid items just in case
+  const seasons = (seasonsData || []).filter((s) => s && typeof s === "object");
+
   const posterSrc = series.posterPath
     ? resolveImage(series.posterPath) || series.posterPath
     : null;
@@ -157,19 +132,29 @@ export default async function SeriesPage({ params }: PageProps) {
         {/* Edge vignette */}
         <div
           className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(13,13,15,0.8) 100%)" }}
+          style={{
+            background:
+              "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(13,13,15,0.8) 100%)",
+          }}
         />
 
         {/* Bottom fade */}
         <div
           className="absolute inset-x-0 bottom-0"
-          style={{ height: "85%", background: "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 15%, rgba(13,13,15,0.95) 40%, rgba(13,13,15,0.4) 70%, transparent 100%)" }}
+          style={{
+            height: "85%",
+            background:
+              "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 15%, rgba(13,13,15,0.95) 40%, rgba(13,13,15,0.4) 70%, transparent 100%)",
+          }}
         />
 
         {/* Top fade */}
         <div
           className="absolute inset-x-0 top-0 h-40"
-          style={{ background: "linear-gradient(to bottom, rgba(13,13,15,0.7) 0%, rgba(13,13,15,0.3) 50%, transparent 100%)" }}
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(13,13,15,0.7) 0%, rgba(13,13,15,0.3) 50%, transparent 100%)",
+          }}
         />
       </div>
 
@@ -384,9 +369,9 @@ export default async function SeriesPage({ params }: PageProps) {
 
               <h1
                 className="font-black text-white leading-[0.9] tracking-tight mb-4"
-                style={{ 
+                style={{
                   fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
-                  textShadow: "0 10px 30px rgba(0,0,0,0.5)"
+                  textShadow: "0 10px 30px rgba(0,0,0,0.5)",
                 }}
               >
                 {series.title}
@@ -405,17 +390,22 @@ export default async function SeriesPage({ params }: PageProps) {
                           >
                             {c.person.name}
                           </Link>
-                          {i < creators.length - 1 && <span className="text-zinc-700">,</span>}
+                          {i < creators.length - 1 && (
+                            <span className="text-zinc-700">,</span>
+                          )}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                {series.originalTitle && series.originalTitle !== series.title && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-600 italic">{series.originalTitle}</span>
-                  </div>
-                )}
+                {series.originalTitle &&
+                  series.originalTitle !== series.title && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-600 italic">
+                        {series.originalTitle}
+                      </span>
+                    </div>
+                  )}
               </div>
             </header>
 

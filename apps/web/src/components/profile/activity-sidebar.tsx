@@ -1,5 +1,6 @@
 import { Clock, Heart, Eye, Filter } from "lucide-react";
 import { RatingStars } from "./rating-stars";
+import { resolveImage } from "@/lib/utils";
 import type { DiaryEntry } from "@/types";
 
 interface ActivitySidebarProps {
@@ -53,7 +54,7 @@ export function ActivitySidebar({ entries, limit = 5 }: ActivitySidebarProps) {
               <div className="flex gap-3">
                 {item.media?.posterPath && (
                   <img
-                    src={item.media.posterPath}
+                    src={resolveImage(item.media.posterPath) ?? ""}
                     alt={item.media.title}
                     className="w-10 h-14 object-cover rounded shadow-sm"
                   />

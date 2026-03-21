@@ -16,7 +16,7 @@ import {
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
+import { api } from "@/lib/api";
 
 export interface Episode {
   id: string;
@@ -91,7 +91,7 @@ function EpisodeCard({
           {stillSrc ? (
             <Image
               src={stillSrc}
-              alt={episode.title}
+              alt={episode.title || `Episode ${episode.episodeNumber}`}
               width={208}
               height={117}
               className={cn(
@@ -257,7 +257,7 @@ function SeasonHeader({
         {posterSrc ? (
           <Image
             src={posterSrc}
-            alt={season.name}
+            alt={season.name || `Season ${season.seasonNumber}`}
             fill
             className="object-cover"
           />
@@ -365,14 +365,21 @@ export function SeasonsPanel({
       setOpenSeasons((prev) => new Set([...prev, seasonNumber]));
 
       // Fetch episodes if not loaded yet
-      const season = seasons.find((s) => s.seasonNumber === seasonNumber);
-      if (!loadedEpisodes[seasonNumber] && onFetchEpisodes) {
+      if (!loadedEpisodes[seasonNumber]) {
         setLoadingSeasons((prev) => new Set([...prev, seasonNumber]));
         try {
-          const episodes = await onFetchEpisodes(seasonNumber);
-          setLoadedEpisodes((prev) => ({ ...prev, [seasonNumber]: episodes }));
-        } catch {
-          // fail silently
+          let fetched: Episode[] = [];
+          if (onFetchEpisodes) {
+            fetched = await onFetchEpisodes(seasonNumber);
+          } else {
+            const res = await api.series.getSeasonDetails(seriesId, seasonNumber);
+            if (res.data?.episodes) {
+              fetched = res.data.episodes;
+            }
+          }
+          setLoadedEpisodes((prev) => ({ ...prev, [seasonNumber]: fetched }));
+        } catch (err) {
+          console.error("Failed to load episodes for season", seasonNumber, err);
         } finally {
           setLoadingSeasons((prev) => {
             const next = new Set(prev);
@@ -382,7 +389,7 @@ export function SeasonsPanel({
         }
       }
     },
-    [openSeasons, loadedEpisodes, seasons, onFetchEpisodes],
+    [openSeasons, loadedEpisodes, onFetchEpisodes, seriesId],
   );
 
   const getEpisodes = (season: Season): Episode[] => {

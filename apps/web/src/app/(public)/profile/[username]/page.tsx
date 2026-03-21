@@ -10,7 +10,10 @@ import type {
   CurrentActivity,
   Scrobble,
   Activity,
+  DiaryEntry,
+  WatchlistItem,
 } from "@/types";
+import type { Story } from "@/types/stories";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
@@ -41,7 +44,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { username } = await params;
-  const userRes = await fetchJson<{ data: any }>(`/users/${username}`);
+  const userRes = await fetchJson<{ data: UserProfile }>(`/users/${username}`);
   if (!userRes?.data) return { title: "Profile — PixelReel" };
 
   const u = userRes.data;
@@ -71,7 +74,7 @@ export async function generateMetadata({
   };
 }
 
-async function getSessionUsername(): Promise<string | null> {
+async function getSessionInfo(): Promise<{ username: string | null; cookieHeader: string }> {
   try {
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.getAll()
@@ -82,9 +85,22 @@ async function getSessionUsername(): Promise<string | null> {
       headers: { Cookie: cookieHeader },
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { username: null, cookieHeader };
     const data = await res.json();
-    return data?.user?.username ?? null;
+    return { username: data?.user?.username ?? null, cookieHeader };
+  } catch {
+    return { username: null, cookieHeader: "" };
+  }
+}
+
+async function fetchJsonAuth<T>(endpoint: string, cookieHeader: string): Promise<T | null> {
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      headers: { Cookie: cookieHeader },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
   } catch {
     return null;
   }
@@ -94,11 +110,12 @@ export default async function ProfilePage({ params }: PageProps) {
   const { username } = await params;
 
   // Phase 1: user, stats, and session in parallel
-  const [userRes, statsRes, sessionUsername] = await Promise.all([
-    fetchJson<{ data: any }>(`/users/${username}`),
+  const [userRes, statsRes, sessionInfo] = await Promise.all([
+    fetchJson<{ data: UserProfile }>(`/users/${username}`),
     fetchJson<{ data: UserStats }>(`/users/${username}/stats`),
-    getSessionUsername(),
+    getSessionInfo(),
   ]);
+  const { username: sessionUsername, cookieHeader } = sessionInfo;
 
   if (!userRes?.data) notFound();
 
@@ -131,21 +148,29 @@ export default async function ProfilePage({ params }: PageProps) {
   const profile: UserProfile = { ...user, stats };
   const isOwnProfile = sessionUsername === username;
 
-  // Phase 2: reviews, lists, and stories (need user.id)
-  const [reviewsRes, listsRes, storiesRes] = await Promise.all([
+  // Phase 2: reviews, lists, stories (public) + diary/watchlist for own profile
+  const [reviewsRes, listsRes, storiesRes, diaryRes, watchlistRes] = await Promise.all([
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
     fetchJson<{ data: List[]; total: number }>(
       `/lists?user_id=${user.id}&limit=10`,
     ),
-    fetchJson<{ data: any[] }>(`/stories/user/${username}`),
+    fetchJson<{ data: Story[] }>(`/stories/user/${username}`),
+    isOwnProfile
+      ? fetchJsonAuth<{ data: DiaryEntry[] }>("/diary", cookieHeader)
+      : Promise.resolve(null),
+    isOwnProfile
+      ? fetchJsonAuth<{ data: WatchlistItem[] }>("/watchlist", cookieHeader)
+      : Promise.resolve(null),
   ]);
 
   const reviews = reviewsRes?.data ?? [];
   const lists = listsRes?.data ?? [];
   const stories = storiesRes?.data ?? [];
   const activity = activitiesRes?.data ?? [];
+  const diary = diaryRes?.data ?? [];
+  const watchlist = watchlistRes?.data ?? [];
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
@@ -158,6 +183,8 @@ export default async function ProfilePage({ params }: PageProps) {
         reviews={reviews}
         lists={lists}
         stories={stories}
+        diary={diary}
+        watchlist={watchlist}
         watchingNow={activityNowRes?.data}
         scrobbles={scrobblesRes?.data || []}
         activity={activity}

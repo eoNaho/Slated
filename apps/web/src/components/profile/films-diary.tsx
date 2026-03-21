@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import {
   RotateCcw,
@@ -7,7 +10,7 @@ import {
 } from "lucide-react";
 import { RatingStars } from "./rating-stars";
 import type { DiaryEntry } from "@/types";
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, resolveImage } from "@/lib/utils";
 
 interface FilmsDiaryProps {
   entries: DiaryEntry[];
@@ -34,8 +37,21 @@ function formatMonthYear(key: string): string {
 }
 
 export function FilmsDiary({ entries }: FilmsDiaryProps) {
-  const groupedEntries = groupByMonth(entries);
+  const allYears = Array.from(
+    new Set(entries.map((e) => new Date(e.watchedAt).getFullYear()))
+  ).sort((a, b) => b - a);
+
+  const [selectedYear, setSelectedYear] = useState(allYears[0] ?? new Date().getFullYear());
+
+  const filteredEntries = entries.filter(
+    (e) => new Date(e.watchedAt).getFullYear() === selectedYear
+  );
+  const groupedEntries = groupByMonth(filteredEntries);
   const months = Object.keys(groupedEntries).sort().reverse();
+
+  const yearIdx = allYears.indexOf(selectedYear);
+  const canGoNewer = yearIdx > 0;
+  const canGoOlder = yearIdx < allYears.length - 1;
 
   if (entries.length === 0) {
     return (
@@ -51,16 +67,24 @@ export function FilmsDiary({ entries }: FilmsDiaryProps) {
 
   return (
     <div className="space-y-8">
-      {/* Month Navigation */}
+      {/* Year Navigation */}
       <div className="flex items-center justify-between">
-        <button className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors">
+        <button
+          onClick={() => canGoOlder && setSelectedYear(allYears[yearIdx + 1])}
+          disabled={!canGoOlder}
+          className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-5 w-5 text-purple-400" />
-          <span className="text-white font-bold">2024</span>
+          <span className="text-white font-bold">{selectedYear}</span>
         </div>
-        <button className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors">
+        <button
+          onClick={() => canGoNewer && setSelectedYear(allYears[yearIdx - 1])}
+          disabled={!canGoNewer}
+          className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
@@ -102,7 +126,7 @@ export function FilmsDiary({ entries }: FilmsDiaryProps) {
                       className="flex-shrink-0 w-12 h-16 rounded overflow-hidden bg-zinc-800"
                     >
                       <img
-                        src={entry.media.posterPath || ""}
+                        src={resolveImage(entry.media.posterPath) ?? ""}
                         alt={entry.media.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />

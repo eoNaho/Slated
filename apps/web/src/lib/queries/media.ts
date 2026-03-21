@@ -60,3 +60,16 @@ export async function getPopularLists(mediaId: string): Promise<List[]> {
     return [];
   }
 }
+
+export async function getSeriesSeasons(seriesId: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_URL}/series/${seriesId}/seasons`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data ?? [];
+  } catch {
+    return [];
+  }
+}
