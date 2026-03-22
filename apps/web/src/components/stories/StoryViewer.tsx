@@ -19,10 +19,18 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
   const [currentIndex, setCurrentIndex] = React.useState(initialIndex);
   const [progress, setProgress] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);
-  
+
   const STORY_DURATION = 8000; // 8 seconds
 
   const currentStory = stories[currentIndex];
+
+  // Register a view for the initial story on mount
+  React.useEffect(() => {
+    if (currentStory) {
+      api.stories.view(currentStory.id).catch(console.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-advance
   React.useEffect(() => {
@@ -33,7 +41,9 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
       setProgress((prev) => {
         if (prev >= 100) {
           if (currentIndex < stories.length - 1) {
-            setCurrentIndex(currentIndex + 1);
+            const nextIndex = currentIndex + 1;
+            setCurrentIndex(nextIndex);
+            api.stories.view(stories[nextIndex].id).catch(console.error);
             return 0;
           } else {
             onClose();
@@ -47,17 +57,12 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
     return () => clearInterval(timer);
   }, [currentIndex, isPaused, stories.length, onClose]);
 
-  // Handle View registration
-  React.useEffect(() => {
-    if (currentStory) {
-      api.stories.view(currentStory.id).catch(console.error);
-    }
-  }, [currentStory]);
-
   const handleNext = () => {
     if (currentIndex < stories.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
       setProgress(0);
+      api.stories.view(stories[nextIndex].id).catch(console.error);
     } else {
       onClose();
     }
@@ -65,8 +70,10 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
 
   const handlePrev = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
       setProgress(0);
+      api.stories.view(stories[prevIndex].id).catch(console.error);
     }
   };
 

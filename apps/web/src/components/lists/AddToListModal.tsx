@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth-client";
+import { useUserLists } from "@/hooks/queries/use-lists";
 
 interface AddToListModalProps {
   mediaId: string;
@@ -16,30 +17,18 @@ interface AddToListModalProps {
 export function AddToListModal({ mediaId, mediaTitle, onClose }: AddToListModalProps) {
   const { data: session } = useSession();
   const user = session?.user;
-  const [lists, setLists] = React.useState<any[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [localLists, setLocalLists] = React.useState<any[] | null>(null);
   const [isProcessing, setIsProcessing] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
+  const { data: listsData, isLoading } = useUserLists(user?.id, mediaId, !!user);
+
+  // Keep a local copy so we can optimistically update toggle state
   React.useEffect(() => {
-    const loadLists = async () => {
-      if (!user) return;
-      try {
-        const res = await api.lists.get({ 
-          user_id: user.id, 
-          limit: 100,
-          membership_media_id: mediaId
-        });
-        setLists(res.data);
-      } catch (err) {
-        console.error("Failed to load user lists", err);
-        setError("Failed to load your lists");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadLists();
-  }, [user]);
+    if (listsData) setLocalLists(listsData);
+  }, [listsData]);
+
+  const lists = localLists ?? listsData ?? [];
 
   const handleToggleItem = async (listId: string, isInList: boolean) => {
     setIsProcessing(listId);
@@ -50,10 +39,10 @@ export function AddToListModal({ mediaId, mediaTitle, onClose }: AddToListModalP
         await api.lists.addItem(listId, mediaId);
       }
       
-      // Update local state
-      setLists(prev => prev.map(l => 
-        l.id === listId 
-          ? { ...l, itemsCount: isInList ? l.itemsCount - 1 : l.itemsCount + 1, isInList: !isInList } 
+      // Update local state optimistically
+      setLocalLists(prev => (prev ?? []).map(l =>
+        l.id === listId
+          ? { ...l, itemsCount: isInList ? l.itemsCount - 1 : l.itemsCount + 1, isInList: !isInList }
           : l
       ));
       

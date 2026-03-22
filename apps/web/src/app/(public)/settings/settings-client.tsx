@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -43,6 +42,9 @@ import { identityApi } from "@/lib/api";
 import type { ProfileFrame, ProfileTitle, UserIdentity } from "@/types";
 import { useSession, authClient } from "@/lib/auth-client";
 import { resolveImage } from "@/lib/utils";
+import { useApiTokens } from "@/hooks/queries/use-api-tokens";
+import { useIdentityData } from "@/hooks/queries/use-identity";
+import { useUserProfile } from "@/hooks/queries/use-user-profile";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -258,7 +260,6 @@ const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
 
 export function SettingsClient() {
   const { data: session, isPending } = useSession();
-  const router = useRouter();
   const [section, setSection] = useState<Section>("profile");
 
   // ── Fetched profile (source of truth for avatarUrl/coverUrl)
@@ -323,38 +324,37 @@ export function SettingsClient() {
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Fetch tokens when opening extension section
+  // Load API tokens when in extension section
+  const { data: tokensData, isLoading: tokensQueryLoading } = useApiTokens(section === "extension");
   useEffect(() => {
-    if (section === "extension") {
+    if (tokensData) {
+      setTokens(tokensData);
+      setTokensLoading(false);
+    } else if (tokensQueryLoading && section === "extension") {
       setTokensLoading(true);
-      fetch(`${API}/activity/tokens`, { credentials: "include" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.data) setTokens(data.data);
-        })
-        .finally(() => setTokensLoading(false));
     }
-    if (section === "identity" && !identityData) {
-      setIdentityLoading(true);
-      Promise.all([
-        identityApi.getMe(),
-        identityApi.getFrames(),
-        identityApi.getTitles(),
-      ])
-        .then(([id, fr, ti]) => {
-          setIdentityData(id.data);
-          setFrames(fr.data);
-          setTitles(ti.data);
-          setAccentColor(id.data.accentColor ?? "");
-          setProfileTheme(id.data.profileTheme ?? "");
-        })
-        .catch(() => {})
-        .finally(() => setIdentityLoading(false));
-    }
-  }, [section]);
+  }, [tokensData, tokensQueryLoading, section]);
 
-  // Fetch full profile (including social links, cover, bioExtended)
-  const fetchProfile = () => {
+  // Load identity data when in identity section
+  const { data: identityQueryData, isLoading: identityQueryLoading } = useIdentityData(section === "identity");
+  useEffect(() => {
+    if (identityQueryData) {
+      setIdentityData(identityQueryData.identity);
+      setFrames(identityQueryData.frames);
+      setTitles(identityQueryData.titles);
+      setAccentColor(identityQueryData.identity.accentColor ?? "");
+      setProfileTheme(identityQueryData.identity.profileTheme ?? "");
+      setIdentityLoading(false);
+    } else if (identityQueryLoading && section === "identity") {
+      setIdentityLoading(true);
+    }
+  }, [identityQueryData, identityQueryLoading, section]);
+
+  // Load full user profile (social links, cover, bioExtended)
+  const { data: profileData } = useUserProfile(!!session?.user);
+  const fetchProfile = useCallback(() => {
+    // Re-used by image upload/remove handlers; delegates to query invalidation
+    // would be ideal, but kept as a direct fetch for local state sync.
     fetch(`${API}/users/me`, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -381,18 +381,32 @@ export function SettingsClient() {
           }
         }
       });
-  };
+  }, []);
 
+  // Sync query data → local state fields once when profile data first loads
   useEffect(() => {
-    if (session?.user) fetchProfile();
-  }, [session]);
-
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!isPending && !session) {
-      router.replace("/sign-in");
+    if (!profileData) return;
+    const u = profileData;
+    setProfile(u);
+    setCoverPosition(u.coverPosition || "50% 50%");
+    setCoverZoom(Number(u.coverZoom) || 100);
+    setDisplayName(u.displayName || u.name || "");
+    setBio(u.bio || "");
+    setLocation(u.location || "");
+    setWebsite(u.website || "");
+    if (u.socialLinks) {
+      setTwitter(u.socialLinks.twitter || "");
+      setInstagram(u.socialLinks.instagram || "");
+      setLetterboxd(u.socialLinks.letterboxd || "");
+      setImdb(u.socialLinks.imdb || "");
     }
-  }, [isPending, session, router]);
+    if (u.bioExtended) {
+      setBioHeadline(u.bioExtended.headline || "");
+      setBioQuote(u.bioExtended.quote?.text || "");
+      setBioQuoteAuthor(u.bioExtended.quote?.author || "");
+      setBioMoods(u.bioExtended.moods || []);
+    }
+  }, [profileData]);
 
   if (isPending || !session) {
     return (

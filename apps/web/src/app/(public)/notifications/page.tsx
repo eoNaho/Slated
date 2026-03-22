@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Bell, Check, Trophy, Heart, MessageSquare, Users, Zap, Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNotifications } from "@/hooks/queries/use-notifications";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
-interface Notification {
+interface AppNotification {
   id: string;
   type: string;
   title: string;
@@ -40,36 +41,20 @@ export default function NotificationsPage() {
   const { data: session } = useSession();
   const user = session?.user;
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: fetchedNotifications = [], isLoading: loading } = useNotifications(!!user);
+  const [readOverrides, setReadOverrides] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/notifications?limit=50`, { credentials: "include" });
-      if (res.ok) {
-        const json = await res.json();
-        setNotifications(json.data ?? []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const notifications = fetchedNotifications.map((n) =>
+    readOverrides.has(n.id) ? { ...n, isRead: true } : n,
+  );
 
   const markRead = async (id: string) => {
     await fetch(`${API_URL}/notifications/${id}/read`, {
       method: "PATCH",
       credentials: "include",
     });
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-    );
+    setReadOverrides((prev) => new Set(prev).add(id));
   };
 
   const markAllRead = async () => {
@@ -79,7 +64,7 @@ export default function NotificationsPage() {
         method: "POST",
         credentials: "include",
       });
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setReadOverrides(new Set(fetchedNotifications.map((n) => n.id)));
     } finally {
       setMarkingAll(false);
     }

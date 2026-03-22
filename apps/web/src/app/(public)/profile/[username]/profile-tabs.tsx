@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Film,
   Star,
@@ -33,6 +33,7 @@ import {
 } from "@/components/profile";
 import { ClubCard } from "@/components/clubs/club-card";
 import type { Club } from "@/lib/queries/clubs";
+import { useUserClubs } from "@/hooks/queries/use-user-clubs";
 import { Story } from "@/types/stories";
 import type {
   UserProfile,
@@ -82,9 +83,6 @@ const tabs = [
 
 const PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
-
 export function ProfileTabs({
   profile,
   username,
@@ -103,20 +101,10 @@ export function ProfileTabs({
   scrobbles = [],
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [clubs, setClubs] = useState<Club[]>([]);
-  const [clubsLoaded, setClubsLoaded] = useState(false);
   const [showCreateList, setShowCreateList] = useState(false);
 
-  useEffect(() => {
-    if (activeTab !== "clubs" || clubsLoaded) return;
-    fetch(`${API_URL}/users/${username}/clubs`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((json) => {
-        setClubs(json.data ?? []);
-        setClubsLoaded(true);
-      })
-      .catch(() => setClubsLoaded(true));
-  }, [activeTab, clubsLoaded, username]);
+  const { data: clubs = [], isPending: clubsPending } = useUserClubs(username, activeTab === "clubs");
+  const clubsLoaded = !clubsPending;
 
   const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
 

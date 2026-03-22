@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Plus, Heart, Share2, Eye, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useMediaState } from "@/hooks/queries/use-media-state";
+
 interface MovieActionsProps {
   movie: {
     id: string;
@@ -18,50 +21,49 @@ interface MovieActionsProps {
 
 export function MovieActions({ movie }: MovieActionsProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: mediaState } = useMediaState(movie.id);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [liked, setLiked] = useState(false);
-  const [inWatchlist, setInWatchlist] = useState(false);
-  const [watched, setWatched] = useState(false);
-  const [rating, setRating] = useState<number | null>(null);
-  const [review, setReview] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    api.media.getState(movie.id)
-      .then((res) => {
-        if (mounted && res.data) {
-          setLiked(res.data.liked);
-          setWatched(res.data.watched);
-          setInWatchlist(res.data.inWatchlist);
-          setRating(res.data.rating);
-          setReview(res.data.review);
-        }
-      })
-      .catch((err) => console.error("Failed to load user state", err));
-    return () => { mounted = false; };
-  }, [movie.id]);
+  // Derive display values from server state; local overrides for optimistic UI
+  const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
+  const [optimisticWatchlist, setOptimisticWatchlist] = useState<boolean | null>(null);
+  const [optimisticWatched, setOptimisticWatched] = useState<boolean | null>(null);
+
+  const liked = optimisticLiked ?? mediaState?.liked ?? false;
+  const inWatchlist = optimisticWatchlist ?? mediaState?.inWatchlist ?? false;
+  const watched = optimisticWatched ?? mediaState?.watched ?? false;
+  const rating = mediaState?.rating ?? null;
+  const review = mediaState?.review ?? null;
+
+  const invalidateState = () =>
+    queryClient.invalidateQueries({ queryKey: ["media", movie.id, "state"] });
 
   const toggleLiked = async () => {
     const prev = liked;
-    setLiked(!prev);
+    setOptimisticLiked(!prev);
     try {
       if (prev) await api.likes.unlike("media", movie.id);
       else await api.likes.like("media", movie.id);
+      setOptimisticLiked(null);
+      invalidateState();
     } catch {
-      setLiked(prev);
+      setOptimisticLiked(prev);
       toast.error("Failed to update like status");
     }
   };
 
   const toggleWatchlist = async () => {
     const prev = inWatchlist;
-    setInWatchlist(!prev);
+    setOptimisticWatchlist(!prev);
     try {
       if (prev) await api.watchlist.remove(movie.id);
       else await api.watchlist.add(movie.id);
+      setOptimisticWatchlist(null);
+      invalidateState();
     } catch {
-      setInWatchlist(prev);
+      setOptimisticWatchlist(prev);
       toast.error("Failed to update watchlist");
     }
   };
@@ -71,12 +73,14 @@ export function MovieActions({ movie }: MovieActionsProps) {
       toast.info("Already marked as watched. Edit from your diary if needed.");
       return;
     }
-    setWatched(true);
+    setOptimisticWatched(true);
     try {
       await api.diary.add(movie.id, { isRewatch: false });
       toast.success("Marked as watched!");
+      setOptimisticWatched(null);
+      invalidateState();
     } catch {
-      setWatched(false);
+      setOptimisticWatched(null);
       toast.error("Failed to mark as watched");
     }
   };
@@ -250,12 +254,10 @@ export function MovieActions({ movie }: MovieActionsProps) {
             if (data.liked !== liked) {
               if (data.liked) await api.likes.like("media", movie.id);
               else await api.likes.unlike("media", movie.id);
-              setLiked(data.liked);
             }
 
-            setWatched(true);
-            setRating(data.rating || null);
-            setReview(data.review || null);
+            setOptimisticWatched(true);
+            invalidateState();
             toast.success("Salvo com sucesso!");
             router.refresh();
           } catch (err) {

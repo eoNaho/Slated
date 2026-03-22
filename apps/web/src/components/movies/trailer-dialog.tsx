@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { X, Play } from "lucide-react";
+import { useEscapeKey } from "@/hooks/use-escape-key";
+import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 interface TrailerDialogProps {
   trailerUrl: string;
@@ -19,19 +21,8 @@ export function TrailerDialog({ trailerUrl, movieTitle }: TrailerDialogProps) {
 
   const close = useCallback(() => setOpen(false), []);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, close]);
-
-  // Prevent body scroll when open
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
+  useEscapeKey(close, open);
+  useScrollLock(open);
 
   if (!videoId) return null;
 

@@ -7,7 +7,8 @@ import { Search, Popcorn, Tv, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
-import { api } from "@/lib/api";
+import { useSearchAutocomplete } from "@/hooks/queries/use-search";
+import { useClickOutside } from "@/hooks/use-click-outside";
 import type { SearchResult } from "@/types";
 
 interface MediaSearchInputProps {
@@ -27,48 +28,25 @@ export function MediaSearchInput({
 }: MediaSearchInputProps) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch results when query changes
+  const { data: autocompleteData, isPending: isLoading } = useSearchAutocomplete(
+    !value ? debouncedQuery : "",
+  );
+  const results: SearchResult[] = autocompleteData ?? [];
+
+  // Sync open state: open when results arrive, close when query cleared
   useEffect(() => {
-    async function fetchResults() {
-      if (!debouncedQuery) {
-        setResults([]);
-        setIsOpen(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const response = await api.search.search(debouncedQuery, { type: "all" });
-        setResults(response.media || []);
-        setIsOpen(true);
-      } catch (error) {
-        console.error("Failed to search media:", error);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!debouncedQuery) {
+      setIsOpen(false);
+    } else if (results.length > 0) {
+      setIsOpen(true);
     }
+  }, [debouncedQuery, results.length]);
 
-    if (!value) {
-      fetchResults();
-    }
-  }, [debouncedQuery, value]);
-
-  // Handle outside click to close dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  useClickOutside(dropdownRef, () => setIsOpen(false));
 
   const handleSelect = (item: SearchResult) => {
     onChange({

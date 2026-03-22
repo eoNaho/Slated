@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   X,
@@ -15,6 +15,8 @@ import {
 import type { EmojiClickData } from "emoji-picker-react";
 import { StarRatingInput } from "./star-rating-input";
 import { resolveImage } from "@/lib/utils";
+import { useEscapeKey } from "@/hooks/use-escape-key";
+import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 // Heavy picker loaded client-side only
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
@@ -48,33 +50,20 @@ const MAX_CHARS = 2000;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
+// Parent should pass key={`${isOpen}-${mediaId}`} to reset state when the modal opens.
 export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogModalProps) {
-  const [rating, setRating] = useState(initialData?.rating || 0);
-  const [liked, setLiked] = useState(initialData?.liked || false);
+  const [rating, setRating] = useState(() => initialData?.rating || 0);
+  const [liked, setLiked] = useState(() => initialData?.liked || false);
   const [watchedDate, setWatchedDate] = useState(
-    initialData?.watchedDate || new Date().toISOString().split("T")[0],
+    () => initialData?.watchedDate || new Date().toISOString().split("T")[0],
   );
-  const [isRewatch, setIsRewatch] = useState(initialData?.isRewatch || false);
-  const [reviewTitle, setReviewTitle] = useState(initialData?.reviewTitle || "");
-  const [review, setReview] = useState(initialData?.review || "");
-  const [reviewExpanded, setReviewExpanded] = useState(!!(initialData?.review || initialData?.reviewTitle));
-  const [containsSpoilers, setContainsSpoilers] = useState(initialData?.containsSpoilers || false);
+  const [isRewatch, setIsRewatch] = useState(() => initialData?.isRewatch || false);
+  const [reviewTitle, setReviewTitle] = useState(() => initialData?.reviewTitle || "");
+  const [review, setReview] = useState(() => initialData?.review || "");
+  const [reviewExpanded, setReviewExpanded] = useState(() => !!(initialData?.review || initialData?.reviewTitle));
+  const [containsSpoilers, setContainsSpoilers] = useState(() => initialData?.containsSpoilers || false);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
-
-  useEffect(() => {
-    if (isOpen && initialData) {
-      setRating(initialData.rating || 0);
-      setLiked(initialData.liked || false);
-      if (initialData.watchedDate) setWatchedDate(initialData.watchedDate);
-      setIsRewatch(initialData.isRewatch || false);
-      setReviewTitle(initialData.reviewTitle || "");
-      setReview(initialData.review || "");
-      setReviewExpanded(!!(initialData.review || initialData.reviewTitle));
-      setContainsSpoilers(initialData.containsSpoilers || false);
-      setTags(initialData.tags || []);
-    }
-  }, [isOpen, initialData]);
+  const [tags, setTags] = useState<string[]>(() => initialData?.tags || []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPanelRef = useRef<HTMLDivElement>(null);
@@ -85,23 +74,18 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
     onClose();
   }, [onClose]);
 
-  // Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (emojiOpen) {
-          setEmojiOpen(false);
-          return;
-        }
-        close();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isOpen, emojiOpen, close]);
+  // Two-level Escape: first close emoji panel, then close modal
+  const escapeHandler = useCallback(() => {
+    if (emojiOpen) {
+      setEmojiOpen(false);
+    } else {
+      close();
+    }
+  }, [emojiOpen, close]);
+  useEscapeKey(escapeHandler, isOpen);
 
-  // Close emoji panel on outside click
+  // Close emoji panel on outside click — must exclude BOTH panel ref and toggle button ref,
+  // so a minimal useEffect handles this multi-ref case.
   useEffect(() => {
     if (!emojiOpen) return;
     const handler = (e: MouseEvent) => {
@@ -117,12 +101,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
   }, [emojiOpen]);
 
   // Body scroll lock
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
   Star,
@@ -18,6 +18,7 @@ import type { Review, Comment } from "@/types";
 import { getMediaUrl, resolveImage } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useReviewComments } from "@/hooks/queries/use-review-comments";
 
 interface ReviewsListProps {
   reviews: Review[];
@@ -134,20 +135,21 @@ function CommentSection({
   reviewId: string;
   currentUserId?: string;
 }) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: fetchedComments, isLoading: loading } = useReviewComments(reviewId);
+  const [localComments, setLocalComments] = useState<Comment[]>([]);
+  const [localSynced, setLocalSynced] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    api.comments
-      .list("review", reviewId)
-      .then((res) => setComments(res.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [reviewId]);
+  // Seed local state once when query data arrives
+  if (!localSynced && fetchedComments) {
+    setLocalComments(fetchedComments);
+    setLocalSynced(true);
+  }
+
+  const comments = localSynced ? localComments : (fetchedComments ?? []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +163,7 @@ function CommentSection({
         content,
         parent_id: replyTo?.id,
       });
-      setComments((prev) => [...prev, res.data]);
+      setLocalComments((prev) => [...prev, res.data]);
       setText("");
       setReplyTo(null);
     } catch {
@@ -172,7 +174,7 @@ function CommentSection({
   };
 
   const handleDelete = (id: string) => {
-    setComments((prev) => prev.filter((c) => c.id !== id));
+    setLocalComments((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleReply = (comment: Comment) => {

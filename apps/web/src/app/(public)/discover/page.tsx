@@ -10,12 +10,10 @@ import { ChevronRight, LayoutGrid, Sparkles, Dices } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { AddToListModal } from "@/components/lists/AddToListModal";
+import { useDiscoverMeta, useDiscoverResults } from "@/hooks/queries/use-discover";
 
 export default function DiscoverPage() {
   const [items, setItems] = React.useState<SearchResult[]>([]);
-  const [genres, setGenres] = React.useState<{ id: number; name: string }[]>([]);
-  const [streamingServices, setStreamingServices] = React.useState<{ id: string; name: string; logoPath?: string | null }[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
   const [page, setPage] = React.useState(1);
   const [totalPages, setTotalPages] = React.useState(1);
   const [filters, setFilters] = React.useState({
@@ -28,29 +26,39 @@ export default function DiscoverPage() {
   const [isRoulette, setIsRoulette] = React.useState(false);
   const [rouletteCount, setRouletteCount] = React.useState(1);
   const [isSpinning, setIsSpinning] = React.useState(false);
+  const [isRouletteLoading, setIsRouletteLoading] = React.useState(false);
   const [listMedia, setListMedia] = React.useState<SearchResult | null>(null);
 
-  // Load initial static data (genres, streaming)
-  React.useEffect(() => {
-    const loadMetadata = async () => {
-      try {
-        const [genresRes, streamingRes] = await Promise.all([
-          api.discover.genres(),
-          api.discover.streaming()
-        ]);
-        setGenres(genresRes.data);
-        setStreamingServices(streamingRes.data);
-      } catch (e) {
-        console.error("Failed to load discover metadata", e);
-      }
-    };
-    loadMetadata();
-  }, []);
+  // Static metadata (genres, streaming services)
+  const { data: metaData } = useDiscoverMeta();
+  const genres = metaData?.genres ?? [];
+  const streamingServices = metaData?.streamingServices ?? [];
 
-  // Load results when filters or page changes
+  // Normalised filters for the query hook (page=1 only; load-more uses direct API call)
+  const queryFilters = React.useMemo(() => ({
+    page: 1,
+    type: filters.type === "all" ? undefined : filters.type,
+    genre: filters.genre || undefined,
+    year: filters.year ? Number(filters.year) : undefined,
+    sortBy: filters.sortBy,
+    streaming: filters.streaming || undefined,
+  }), [filters]);
+
+  const { data: resultsData, isLoading: resultsLoading } = useDiscoverResults(queryFilters, !isRoulette);
+  const isLoading = resultsLoading && !isRoulette;
+
+  // Sync query results → local items state (filter changes reset to page 1)
+  React.useEffect(() => {
+    if (resultsData && !isRoulette) {
+      setItems(resultsData.data);
+      setTotalPages(resultsData.totalPages);
+      setPage(1);
+    }
+  }, [resultsData, isRoulette]);
+
+  // Load-more helper (appends pages via direct API call)
   const loadResults = React.useCallback(async (pageNum: number, currentFilters: typeof filters, append = false) => {
-    if (isRoulette) return; // Don't auto-load in roulette mode
-    setIsLoading(true);
+    if (isRoulette) return;
     try {
       const res = await api.discover.get({
         page: pageNum,
@@ -69,14 +77,12 @@ export default function DiscoverPage() {
       setTotalPages(res.totalPages);
     } catch (e) {
       console.error("Failed to discover media", e);
-    } finally {
-      setIsLoading(false);
     }
   }, [isRoulette]);
 
   const handleSpin = async () => {
     setIsSpinning(true);
-    setIsLoading(true);
+    setIsRouletteLoading(true);
     try {
       // Small artificial delay for "spinning" feel
       await new Promise(r => setTimeout(r, 800));
@@ -93,16 +99,9 @@ export default function DiscoverPage() {
       console.error("Failed to spin roulette", e);
     } finally {
       setIsSpinning(false);
-      setIsLoading(false);
+      setIsRouletteLoading(false);
     }
   };
-
-  React.useEffect(() => {
-    if (!isRoulette) {
-      setPage(1);
-      loadResults(1, filters, false);
-    }
-  }, [filters, loadResults, isRoulette]);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { useSession, signOut } from "@/lib/auth-client";
 import { resolveImage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useClickOutside } from "@/hooks/use-click-outside";
+import { useUnreadCount } from "@/hooks/queries/use-notifications";
 
 const navLinks = [
   { href: "/movies", label: "Filmes" },
@@ -36,34 +38,13 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
-    fetch(`${API_URL}/notifications/unread-count`, { credentials: "include" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((json) => { if (json?.data?.count) setUnreadCount(json.data.count); })
-      .catch(() => null);
-  }, [user]);
+  const { data: unreadCount = 0 } = useUnreadCount(user?.id);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsMenuOpen(false);
-      }
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target as Node)
-      ) {
-        setIsUserMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  useClickOutside(menuRef, useCallback(() => setIsMenuOpen(false), []));
+  useClickOutside(userMenuRef, useCallback(() => setIsUserMenuOpen(false), []));
 
   async function handleSignOut() {
     await signOut();

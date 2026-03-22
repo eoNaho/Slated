@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search,
@@ -271,6 +271,14 @@ function Pagination({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
+  return (
+    <Suspense>
+      <SearchPageInner />
+    </Suspense>
+  );
+}
+
+function SearchPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -278,8 +286,9 @@ export default function SearchPage() {
   const urlPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const urlType = (searchParams.get("type") as TypeFilter) || "all";
 
+  // inputValue is a local typing buffer; activeTab comes directly from URL
   const [inputValue, setInputValue] = useState(urlQuery);
-  const [activeTab, setActiveTab] = useState<TypeFilter>(urlType);
+  const activeTab = urlType;
 
   const [mediaResults, setMediaResults] = useState<SearchResult[]>([]);
   const [userResults, setUserResults] = useState<UserResult[]>([]);
@@ -292,11 +301,6 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setInputValue(urlQuery);
-    setActiveTab(urlType);
-  }, [urlQuery, urlType]);
 
   const runSearch = useCallback(
     async (q: string, type: TypeFilter, p: number) => {
@@ -346,7 +350,6 @@ export default function SearchPage() {
   };
 
   const handleTabChange = (tab: TypeFilter) => {
-    setActiveTab(tab);
     if (urlQuery) pushSearch(urlQuery, tab);
     // Garante que o scroll volta ao topo ao trocar de aba para evitar que itens fiquem cortados
     window.scrollTo({ top: 0, behavior: "smooth" });

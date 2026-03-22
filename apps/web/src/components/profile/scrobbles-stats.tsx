@@ -2,27 +2,14 @@
 
 import { Film, Tv, Clock, Award, BarChart3 } from "lucide-react";
 
-import { useEffect, useState } from "react";
-import type { ActivityStats } from "@/types";
+import { useScrobbleStats } from "@/hooks/queries/use-scrobble-stats";
 
 interface ScrobblesStatsProps {
   userId: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
-
 export function ScrobblesStats({ userId }: ScrobblesStatsProps) {
-  const [stats, setStats] = useState<ActivityStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetch(`${API_URL}/activity/stats/${userId}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (json?.data) setStats(json.data);
-      })
-      .finally(() => setIsLoading(false));
-  }, [userId]);
+  const { data: stats, isLoading } = useScrobbleStats(userId);
 
   if (isLoading) {
     return (
@@ -35,7 +22,7 @@ export function ScrobblesStats({ userId }: ScrobblesStatsProps) {
   // Use current month if no monthly data exists
   const now = new Date();
   const currentMonthly = stats?.monthly?.find(
-    (m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1
+    (m: any) => m.year === now.getFullYear() && m.month === now.getMonth() + 1
   );
 
   const monthName = currentMonthly 
@@ -46,7 +33,7 @@ export function ScrobblesStats({ userId }: ScrobblesStatsProps) {
 
   // Find top source
   const topSource = stats?.sourceBreakdown?.length 
-    ? stats.sourceBreakdown.reduce((prev, current) => (prev.count > current.count) ? prev : current)
+    ? stats.sourceBreakdown.reduce((prev: any, current: any) => (prev.count > current.count) ? prev : current)
     : { source: "None", count: 0 };
 
   return (
