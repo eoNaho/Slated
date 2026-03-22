@@ -1,6 +1,17 @@
 import { Story as ApiStory } from "../lib/api";
 
-export type StoryType = "watch" | "list" | "rating" | "poll" | "hot_take" | "rewind";
+export type StoryType =
+  | "watch"
+  | "list"
+  | "rating"
+  | "poll"
+  | "hot_take"
+  | "rewind"
+  | "countdown"
+  | "quiz"
+  | "question_box";
+
+export type StoryVisibility = "public" | "followers" | "close_friends";
 
 export interface WatchContent {
   media_id: string;
@@ -8,6 +19,7 @@ export interface WatchContent {
   media_type: "movie" | "tv";
   poster_path?: string;
   note?: string;
+  mentions?: { user_id: string; username: string }[];
 }
 
 export interface ListContent {
@@ -48,16 +60,50 @@ export interface RewindContent {
   top_genre?: string;
 }
 
-export type StoryContent = 
-  | WatchContent 
-  | ListContent 
-  | RatingContent 
-  | PollContent 
-  | HotTakeContent 
-  | RewindContent;
+export interface CountdownContent {
+  media_id: string;
+  media_title: string;
+  release_date: string; // ISO date
+  poster_path?: string;
+  note?: string;
+}
 
-export interface Story extends Omit<ApiStory, "content"> {
+export interface QuizContent {
+  question: string;
+  options: { text: string }[];
+  correct_index: number;
+  media_id?: string;
+  media_title?: string;
+}
+
+export interface QuestionBoxContent {
+  question: string;
+  media_id?: string;
+  media_title?: string;
+}
+
+export type StoryContent =
+  | WatchContent
+  | ListContent
+  | RatingContent
+  | PollContent
+  | HotTakeContent
+  | RewindContent
+  | CountdownContent
+  | QuizContent
+  | QuestionBoxContent;
+
+export interface StorySlide {
+  type: StoryType;
   content: StoryContent;
+  imageUrl?: string | null;
+  duration?: number; // seconds, default 8
+}
+
+export interface Story extends Omit<ApiStory, "content" | "slides"> {
+  content: StoryContent;
+  visibility?: StoryVisibility;
+  slides?: StorySlide[] | null;
 }
 
 export interface StoryViewerProps {
@@ -65,4 +111,16 @@ export interface StoryViewerProps {
   initialIndex?: number;
   onClose: () => void;
   onComplete?: () => void;
+  readOnly?: boolean;
+}
+
+export interface Highlight {
+  id: string;
+  userId: string;
+  name: string;
+  coverImageUrl?: string | null;
+  position: number;
+  createdAt: string;
+  previewStories?: Story[];
+  storyCount?: number;
 }

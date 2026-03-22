@@ -53,19 +53,19 @@ export function startCronJobs(): void {
     await createDailyRewindStories();
   });
 
-  // Stories expiration — mark expired stories every hour
+  // Stories expiration — mark expired stories every hour (also archives them)
   registerJob("expire-stories", 60 * 60 * 1000, async () => {
     const { sql: rawSql } = await import("drizzle-orm");
     const { stories } = await import("../db/schema/stories");
     const result = await db
       .update(stories)
-      .set({ isExpired: true })
+      .set({ isExpired: true, isArchived: true })
       .where(
         rawSql`${stories.expiresAt} < now() AND ${stories.isPinned} = false AND ${stories.isExpired} = false`
       )
       .returning({ id: stories.id });
     if (result.length > 0) {
-      logger.info({ expired: result.length }, "expire-stories: marked stories as expired");
+      logger.info({ expired: result.length }, "expire-stories: marked stories as expired and archived");
     }
   });
 

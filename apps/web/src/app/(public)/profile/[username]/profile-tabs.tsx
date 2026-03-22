@@ -36,6 +36,7 @@ import type { Club } from "@/lib/queries/clubs";
 import { useUserClubs } from "@/hooks/queries/use-user-clubs";
 import { useCustomCovers } from "@/hooks/queries/use-custom-covers";
 import { Story } from "@/types/stories";
+import type { StoryHighlight } from "@/lib/api";
 import type {
   UserProfile,
   FavoriteFilm,
@@ -59,6 +60,7 @@ interface ProfileTabsProps {
   reviews: Review[];
   lists: ListType[];
   stories?: Story[];
+  highlights?: StoryHighlight[];
   identity?: UserIdentity | null;
   // These are empty for public viewing, populated for own profile
   diary?: DiaryEntry[];
@@ -97,6 +99,7 @@ export function ProfileTabs({
   likes = [],
   activity = [],
   stories = [],
+  highlights = [],
   identity = null,
   watchingNow = null,
   scrobbles = [],
@@ -119,6 +122,7 @@ export function ProfileTabs({
         isOwnProfile={isOwnProfile}
         watchingNow={watchingNow}
         stories={stories}
+        highlights={highlights}
         identity={identity}
       />
 

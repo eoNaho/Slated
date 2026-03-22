@@ -23,6 +23,8 @@ import { TitleBadge } from "./title-badge";
 import { SupporterBadge, VerifiedBadge } from "./identity-badges";
 import { Story } from "@/types/stories";
 import { StoryViewer } from "@/components/stories/StoryViewer";
+import { HighlightsRow } from "@/components/stories/HighlightsRow";
+import type { StoryHighlight } from "@/lib/api";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -30,6 +32,7 @@ interface ProfileHeaderProps {
   isOwnProfile?: boolean;
   watchingNow?: any;
   stories?: Story[];
+  highlights?: StoryHighlight[];
   identity?: UserIdentity | null;
 }
 
@@ -39,6 +42,7 @@ export function ProfileHeader({
   isOwnProfile,
   watchingNow = null,
   stories = [],
+  highlights = [],
   identity = null,
 }: ProfileHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(false);
@@ -46,12 +50,10 @@ export function ProfileHeader({
     null,
   );
 
-  // Separate active stories from pinned stories (highlights)
-  const { activeStories, pinnedStories, hasUnseen } = useMemo(() => {
+  const { activeStories, hasUnseen } = useMemo(() => {
     const active = stories.filter((s) => !s.isExpired && !s.isPinned);
-    const pinned = stories.filter((s) => s.isPinned);
     const unseen = active.some((s) => !s.hasViewed);
-    return { activeStories: active, pinnedStories: pinned, hasUnseen: unseen };
+    return { activeStories: active, hasUnseen: unseen };
   }, [stories]);
 
   const bannerUrl =
@@ -329,35 +331,12 @@ export function ProfileHeader({
         </div>
 
         {/* Highlights Section */}
-        {pinnedStories.length > 0 && (
-          <div className="mt-8 flex gap-5 overflow-x-auto no-scrollbar pb-2">
-            {pinnedStories.map((story) => (
-              <div
-                key={story.id}
-                className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer"
-                onClick={() => setActiveStoryGroup([story])}
-              >
-                <div className="w-16 h-16 rounded-2xl p-[2px] bg-zinc-800 ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all">
-                  <div className="relative w-full h-full rounded-[14px] overflow-hidden bg-zinc-900 border-2 border-zinc-950">
-                    {story.imageUrl ? (
-                      <Image
-                        fill
-                        src={resolveImage(story.imageUrl) || ""}
-                        className="object-cover"
-                        alt=""
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-500">
-                        <Star className="h-6 w-6" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <span className="text-[10px] font-medium text-zinc-500 group-hover:text-zinc-300 transition-colors uppercase tracking-wider">
-                  Highlight
-                </span>
-              </div>
-            ))}
+        {(highlights.length > 0 || isOwnProfile) && (
+          <div className="mt-8">
+            <HighlightsRow
+              highlights={highlights}
+              isOwnProfile={!!isOwnProfile}
+            />
           </div>
         )}
 

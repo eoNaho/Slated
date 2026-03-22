@@ -12,6 +12,25 @@ import {
 import { sql } from "drizzle-orm";
 import { user } from "./auth-schema";
 
+// Close Friends (for story visibility)
+export const closeFriends = pgTable(
+  "close_friends",
+  {
+    userId: uuid("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    friendId: uuid("friend_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.friendId] }),
+    index("idx_close_friends_user").on(table.userId),
+    check("no_self_close_friend", sql`${table.userId} != ${table.friendId}`),
+  ]
+);
+
 // Follows
 export const follows = pgTable(
   "follows",

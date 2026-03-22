@@ -15,6 +15,7 @@ import type {
   UserIdentity,
 } from "@/types";
 import type { Story } from "@/types/stories";
+import type { StoryHighlight } from "@/lib/api";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
@@ -154,7 +155,7 @@ export default async function ProfilePage({ params }: PageProps) {
   const isOwnProfile = sessionUsername === username;
 
   // Phase 2: reviews, lists, stories, identity (public) + diary/watchlist for own profile
-  const [reviewsRes, listsRes, storiesRes, identityRes, diaryRes, watchlistRes] = await Promise.all([
+  const [reviewsRes, listsRes, storiesRes, highlightsRes, identityRes, diaryRes, watchlistRes] = await Promise.all([
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
@@ -162,6 +163,7 @@ export default async function ProfilePage({ params }: PageProps) {
       `/lists?user_id=${user.id}&limit=10`,
     ),
     fetchJson<{ data: Story[] }>(`/stories/user/${username}`),
+    fetchJson<{ data: StoryHighlight[] }>(`/story-highlights/user/${username}`),
     fetchJson<{ data: UserIdentity }>(`/identity/${username}`),
     isOwnProfile
       ? fetchJsonAuth<{ data: DiaryEntry[] }>("/diary", cookieHeader)
@@ -174,6 +176,7 @@ export default async function ProfilePage({ params }: PageProps) {
   const reviews = reviewsRes?.data ?? [];
   const lists = listsRes?.data ?? [];
   const stories = storiesRes?.data ?? [];
+  const highlights = highlightsRes?.data ?? [];
   const identity = identityRes?.data ?? null;
   const activity = activitiesRes?.data ?? [];
   const diary = diaryRes?.data ?? [];
@@ -191,6 +194,7 @@ export default async function ProfilePage({ params }: PageProps) {
         reviews={reviews}
         lists={lists}
         stories={stories}
+        highlights={highlights}
         identity={identity}
         diary={diary}
         watchlist={watchlist}

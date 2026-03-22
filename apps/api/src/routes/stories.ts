@@ -5,19 +5,28 @@ import {
   storyViews,
   storyReactions,
   storyPollVotes,
+  storyHighlights,
+  storyHighlightItems,
+  storyQuizAnswers,
+  storyQuestionResponses,
+  closeFriends,
   follows,
   user as userTable,
   eq,
   and,
+  or,
   desc,
   count,
   sql,
   inArray,
+  isNotNull,
+  asc,
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
 import { handleStoryCreated, handleStoryReactionMilestone } from "../services/gamification";
+import { createNotification } from "./notifications";
 
 // ── Content validation helpers ────────────────────────────────────────────────
 
@@ -76,6 +85,30 @@ function validateStoryContent(type: string, content: any): { valid: boolean; err
       }
       return { valid: true };
 
+    case "countdown":
+      if (!content.media_id || !content.media_title || !content.release_date) {
+        return { valid: false, error: "countdown story requires media_id, media_title, and release_date" };
+      }
+      return { valid: true };
+
+    case "quiz":
+      if (!content.question || !Array.isArray(content.options) || content.options.length < 2 || content.options.length > 4) {
+        return { valid: false, error: "quiz story requires a question and 2-4 options" };
+      }
+      if (content.correct_index == null || content.correct_index < 0 || content.correct_index >= content.options.length) {
+        return { valid: false, error: "quiz story requires a valid correct_index" };
+      }
+      return { valid: true };
+
+    case "question_box":
+      if (!content.question || typeof content.question !== "string") {
+        return { valid: false, error: "question_box story requires a question" };
+      }
+      if (content.question.length > 200) {
+        return { valid: false, error: "question must be at most 200 characters" };
+      }
+      return { valid: true };
+
     default:
       return { valid: false, error: `unknown story type: ${type}` };
   }
@@ -103,6 +136,34 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
         ? new Date(body.expires_at)
         : new Date(Date.now() + 24 * 60 * 60 * 1000); // default 24h
 
+      // Validate slides if provided
+      if (body.slides && Array.isArray(body.slides)) {
+        for (let i = 0; i < body.slides.length; i++) {
+          const slide = body.slides[i] as any;
+          const sv = validateStoryContent(slide.type, slide.content);
+          if (!sv.valid) {
+            set.status = 400;
+            return { error: `Slide ${i + 1}: ${sv.error}` };
+          }
+        }
+      }
+
+      // Send mention notifications (fire-and-forget)
+      const mentions = (body.content as any)?.mentions;
+      if (Array.isArray(mentions)) {
+        for (const m of mentions) {
+          if (m.user_id && m.user_id !== user.id) {
+            createNotification(
+              m.user_id,
+              "story_mention",
+              `${user.username} te marcou em uma story`,
+              "",
+              { storyType: body.type },
+            ).catch(() => null);
+          }
+        }
+      }
+
       const [newStory] = await db
         .insert(stories)
         .values({
@@ -110,6 +171,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
           type: body.type,
           content: body.content,
           expiresAt: expiresAt,
+          visibility: body.visibility ?? "public",
+          slides: body.slides ?? null,
         })
         .returning();
 
@@ -121,9 +184,11 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     {
       requireAuth: true,
       body: t.Object({
-        type: t.String(), // validated in handler
+        type: t.String(),
         content: t.Any(),
-        expires_at: t.Optional(t.String()), // ISO date
+        expires_at: t.Optional(t.String()),
+        visibility: t.Optional(t.String()), // 'public' | 'followers' | 'close_friends'
+        slides: t.Optional(t.Any()),        // StorySlide[] for multi-slide
       }),
     }
   )
@@ -153,6 +218,32 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
         return { data: [], total: 0, page, limit, hasNext: false, hasPrev: false };
       }
 
+      // Users who have added current user as close friend
+      const closeFriendOfRows = await db
+        .select({ userId: closeFriends.userId })
+        .from(closeFriends)
+        .where(eq(closeFriends.friendId, user.id));
+      const closeFriendOfIds = closeFriendOfRows.map((r) => r.userId);
+
+      // Visibility filter
+      const visibilityFilter = or(
+        eq(stories.userId, user.id), // always see own stories
+        and(
+          inArray(stories.userId, followedIds),
+          eq(stories.visibility, "public"),
+        ),
+        and(
+          inArray(stories.userId, followedIds),
+          eq(stories.visibility, "followers"),
+        ),
+        ...(closeFriendOfIds.length > 0
+          ? [and(
+              inArray(stories.userId, closeFriendOfIds),
+              eq(stories.visibility, "close_friends"),
+            )]
+          : []),
+      );
+
       const results = await db
         .select({
           story: stories,
@@ -167,8 +258,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
         .innerJoin(userTable, eq(stories.userId, userTable.id))
         .where(
           and(
-            inArray(stories.userId, followedIds),
             eq(stories.isExpired, false),
+            visibilityFilter,
           )
         )
         .orderBy(desc(stories.createdAt))
@@ -231,6 +322,42 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
         return { error: "User not found", data: [] };
       }
 
+      // Determine viewer relationship for visibility filtering
+      const session = await getOptionalSession(request.headers);
+      const viewerId = session?.user?.id;
+      const isOwner = viewerId === targetUser.id;
+
+      let visibilityFilter;
+      if (isOwner) {
+        visibilityFilter = sql`true`; // owner sees all their stories
+      } else if (viewerId) {
+        // Check if viewer follows target
+        const [followRow] = await db
+          .select({ followerId: follows.followerId })
+          .from(follows)
+          .where(and(eq(follows.followerId, viewerId), eq(follows.followingId, targetUser.id)))
+          .limit(1);
+        const isFollower = !!followRow;
+
+        // Check if viewer is in target's close friends list
+        const [cfRow] = await db
+          .select({ userId: closeFriends.userId })
+          .from(closeFriends)
+          .where(and(eq(closeFriends.userId, targetUser.id), eq(closeFriends.friendId, viewerId)))
+          .limit(1);
+        const isCloseFriend = !!cfRow;
+
+        if (isCloseFriend) {
+          visibilityFilter = inArray(stories.visibility, ["public", "followers", "close_friends"]);
+        } else if (isFollower) {
+          visibilityFilter = inArray(stories.visibility, ["public", "followers"]);
+        } else {
+          visibilityFilter = eq(stories.visibility, "public");
+        }
+      } else {
+        visibilityFilter = eq(stories.visibility, "public");
+      }
+
       // Get active + pinned stories
       const results = await db
         .select()
@@ -239,6 +366,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
           and(
             eq(stories.userId, targetUser.id),
             sql`(${stories.isExpired} = false OR ${stories.isPinned} = true)`,
+            visibilityFilter,
           )
         )
         .orderBy(desc(stories.isPinned), desc(stories.createdAt))
@@ -247,8 +375,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
 
       // Check viewed status if authenticated
       let viewedStoryIds = new Set<string>();
-      const session = await getOptionalSession(request.headers);
-      if (session?.user) {
+      if (viewerId) {
         const storyIds = results.map((r) => r.id);
         if (storyIds.length > 0) {
           const viewed = await db
@@ -257,7 +384,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
             .where(
               and(
                 inArray(storyViews.storyId, storyIds),
-                eq(storyViews.viewerId, session.user.id),
+                eq(storyViews.viewerId, viewerId),
               )
             );
           viewedStoryIds = new Set(viewed.map((v) => v.storyId));
@@ -494,6 +621,17 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
 
         if (storyOwner && Number(total) >= 10) {
           handleStoryReactionMilestone(storyOwner.userId, Number(total)).catch(() => null);
+        }
+
+        // Send reply notification to story owner (fire-and-forget)
+        if (body.text_reply && storyOwner && storyOwner.userId !== user.id) {
+          createNotification(
+            storyOwner.userId,
+            "story_reply",
+            `${user.username} respondeu sua story`,
+            body.text_reply.slice(0, 100),
+            { storyId: params.id, senderId: user.id },
+          ).catch(() => null);
         }
 
         return { data: reaction };
@@ -744,5 +882,333 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
       body: t.Object({
         image: t.File({ maxSize: "10m" }),
       }),
+    }
+  )
+
+  // ── List story viewers (owner only) ───────────────────────────────────────
+  .get(
+    "/:id/viewers",
+    async (ctx: any) => {
+      const { user, params, query, set } = ctx;
+
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      // Verify story exists and belongs to user
+      const [story] = await db
+        .select({ id: stories.id, userId: stories.userId, viewsCount: stories.viewsCount })
+        .from(stories)
+        .where(eq(stories.id, params.id))
+        .limit(1);
+
+      if (!story) {
+        set.status = 404;
+        return { error: "Story not found" };
+      }
+
+      if (story.userId !== user.id) {
+        set.status = 403;
+        return { error: "Forbidden" };
+      }
+
+      const viewers = await db
+        .select({
+          id: userTable.id,
+          username: userTable.username,
+          displayName: userTable.displayName,
+          avatarUrl: userTable.avatarUrl,
+          viewedAt: storyViews.viewedAt,
+        })
+        .from(storyViews)
+        .innerJoin(userTable, eq(storyViews.viewerId, userTable.id))
+        .where(eq(storyViews.storyId, params.id))
+        .orderBy(desc(storyViews.viewedAt))
+        .limit(limit)
+        .offset(offset);
+
+      return {
+        data: viewers,
+        total: story.viewsCount ?? 0,
+        page,
+        limit,
+        hasNext: viewers.length === limit,
+        hasPrev: page > 1,
+      };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── List story replies (owner only) ───────────────────────────────────────
+  .get(
+    "/:id/replies",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      // Verify story exists and belongs to user
+      const [story] = await db
+        .select({ id: stories.id, userId: stories.userId })
+        .from(stories)
+        .where(eq(stories.id, params.id))
+        .limit(1);
+
+      if (!story) {
+        set.status = 404;
+        return { error: "Story not found" };
+      }
+
+      if (story.userId !== user.id) {
+        set.status = 403;
+        return { error: "Forbidden" };
+      }
+
+      const replies = await db
+        .select({
+          id: storyReactions.id,
+          reaction: storyReactions.reaction,
+          textReply: storyReactions.textReply,
+          createdAt: storyReactions.createdAt,
+          user: {
+            id: userTable.id,
+            username: userTable.username,
+            displayName: userTable.displayName,
+            avatarUrl: userTable.avatarUrl,
+          },
+        })
+        .from(storyReactions)
+        .innerJoin(userTable, eq(storyReactions.userId, userTable.id))
+        .where(
+          and(
+            eq(storyReactions.storyId, params.id),
+            isNotNull(storyReactions.textReply),
+          )
+        )
+        .orderBy(desc(storyReactions.createdAt));
+
+      return { data: replies };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+    }
+  )
+
+  // ── Archive: list own archived stories ────────────────────────────────────
+  .get(
+    "/archive",
+    async (ctx: any) => {
+      const { user, query } = ctx;
+
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      const results = await db
+        .select()
+        .from(stories)
+        .where(
+          and(
+            eq(stories.userId, user.id),
+            eq(stories.isArchived, true),
+          )
+        )
+        .orderBy(desc(stories.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      return {
+        data: results,
+        page,
+        limit,
+        hasNext: results.length === limit,
+        hasPrev: page > 1,
+      };
+    },
+    {
+      requireAuth: true,
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── Archive: toggle archive status ────────────────────────────────────────
+  .patch(
+    "/:id/archive",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const [existing] = await db
+        .select({ id: stories.id, userId: stories.userId, isArchived: stories.isArchived })
+        .from(stories)
+        .where(eq(stories.id, params.id))
+        .limit(1);
+
+      if (!existing) {
+        set.status = 404;
+        return { error: "Story not found" };
+      }
+
+      if (existing.userId !== user.id) {
+        set.status = 403;
+        return { error: "Forbidden" };
+      }
+
+      const shouldArchive = body.archived ?? !existing.isArchived;
+
+      const [updated] = await db
+        .update(stories)
+        .set({ isArchived: shouldArchive })
+        .where(eq(stories.id, params.id))
+        .returning();
+
+      return { data: updated };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        archived: t.Optional(t.Boolean()),
+      }),
+    }
+  )
+
+  // ── Quiz: submit answer ────────────────────────────────────────────────────
+  .post(
+    "/:id/quiz-answer",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const [story] = await db
+        .select({ id: stories.id, type: stories.type, content: stories.content, isExpired: stories.isExpired })
+        .from(stories)
+        .where(eq(stories.id, params.id))
+        .limit(1);
+
+      if (!story) { set.status = 404; return { error: "Story not found" }; }
+      if (story.type !== "quiz") { set.status = 400; return { error: "This story is not a quiz" }; }
+      if (story.isExpired) { set.status = 400; return { error: "This quiz has expired" }; }
+
+      const content = story.content as any;
+      if (body.answer_index < 0 || body.answer_index >= (content.options?.length ?? 0)) {
+        set.status = 400;
+        return { error: "Invalid answer index" };
+      }
+
+      const isCorrect = body.answer_index === content.correct_index;
+
+      try {
+        await db.insert(storyQuizAnswers).values({
+          storyId: params.id,
+          userId: user.id,
+          answerIndex: body.answer_index,
+          isCorrect,
+        });
+      } catch (e: any) {
+        if (e.code === "23505") {
+          set.status = 400;
+          return { error: "Already answered this quiz" };
+        }
+        throw e;
+      }
+
+      // Get stats
+      const stats = await db
+        .select({ answerIndex: storyQuizAnswers.answerIndex, count: count() })
+        .from(storyQuizAnswers)
+        .where(eq(storyQuizAnswers.storyId, params.id))
+        .groupBy(storyQuizAnswers.answerIndex);
+
+      return {
+        is_correct: isCorrect,
+        correct_index: content.correct_index,
+        stats: Object.fromEntries(stats.map((s) => [s.answerIndex, Number(s.count)])),
+      };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ answer_index: t.Number({ minimum: 0, maximum: 3 }) }),
+    }
+  )
+
+  // ── Question Box: submit response ─────────────────────────────────────────
+  .post(
+    "/:id/question-response",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const [story] = await db
+        .select({ id: stories.id, type: stories.type, isExpired: stories.isExpired })
+        .from(stories)
+        .where(eq(stories.id, params.id))
+        .limit(1);
+
+      if (!story) { set.status = 404; return { error: "Story not found" }; }
+      if (story.type !== "question_box") { set.status = 400; return { error: "This story is not a question box" }; }
+      if (story.isExpired) { set.status = 400; return { error: "This question has expired" }; }
+
+      await db
+        .insert(storyQuestionResponses)
+        .values({ storyId: params.id, userId: user.id, response: body.response })
+        .onConflictDoUpdate({
+          target: [storyQuestionResponses.storyId, storyQuestionResponses.userId],
+          set: { response: body.response },
+        });
+
+      return { success: true };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ response: t.String({ maxLength: 500 }) }),
+    }
+  )
+
+  // ── Question Box: list responses (owner only) ─────────────────────────────
+  .get(
+    "/:id/question-responses",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const [story] = await db
+        .select({ id: stories.id, userId: stories.userId })
+        .from(stories)
+        .where(eq(stories.id, params.id))
+        .limit(1);
+
+      if (!story) { set.status = 404; return { error: "Story not found" }; }
+      if (story.userId !== user.id) { set.status = 403; return { error: "Forbidden" }; }
+
+      const responses = await db
+        .select({
+          id: storyQuestionResponses.id,
+          response: storyQuestionResponses.response,
+          createdAt: storyQuestionResponses.createdAt,
+          user: {
+            id: userTable.id,
+            username: userTable.username,
+            displayName: userTable.displayName,
+            avatarUrl: userTable.avatarUrl,
+          },
+        })
+        .from(storyQuestionResponses)
+        .innerJoin(userTable, eq(storyQuestionResponses.userId, userTable.id))
+        .where(eq(storyQuestionResponses.storyId, params.id))
+        .orderBy(desc(storyQuestionResponses.createdAt));
+
+      return { data: responses };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
     }
   );

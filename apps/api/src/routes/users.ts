@@ -13,6 +13,8 @@ import {
   diary,
   eq,
   and,
+  or,
+  ilike,
   count,
   desc,
   gte,
@@ -55,6 +57,41 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       };
     },
     { requireAuth: true },
+  )
+
+  // Search users by query (public)
+  .get(
+    "/search",
+    async ({ query }: any) => {
+      const q = (query.q ?? "").trim();
+      if (!q || q.length < 2) return { data: [] };
+
+      const results = await db
+        .select({
+          id: userTable.id,
+          username: userTable.username,
+          displayName: userTable.displayName,
+          avatarUrl: userTable.avatarUrl,
+        })
+        .from(userTable)
+        .where(
+          and(
+            eq(userTable.status, "active"),
+            or(
+              ilike(userTable.username, `%${q}%`),
+              ilike(userTable.displayName, `%${q}%`),
+            ),
+          ),
+        )
+        .limit(10);
+
+      return {
+        data: results.map((u) => ({
+          ...u,
+          avatarUrl: resolveImageUrl(u.avatarUrl),
+        })),
+      };
+    },
   )
 
   // Get user by username (public)

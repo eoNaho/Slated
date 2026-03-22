@@ -3,11 +3,10 @@
 import * as React from "react";
 import { StoryRing } from "./StoryRing";
 import { Story } from "@/types/stories";
-import { Plus } from "lucide-react";
-import { api } from "@/lib/api";
 import { StoryViewer } from "./StoryViewer";
 import { useSession } from "@/lib/auth-client";
 import { CreateStoryModal } from "./CreateStoryModal";
+import { useStoriesFeed } from "@/hooks/queries/use-stories";
 
 interface UserWithStories {
   userId: string;
@@ -20,50 +19,36 @@ interface UserWithStories {
 
 export function StoriesBar() {
   const { data: session } = useSession();
-  const [userGroups, setUserGroups] = React.useState<UserWithStories[]>([]);
-  const [selectedUser, setSelectedUser] =
-    React.useState<UserWithStories | null>(null);
+  const [selectedUser, setSelectedUser] = React.useState<UserWithStories | null>(null);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
 
-  const loadStories = React.useCallback(async () => {
-    try {
-      const { data } = await api.stories.getFeed();
+  const { data: feedData, isLoading, refetch } = useStoriesFeed(1, true);
 
-      // Group stories by user
-      const groups = data.reduce(
-        (acc: Record<string, UserWithStories>, story) => {
-          const userId = story.userId;
-          if (!acc[userId] && story.user) {
-            acc[userId] = {
-              userId,
-              username: story.user.username ?? "",
-              displayName: story.user.displayName ?? null,
-              avatarUrl: story.user.avatarUrl ?? null,
-              stories: [],
-              hasUnseen: false,
-            };
-          }
-          if (acc[userId]) {
-            acc[userId].stories.push(story as unknown as Story);
-            if (!story.hasViewed) acc[userId].hasUnseen = true;
-          }
-          return acc;
-        },
-        {},
-      );
-
-      setUserGroups(Object.values(groups));
-    } catch (e) {
-      console.error("Failed to load stories feed", e);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    loadStories();
-  }, [loadStories]);
+  const userGroups = React.useMemo<UserWithStories[]>(() => {
+    if (!feedData?.data) return [];
+    const groups = feedData.data.reduce(
+      (acc: Record<string, UserWithStories>, story) => {
+        const userId = story.userId;
+        if (!acc[userId] && story.user) {
+          acc[userId] = {
+            userId,
+            username: story.user.username ?? "",
+            displayName: story.user.displayName ?? null,
+            avatarUrl: story.user.avatarUrl ?? null,
+            stories: [],
+            hasUnseen: false,
+          };
+        }
+        if (acc[userId]) {
+          acc[userId].stories.push(story as unknown as Story);
+          if (!story.hasViewed) acc[userId].hasUnseen = true;
+        }
+        return acc;
+      },
+      {},
+    );
+    return Object.values(groups);
+  }, [feedData]);
 
   if (isLoading) {
     return (
@@ -128,7 +113,7 @@ export function StoriesBar() {
       {isCreateOpen && (
         <CreateStoryModal
           onClose={() => setIsCreateOpen(false)}
-          onSuccess={loadStories}
+          onSuccess={() => refetch()}
         />
       )}
     </>

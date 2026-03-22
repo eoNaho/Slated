@@ -125,6 +125,11 @@ export const usersApi = {
     fetcher<PaginatedResponse<User>>(
       `/users/${username}/following?page=${page}`
     ),
+
+  search: (q: string) =>
+    fetcher<{ data: Pick<User, "id" | "username" | "displayName" | "avatarUrl">[] }>(
+      `/users/search?q=${encodeURIComponent(q)}`
+    ),
 };
 
 // ==================== MEDIA ====================
@@ -667,14 +672,51 @@ export const plansApi = {
 
 // ==================== STORIES ====================
 
+export interface StoryViewer {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  viewedAt: string;
+}
+
+export interface StoryReply {
+  id: string;
+  reaction: string;
+  textReply: string;
+  createdAt: string;
+  user: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
+}
+
+export interface QuestionResponse {
+  id: string;
+  response: string;
+  createdAt: string;
+  user: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
+}
+
+export interface StoryHighlight {
+  id: string;
+  userId: string;
+  name: string;
+  coverImageUrl: string | null;
+  position: number;
+  createdAt: string;
+  previewStories?: Story[];
+  storyCount?: number;
+}
+
 export interface Story {
   id: string;
   userId: string;
-  type: "watch" | "list" | "rating" | "poll" | "hot_take" | "rewind";
+  type: string;
   content: Record<string, unknown>;
   imageUrl: string | null;
   isPinned: boolean;
   isExpired: boolean;
+  isArchived?: boolean;
+  visibility?: string;
+  slides?: Record<string, unknown>[] | null;
   expiresAt: string;
   viewsCount: number;
   reactionsCount: number;
@@ -684,7 +726,13 @@ export interface Story {
 }
 
 export const storiesApi = {
-  create: (data: { type: string; content: Record<string, unknown>; expires_at?: string }) =>
+  create: (data: {
+    type: string;
+    content: Record<string, unknown>;
+    expires_at?: string;
+    visibility?: string;
+    slides?: Record<string, unknown>[];
+  }) =>
     fetcher<{ data: Story }>("/stories", {
       method: "POST",
       body: JSON.stringify(data),
@@ -745,6 +793,40 @@ export const storiesApi = {
       body: JSON.stringify({ pinned }),
     }),
 
+  getViewers: (id: string, page = 1) =>
+    fetcher<{ data: StoryViewer[]; total: number; page: number; limit: number; hasNext: boolean; hasPrev: boolean }>(
+      `/stories/${id}/viewers?page=${page}`
+    ),
+
+  getReplies: (id: string) =>
+    fetcher<{ data: StoryReply[] }>(`/stories/${id}/replies`),
+
+  getArchive: (page = 1, limit = 20) =>
+    fetcher<{ data: Story[]; page: number; limit: number; hasNext: boolean; hasPrev: boolean }>(
+      `/stories/archive?page=${page}&limit=${limit}`
+    ),
+
+  archive: (id: string, archived?: boolean) =>
+    fetcher<{ data: Story }>(`/stories/${id}/archive`, {
+      method: "PATCH",
+      body: JSON.stringify({ archived }),
+    }),
+
+  quizAnswer: (id: string, answerIndex: number) =>
+    fetcher<{ is_correct: boolean; correct_index: number; stats: Record<number, number> }>(
+      `/stories/${id}/quiz-answer`,
+      { method: "POST", body: JSON.stringify({ answer_index: answerIndex }) }
+    ),
+
+  questionResponse: (id: string, response: string) =>
+    fetcher<{ success: boolean }>(`/stories/${id}/question-response`, {
+      method: "POST",
+      body: JSON.stringify({ response }),
+    }),
+
+  getQuestionResponses: (id: string) =>
+    fetcher<{ data: QuestionResponse[] }>(`/stories/${id}/question-responses`),
+
   uploadImage: async (id: string, file: File) => {
     const formData = new FormData();
     formData.append("image", file);
@@ -764,6 +846,63 @@ export const storiesApi = {
 
     return res.json() as Promise<{ data: Story; imageUrl: string }>;
   },
+};
+
+// ==================== HIGHLIGHTS ====================
+
+export const highlightsApi = {
+  getByUser: (username: string) =>
+    fetcher<{ data: StoryHighlight[] }>(`/story-highlights/user/${username}`),
+
+  getById: (id: string) =>
+    fetcher<{ data: { highlight: StoryHighlight; stories: Story[] } }>(`/story-highlights/${id}`),
+
+  create: (data: { name: string; cover_image_url?: string; story_ids?: string[] }) =>
+    fetcher<{ data: StoryHighlight }>("/story-highlights", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { name?: string; cover_image_url?: string | null; position?: number }) =>
+    fetcher<{ data: StoryHighlight }>(`/story-highlights/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetcher<null>(`/story-highlights/${id}`, { method: "DELETE" }),
+
+  addItems: (id: string, storyIds: string[]) =>
+    fetcher<{ success: boolean }>(`/story-highlights/${id}/items`, {
+      method: "POST",
+      body: JSON.stringify({ story_ids: storyIds }),
+    }),
+
+  removeItem: (id: string, storyId: string) =>
+    fetcher<{ success: boolean }>(`/story-highlights/${id}/items/${storyId}`, {
+      method: "DELETE",
+    }),
+};
+
+// ==================== CLOSE FRIENDS ====================
+
+export const closeFriendsApi = {
+  list: () =>
+    fetcher<{ data: (Pick<User, "id" | "username" | "displayName" | "avatarUrl"> & { addedAt: string })[] }>(
+      "/close-friends"
+    ),
+
+  add: (friendId: string) =>
+    fetcher<{ success: boolean }>("/close-friends", {
+      method: "POST",
+      body: JSON.stringify({ friend_id: friendId }),
+    }),
+
+  remove: (friendId: string) =>
+    fetcher<{ success: boolean }>(`/close-friends/${friendId}`, { method: "DELETE" }),
+
+  getStatus: (userId: string) =>
+    fetcher<{ isCloseFriend: boolean }>(`/close-friends/status/${userId}`),
 };
 
 // ==================== EXPORT ALL ====================
@@ -796,6 +935,8 @@ export const api = {
   plans: plansApi,
   identity: identityApi,
   stories: storiesApi,
+  highlights: highlightsApi,
+  closeFriends: closeFriendsApi,
   series: seriesApi,
   discover: {
     get: (options: DiscoverOptions = {}) => {

@@ -46,6 +46,8 @@ import { resolveImage } from "@/lib/utils";
 import { useApiTokens } from "@/hooks/queries/use-api-tokens";
 import { useIdentityData } from "@/hooks/queries/use-identity";
 import { useUserProfile } from "@/hooks/queries/use-user-profile";
+import { useCloseFriends, useToggleCloseFriend } from "@/hooks/queries/use-stories";
+import { api } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -249,6 +251,105 @@ function SectionHeader({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+
+// ── Close Friends Section ─────────────────────────────────────────────────────
+
+function CloseFriendsSection() {
+  const { data: friends = [], isLoading } = useCloseFriends();
+  const toggleFriend = useToggleCloseFriend();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; displayName?: string | null; avatarUrl?: string | null }[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const handleSearch = async (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await api.users.search(q);
+      setSearchResults(res.data ?? []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Users className="w-4 h-4 text-green-400" />
+        <h3 className="text-sm font-semibold text-white">Amigos Próximos</h3>
+        <span className="text-xs text-white/40 ml-1">Veem seus stories exclusivos</span>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-800/60 overflow-hidden mb-3" style={{ background: "rgba(24,24,27,0.5)" }}>
+        <div className="p-4">
+          <input
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Buscar usuário para adicionar..."
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-green-500/40 transition-colors placeholder:text-white/30"
+          />
+          {searchQuery && (
+            <div className="mt-2 space-y-1">
+              {searching ? (
+                <p className="text-white/30 text-xs py-2 text-center">Buscando...</p>
+              ) : searchResults.length === 0 ? (
+                <p className="text-white/30 text-xs py-2 text-center">Nenhum usuário encontrado</p>
+              ) : searchResults.slice(0, 5).map((u) => {
+                const isAlready = friends.some((f) => f.id === u.id);
+                return (
+                  <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors">
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+                      {u.avatarUrl && <Image fill src={resolveImage(u.avatarUrl) || ""} alt="" className="object-cover" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{u.displayName || u.username}</p>
+                      <p className="text-white/40 text-xs">@{u.username}</p>
+                    </div>
+                    <button
+                      onClick={() => { toggleFriend.mutate({ friendId: u.id, isCurrently: isAlready }); setSearchQuery(""); setSearchResults([]); }}
+                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${isAlready ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-green-500/20 text-green-400 hover:bg-green-500/30"}`}
+                    >
+                      {isAlready ? "Remover" : "Adicionar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="text-white/30 text-xs text-center py-4">Carregando...</p>
+      ) : friends.length === 0 ? (
+        <p className="text-white/30 text-xs text-center py-4">Nenhum amigo próximo ainda</p>
+      ) : (
+        <div className="space-y-1">
+          {friends.map((friend) => (
+            <div key={friend.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
+              <div className="relative w-9 h-9 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+                {friend.avatarUrl && <Image fill src={resolveImage(friend.avatarUrl) || ""} alt="" className="object-cover" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium truncate">{friend.displayName || friend.username}</p>
+                <p className="text-white/40 text-xs">@{friend.username}</p>
+              </div>
+              <button
+                onClick={() => toggleFriend.mutate({ friendId: friend.id, isCurrently: true })}
+                className="p-1.5 rounded-full hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
@@ -1434,6 +1535,9 @@ export function SettingsClient() {
                     />
                   </div>
                 </div>
+
+                {/* Close Friends */}
+                <CloseFriendsSection />
 
                 <div className="flex justify-end pt-2">
                   <SaveButton loading={false} saved={false} />

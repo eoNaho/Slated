@@ -121,7 +121,7 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
 // Notification service for creating notifications from other routes
 export const createNotification = async (
   userId: string,
-  type: "follow" | "like" | "comment" | "achievement" | "story_reaction" | "system",
+  type: "follow" | "like" | "comment" | "achievement" | "story_reaction" | "story_reply" | "story_mention" | "system",
   title: string,
   message: string,
   data?: Record<string, any>,

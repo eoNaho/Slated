@@ -9,6 +9,7 @@ import { LogModal } from "@/components/media";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useMediaState } from "@/hooks/queries/use-media-state";
+import { ShareToStoryButton } from "@/components/stories/ShareToStoryButton";
 
 interface MovieActionsProps {
   movie: {
@@ -208,6 +209,19 @@ export function MovieActions({ movie }: MovieActionsProps) {
           <Share2 className="h-4 w-4 mr-2" />
           Share
         </Button>
+        <ShareToStoryButton
+          initialData={{
+            type: "watch",
+            content: {
+              media_id: movie.id,
+              media_title: movie.title,
+              media_type: "movie",
+              poster_path: movie.posterPath ?? undefined,
+            },
+          }}
+          className="flex-1 justify-center h-9 rounded-xl bg-zinc-800/60 border border-white/10 hover:bg-zinc-700 transition-all text-zinc-400 hover:text-white text-xs font-medium"
+          label="Story"
+        />
         <label
           title="Trocar capa personalizada"
           className={`cursor-pointer h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-800/60 border border-white/10 hover:bg-zinc-700 transition-all text-zinc-400 hover:text-white ${uploadingCover ? "opacity-50 pointer-events-none" : ""}`}

@@ -2,79 +2,140 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, MessageCircle, Heart, Send, Bookmark } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Send, Bookmark, Eye, MessageCircle } from "lucide-react";
 import { Story } from "@/types/stories";
 import { StoryTemplate } from "./StoryTemplates";
 import { cn, resolveImage } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { SeenByDrawer } from "./SeenByDrawer";
+import { StoryRepliesDrawer } from "./StoryRepliesDrawer";
+import { VisibilityBadge } from "./VisibilitySelector";
+import { toast } from "sonner";
 
 export interface StoryViewerProps {
   stories: Story[];
   initialIndex?: number;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
-export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerProps) {
+export function StoryViewer({ stories, initialIndex = 0, onClose, readOnly = false }: StoryViewerProps) {
   const [currentIndex, setCurrentIndex] = React.useState(initialIndex);
   const [progress, setProgress] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+  const [isSending, setIsSending] = React.useState(false);
+  const [isSeenByOpen, setIsSeenByOpen] = React.useState(false);
+  const [isRepliesOpen, setIsRepliesOpen] = React.useState(false);
+  const [userAnswers, setUserAnswers] = React.useState<Record<string, number>>({});
+  const [respondedQuestions, setRespondedQuestions] = React.useState<Set<string>>(new Set());
 
   const STORY_DURATION = 8000; // 8 seconds
+  const [slideIndex, setSlideIndex] = React.useState(0);
 
   const currentStory = stories[currentIndex];
+  const currentSlides = currentStory?.slides && currentStory.slides.length > 0 ? currentStory.slides : null;
+  const currentSlide = currentSlides ? currentSlides[slideIndex] : null;
 
   // Register a view for the initial story on mount
   React.useEffect(() => {
-    if (currentStory) {
+    if (currentStory && !readOnly) {
       api.stories.view(currentStory.id).catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset slide index when story changes
+  React.useEffect(() => {
+    setSlideIndex(0);
+  }, [currentIndex]);
+
   // Auto-advance
   React.useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || readOnly) return;
 
-    const interval = 50; // Update every 50ms
+    const tickMs = 50;
     const timer = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 100) {
-          if (currentIndex < stories.length - 1) {
-            const nextIndex = currentIndex + 1;
-            setCurrentIndex(nextIndex);
-            api.stories.view(stories[nextIndex].id).catch(console.error);
-            return 0;
-          } else {
-            onClose();
-            return 100;
-          }
-        }
-        return prev + (interval / STORY_DURATION) * 100;
+        const next = prev + (tickMs / STORY_DURATION) * 100;
+        return next >= 100 ? 100 : next;
       });
-    }, interval);
+    }, tickMs);
 
     return () => clearInterval(timer);
-  }, [currentIndex, isPaused, stories.length, onClose]);
+  }, [isPaused, readOnly]);
 
-  const handleNext = () => {
+  // Handle progress reaching 100 — advance outside the setter
+  React.useEffect(() => {
+    if (progress < 100) return;
+
+    if (currentSlides && slideIndex < currentSlides.length - 1) {
+      setSlideIndex((s) => s + 1);
+      setProgress(0);
+      return;
+    }
+
     if (currentIndex < stories.length - 1) {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
       setProgress(0);
-      api.stories.view(stories[nextIndex].id).catch(console.error);
+      if (!readOnly) api.stories.view(stories[nextIndex].id).catch(console.error);
+      return;
+    }
+
+    onClose();
+  }, [progress]);
+
+  const handleNext = () => {
+    // Try to advance to next slide within the current story
+    if (currentSlides && slideIndex < currentSlides.length - 1) {
+      setSlideIndex((s) => s + 1);
+      setProgress(0);
+      return;
+    }
+    if (currentIndex < stories.length - 1) {
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      setProgress(0);
+      if (!readOnly) api.stories.view(stories[nextIndex].id).catch(console.error);
     } else {
       onClose();
     }
   };
 
   const handlePrev = () => {
+    if (currentSlides && slideIndex > 0) {
+      setSlideIndex((s) => s - 1);
+      setProgress(0);
+      return;
+    }
     if (currentIndex > 0) {
       const prevIndex = currentIndex - 1;
       setCurrentIndex(prevIndex);
       setProgress(0);
-      api.stories.view(stories[prevIndex].id).catch(console.error);
+      if (!readOnly) api.stories.view(stories[prevIndex].id).catch(console.error);
+    }
+  };
+
+  const handleQuizAnswer = async (optionIndex: number) => {
+    if (userAnswers[currentStory.id] !== undefined) return;
+    setUserAnswers((prev) => ({ ...prev, [currentStory.id]: optionIndex }));
+    try {
+      await api.stories.quizAnswer(currentStory.id, optionIndex);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleQuestionResponse = async (text: string) => {
+    setRespondedQuestions((prev) => new Set(prev).add(currentStory.id));
+    try {
+      await api.stories.questionResponse(currentStory.id, text);
+      toast.success("Resposta enviada!");
+    } catch {
+      toast.error("Erro ao enviar resposta");
     }
   };
 
@@ -96,20 +157,37 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
   const handleVote = async (optionIndex: number) => {
     try {
       await api.stories.pollVote(currentStory.id, optionIndex);
-      // Real-time update logic would go here (e.g. refetch story)
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleSendMessage = async () => {
+    if (!message.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      await api.stories.react(currentStory.id, "reply", message.trim());
+      setMessage("");
+      toast.success("Mensagem enviada");
+    } catch {
+      toast.error("Erro ao enviar mensagem");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleMessageKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleSendMessage();
   };
 
   return (
     <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center select-none overflow-hidden">
       {/* Ambient background — show the uploaded image if available, otherwise the template */}
       <div className="absolute inset-0 pointer-events-none">
-        {currentStory.imageUrl ? (
+        {(currentSlide?.imageUrl ?? currentStory.imageUrl) ? (
           <Image
             fill
-            src={resolveImage(currentStory.imageUrl) || ""}
+            src={resolveImage(currentSlide?.imageUrl ?? currentStory.imageUrl) || ""}
             alt=""
             className="object-cover opacity-30 blur-3xl scale-125"
           />
@@ -123,17 +201,26 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
       <div className="relative w-full max-w-[450px] aspect-[9/16] bg-neutral-900 shadow-2xl overflow-hidden flex flex-col sm:rounded-2xl">
         {/* Progress Bars */}
         <div className="absolute top-4 inset-x-4 z-50 flex gap-1.5 px-2">
-          {stories.map((_, i) => (
-            <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-              <div 
-                className={cn(
-                  "h-full bg-white transition-all duration-75",
-                  i < currentIndex ? "w-full" : i === currentIndex ? "" : "w-0"
-                )}
-                style={i === currentIndex ? { width: `${progress}%` } : {}}
-              />
-            </div>
-          ))}
+          {stories.map((story, i) => {
+            const slideCount = story.slides && story.slides.length > 0 ? story.slides.length : 1;
+            return Array.from({ length: slideCount }).map((_, si) => {
+              const globalBefore = stories.slice(0, i).reduce((acc, s) => acc + (s.slides?.length || 1), 0) + si;
+              const currentGlobal = stories.slice(0, currentIndex).reduce((acc, s) => acc + (s.slides?.length || 1), 0) + slideIndex;
+              const isCurrent = i === currentIndex && si === slideIndex;
+              const isPast = globalBefore < currentGlobal;
+              return (
+                <div key={`${i}-${si}`} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full bg-white transition-all duration-75",
+                      isPast ? "w-full" : isCurrent ? "" : "w-0"
+                    )}
+                    style={isCurrent ? { width: `${progress}%` } : {}}
+                  />
+                </div>
+              );
+            });
+          })}
         </div>
 
         {/* Header */}
@@ -148,9 +235,12 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
               />
             </div>
             <div className="flex flex-col">
-              <span className="text-white font-bold text-sm shadow-sm">
-                {currentStory.user?.displayName || currentStory.user?.username}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm shadow-sm">
+                  {currentStory.user?.displayName || currentStory.user?.username}
+                </span>
+                <VisibilityBadge visibility={currentStory.visibility} />
+              </div>
               <span className="text-white/60 text-xs font-medium">
                 {new Date(currentStory.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
@@ -179,55 +269,98 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
           
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentStory.id}
+              key={`${currentStory.id}-${slideIndex}`}
               initial={{ x: 300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 300 }}
               className="h-full w-full"
             >
-              <StoryTemplate 
-                story={currentStory} 
+              <StoryTemplate
+                story={currentSlide ? { ...currentStory, type: currentSlide.type as any, content: currentSlide.content as any, imageUrl: currentSlide.imageUrl ?? currentStory.imageUrl } : currentStory}
                 onVote={handleVote}
-                results={[]} // Poll results would be here
+                results={[]}
+                onQuizAnswer={handleQuizAnswer}
+                userAnswer={userAnswers[currentStory.id] ?? null}
+                onQuestionResponse={handleQuestionResponse}
+                hasResponded={respondedQuestions.has(currentStory.id)}
               />
             </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Bottom Interaction Bar */}
-        <div className="p-4 pt-0 z-50 bg-gradient-to-t from-black/80 to-transparent">
+        {!readOnly && <div className="p-4 pt-0 z-50 bg-gradient-to-t from-black/80 to-transparent">
+          {/* Owner row: Seen by + Replies */}
+          {isOwner && (
+            <div className="flex items-center gap-3 mb-3">
+              <button
+                onClick={() => { setIsSeenByOpen(true); setIsPaused(true); }}
+                className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Visto por {currentStory.viewsCount > 0 ? currentStory.viewsCount : ""}</span>
+              </button>
+              <button
+                onClick={() => { setIsRepliesOpen(true); setIsPaused(true); }}
+                className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs ml-3"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Respostas</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <div className="flex-1 h-12 flex items-center px-4 rounded-full bg-white/10 border border-white/20 backdrop-blur-md">
-              <input 
-                placeholder="Enviar mensagem..." 
+              <input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleMessageKeyDown}
+                placeholder="Enviar mensagem..."
                 className="bg-transparent border-none outline-none text-white text-sm w-full placeholder:text-white/40"
                 onFocus={() => setIsPaused(true)}
                 onBlur={() => setIsPaused(false)}
               />
-              <Send className="w-4 h-4 text-white/60 ml-2" />
-            </div>
-            
-            <div className="flex gap-2">
-              {isOwner && (
-                <button 
-                  onClick={handlePin}
-                  className={cn(
-                    "w-12 h-12 rounded-full border backdrop-blur-md flex items-center justify-center transition-all",
-                    currentStory.isPinned 
-                      ? "bg-purple-500 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]" 
-                      : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  )}
-                >
-                  <Bookmark className={cn("w-5 h-5", currentStory.isPinned && "fill-current")} />
-                </button>
-              )}
-              <button className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white backdrop-blur-md">
-                <Heart className="w-5 h-5 hover:text-red-500 transition-colors" />
+              <button
+                onClick={handleSendMessage}
+                disabled={!message.trim() || isSending}
+                className="ml-2 text-white/60 hover:text-white disabled:opacity-30 transition-colors"
+              >
+                <Send className="w-4 h-4" />
               </button>
             </div>
+
+            {isOwner && (
+              <button
+                onClick={handlePin}
+                className={cn(
+                  "w-12 h-12 rounded-full border backdrop-blur-md flex items-center justify-center transition-all",
+                  currentStory.isPinned
+                    ? "bg-purple-500 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]"
+                    : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                )}
+              >
+                <Bookmark className={cn("w-5 h-5", currentStory.isPinned && "fill-current")} />
+              </button>
+            )}
           </div>
-        </div>
+        </div>}
+
+        {/* Seen By Drawer */}
+        <SeenByDrawer
+          storyId={currentStory.id}
+          viewsCount={currentStory.viewsCount}
+          isOpen={isSeenByOpen}
+          onClose={() => { setIsSeenByOpen(false); setIsPaused(false); }}
+        />
+
+        {/* Replies Drawer */}
+        <StoryRepliesDrawer
+          storyId={currentStory.id}
+          isOpen={isRepliesOpen}
+          onClose={() => { setIsRepliesOpen(false); setIsPaused(false); }}
+        />
 
         {/* Desktop Navigation Arrows */}
         <button 

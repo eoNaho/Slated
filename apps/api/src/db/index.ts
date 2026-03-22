@@ -28,4 +28,5 @@ export {
   lt,
   ne,
   notInArray,
+  isNotNull,
 } from "drizzle-orm";
