@@ -15,6 +15,7 @@ import {
   count,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { cached, TTL } from "../lib/cache";
 
 export const statsRoutes = new Elysia({ prefix: "/stats", tags: ["Admin"] })
   .use(betterAuthPlugin)
@@ -38,93 +39,56 @@ export const statsRoutes = new Elysia({ prefix: "/stats", tags: ["Admin"] })
         return { error: "User not found" };
       }
 
-      // Get basic stats from userStats table
-      const [basicStats] = await db
-        .select()
-        .from(userStats)
-        .where(eq(userStats.userId, user.id));
-
-      // Count total watched (from diary)
-      const [watchedCount] = await db
-        .select({ total: count() })
-        .from(diary)
-        .where(eq(diary.userId, user.id));
-
-      // Count total ratings
-      const [ratingsCount] = await db
-        .select({ total: count() })
-        .from(ratings)
-        .where(eq(ratings.userId, user.id));
-
-      // Count total reviews
-      const [reviewsCount] = await db
-        .select({ total: count() })
-        .from(reviews)
-        .where(eq(reviews.userId, user.id));
-
-      // Count total lists
-      const [listsCount] = await db
-        .select({ total: count() })
-        .from(lists)
-        .where(eq(lists.userId, user.id));
-
-      // Calculate total hours watched (sum of runtime from diary entries)
-      const [hoursWatched] = await db
-        .select({
-          totalMinutes: sql<number>`COALESCE(SUM(${media.runtime}), 0)`,
-        })
-        .from(diary)
-        .innerJoin(media, eq(diary.mediaId, media.id))
-        .where(eq(diary.userId, user.id));
-
-      // Rating distribution (0.5, 1, 1.5, ..., 5)
-      const ratingDistribution = await db
-        .select({
-          rating: ratings.rating,
-          count: count(),
-        })
-        .from(ratings)
-        .where(eq(ratings.userId, user.id))
-        .groupBy(ratings.rating)
-        .orderBy(ratings.rating);
-
-      // Films by year (last 10 years)
+      return cached(`stats:user:${user.id}`, TTL.VOLATILE, async () => {
       const currentYear = new Date().getFullYear();
-      const filmsByYear = await db
-        .select({
-          year: sql<string>`EXTRACT(YEAR FROM ${media.releaseDate})`,
-          count: count(),
-        })
-        .from(diary)
-        .innerJoin(media, eq(diary.mediaId, media.id))
-        .where(eq(diary.userId, user.id))
-        .groupBy(sql`EXTRACT(YEAR FROM ${media.releaseDate})`)
-        .orderBy(sql`EXTRACT(YEAR FROM ${media.releaseDate}) DESC`)
-        .limit(15);
 
-      // Top genres
-      const topGenres = await db
-        .select({
-          genreId: genres.id,
-          genreName: genres.name,
-          count: count(),
-        })
-        .from(diary)
-        .innerJoin(media, eq(diary.mediaId, media.id))
-        .innerJoin(mediaGenres, eq(media.id, mediaGenres.mediaId))
-        .innerJoin(genres, eq(mediaGenres.genreId, genres.id))
-        .where(eq(diary.userId, user.id))
-        .groupBy(genres.id, genres.name)
-        .orderBy(sql`COUNT(*) DESC`)
-        .limit(10);
-
-      // Average rating
-      const [avgRating] = await db
-        .select({
-          average: sql<number>`COALESCE(AVG(${ratings.rating}), 0)`,
-        })
-        .from(ratings)
-        .where(eq(ratings.userId, user.id));
+      // Run all independent queries in parallel
+      const [
+        [basicStats],
+        [watchedCount],
+        [ratingsCount],
+        [reviewsCount],
+        [listsCount],
+        [hoursWatched],
+        ratingDistribution,
+        filmsByYear,
+        topGenres,
+        [avgRating],
+      ] = await Promise.all([
+        // Get basic stats from userStats table
+        db.select().from(userStats).where(eq(userStats.userId, user.id)),
+        // Count total watched (from diary)
+        db.select({ total: count() }).from(diary).where(eq(diary.userId, user.id)),
+        // Count total ratings
+        db.select({ total: count() }).from(ratings).where(eq(ratings.userId, user.id)),
+        // Count total reviews
+        db.select({ total: count() }).from(reviews).where(eq(reviews.userId, user.id)),
+        // Count total lists
+        db.select({ total: count() }).from(lists).where(eq(lists.userId, user.id)),
+        // Calculate total hours watched
+        db.select({ totalMinutes: sql<number>`COALESCE(SUM(${media.runtime}), 0)` })
+          .from(diary).innerJoin(media, eq(diary.mediaId, media.id)).where(eq(diary.userId, user.id)),
+        // Rating distribution (0.5, 1, 1.5, ..., 5)
+        db.select({ rating: ratings.rating, count: count() })
+          .from(ratings).where(eq(ratings.userId, user.id))
+          .groupBy(ratings.rating).orderBy(ratings.rating),
+        // Films by year
+        db.select({ year: sql<string>`EXTRACT(YEAR FROM ${media.releaseDate})`, count: count() })
+          .from(diary).innerJoin(media, eq(diary.mediaId, media.id))
+          .where(eq(diary.userId, user.id))
+          .groupBy(sql`EXTRACT(YEAR FROM ${media.releaseDate})`)
+          .orderBy(sql`EXTRACT(YEAR FROM ${media.releaseDate}) DESC`).limit(15),
+        // Top genres
+        db.select({ genreId: genres.id, genreName: genres.name, count: count() })
+          .from(diary).innerJoin(media, eq(diary.mediaId, media.id))
+          .innerJoin(mediaGenres, eq(media.id, mediaGenres.mediaId))
+          .innerJoin(genres, eq(mediaGenres.genreId, genres.id))
+          .where(eq(diary.userId, user.id))
+          .groupBy(genres.id, genres.name).orderBy(sql`COUNT(*) DESC`).limit(10),
+        // Average rating
+        db.select({ average: sql<number>`COALESCE(AVG(${ratings.rating}), 0)` })
+          .from(ratings).where(eq(ratings.userId, user.id)),
+      ]);
 
       return {
         data: {
@@ -159,6 +123,7 @@ export const statsRoutes = new Elysia({ prefix: "/stats", tags: ["Admin"] })
           streak: basicStats?.currentStreak || 0,
         },
       };
+      }); // end cached
     },
     {
       params: t.Object({ username: t.String() }),

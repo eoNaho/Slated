@@ -12,6 +12,7 @@ import {
   count,
   sql,
   isNull,
+  inArray,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 
@@ -51,21 +52,23 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         .limit(limit)
         .offset(offset);
 
-      // Get replies count for each comment
-      const commentsWithReplies = await Promise.all(
-        results.map(async (r) => {
-          const [{ repliesCount }] = await db
-            .select({ repliesCount: count() })
+      // Batch-fetch reply counts for all comments in one query
+      const commentIds = results.map((r) => r.comment.id);
+      const replyCountRows = commentIds.length > 0
+        ? await db
+            .select({ parentId: comments.parentId, repliesCount: count() })
             .from(comments)
-            .where(eq(comments.parentId, r.comment.id));
+            .where(inArray(comments.parentId, commentIds))
+            .groupBy(comments.parentId)
+        : [];
 
-          return {
-            ...r.comment,
-            user: r.user,
-            repliesCount,
-          };
-        })
-      );
+      const replyCountMap = new Map(replyCountRows.map((r) => [r.parentId, Number(r.repliesCount)]));
+
+      const commentsWithReplies = results.map((r) => ({
+        ...r.comment,
+        user: r.user,
+        repliesCount: replyCountMap.get(r.comment.id) ?? 0,
+      }));
 
       const [{ total }] = await db
         .select({ total: count() })

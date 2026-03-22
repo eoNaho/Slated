@@ -623,37 +623,23 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Media not found" };
       }
 
-      // Get genres, credits, streaming...
-      const mediaGenresList = await db
-        .select({ genre: genres })
-        .from(mediaGenres)
-        .innerJoin(genres, eq(mediaGenres.genreId, genres.id))
-        .where(eq(mediaGenres.mediaId, params.id));
-
-      const credits = await db
-        .select({
-          credit: mediaCredits,
-          person: people,
-        })
-        .from(mediaCredits)
-        .innerJoin(people, eq(mediaCredits.personId, people.id))
-        .where(eq(mediaCredits.mediaId, params.id))
-        .orderBy(mediaCredits.castOrder)
-        .limit(20);
-
-      const streaming = await db
-        .select({
-          streaming: mediaStreaming,
-          service: streamingServices,
-        })
-        .from(mediaStreaming)
-        .innerJoin(
-          streamingServices,
-          eq(mediaStreaming.serviceId, streamingServices.id),
-        )
-        .where(eq(mediaStreaming.mediaId, params.id));
-
-      // Attempt to fetch fresh ratings if needed (optional)
+      // Get genres, credits, streaming in parallel
+      const [mediaGenresList, credits, streaming] = await Promise.all([
+        db.select({ genre: genres })
+          .from(mediaGenres)
+          .innerJoin(genres, eq(mediaGenres.genreId, genres.id))
+          .where(eq(mediaGenres.mediaId, params.id)),
+        db.select({ credit: mediaCredits, person: people })
+          .from(mediaCredits)
+          .innerJoin(people, eq(mediaCredits.personId, people.id))
+          .where(eq(mediaCredits.mediaId, params.id))
+          .orderBy(mediaCredits.castOrder)
+          .limit(20),
+        db.select({ streaming: mediaStreaming, service: streamingServices })
+          .from(mediaStreaming)
+          .innerJoin(streamingServices, eq(mediaStreaming.serviceId, streamingServices.id))
+          .where(eq(mediaStreaming.mediaId, params.id)),
+      ]);
 
       return {
         data: {

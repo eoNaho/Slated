@@ -11,6 +11,7 @@ import {
   desc,
   count,
   sql,
+  inArray,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 
@@ -49,25 +50,30 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         .limit(limit)
         .offset(offset);
 
-      // Fetch cover images for each list
-      const resultsWithImages = await Promise.all(
-        results.map(async (r) => {
-          const items = await db
-            .select({ posterPath: media.posterPath })
+      // Fetch cover images for all lists in a single batch query
+      const listIds = results.map((r) => r.list.id);
+      const coverImageRows = listIds.length > 0
+        ? await db
+            .select({ listId: listItems.listId, posterPath: media.posterPath, position: listItems.position })
             .from(listItems)
             .innerJoin(media, eq(listItems.mediaId, media.id))
-            .where(eq(listItems.listId, r.list.id))
+            .where(inArray(listItems.listId, listIds))
             .orderBy(listItems.position)
-            .limit(5);
+        : [];
 
-          return {
-            ...r,
-            coverImages: items
-              .map((i) => i.posterPath)
-              .filter(Boolean) as string[],
-          };
-        }),
-      );
+      // Group cover images by listId (keep top 5 per list)
+      const coversByListId = new Map<string, string[]>();
+      for (const row of coverImageRows) {
+        if (!row.listId || !row.posterPath) continue;
+        const arr = coversByListId.get(row.listId) ?? [];
+        if (arr.length < 5) arr.push(row.posterPath);
+        coversByListId.set(row.listId, arr);
+      }
+
+      const resultsWithImages = results.map((r) => ({
+        ...r,
+        coverImages: coversByListId.get(r.list.id) ?? [],
+      }));
 
       const [{ total }] = await db
         .select({ total: count() })

@@ -26,26 +26,13 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
 
-      // Get followed user IDs
-      const followedUsers = await db
+      // Use subquery to avoid loading all followed IDs into memory
+      const followedSubquery = db
         .select({ id: follows.followingId })
         .from(follows)
         .where(eq(follows.followerId, authUser.id));
 
-      const followedIds = followedUsers.map((f) => f.id);
-
-      if (followedIds.length === 0) {
-        return {
-          data: [],
-          total: 0,
-          page,
-          limit,
-          hasNext: false,
-          hasPrev: false,
-        };
-      }
-
-      // Get activities from followed user
+      // Get activities from followed users
       const results = await db
         .select({
           activity: activities,
@@ -58,7 +45,7 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
         })
         .from(activities)
         .innerJoin(userTable, eq(activities.userId, userTable.id))
-        .where(inArray(activities.userId, followedIds))
+        .where(inArray(activities.userId, followedSubquery))
         .orderBy(desc(activities.createdAt))
         .limit(limit)
         .offset(offset);

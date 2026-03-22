@@ -203,45 +203,28 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
 
-      // Get followed user IDs
-      const followedUsers = await db
+      // Use subqueries to avoid loading all followed/close-friend IDs into memory
+      const followedSubquery = db
         .select({ id: follows.followingId })
         .from(follows)
         .where(eq(follows.followerId, user.id));
 
-      const followedIds = followedUsers.map((f) => f.id);
-
-      // Include own stories in the feed
-      followedIds.push(user.id);
-
-      if (followedIds.length === 0) {
-        return { data: [], total: 0, page, limit, hasNext: false, hasPrev: false };
-      }
-
-      // Users who have added current user as close friend
-      const closeFriendOfRows = await db
+      const closeFriendOfSubquery = db
         .select({ userId: closeFriends.userId })
         .from(closeFriends)
         .where(eq(closeFriends.friendId, user.id));
-      const closeFriendOfIds = closeFriendOfRows.map((r) => r.userId);
 
-      // Visibility filter
+      // Visibility filter: own stories OR public/followers from followed users OR close_friends from users who added me
       const visibilityFilter = or(
-        eq(stories.userId, user.id), // always see own stories
+        eq(stories.userId, user.id),
         and(
-          inArray(stories.userId, followedIds),
-          eq(stories.visibility, "public"),
+          inArray(stories.userId, followedSubquery),
+          inArray(stories.visibility, ["public", "followers"]),
         ),
         and(
-          inArray(stories.userId, followedIds),
-          eq(stories.visibility, "followers"),
+          inArray(stories.userId, closeFriendOfSubquery),
+          eq(stories.visibility, "close_friends"),
         ),
-        ...(closeFriendOfIds.length > 0
-          ? [and(
-              inArray(stories.userId, closeFriendOfIds),
-              eq(stories.visibility, "close_friends"),
-            )]
-          : []),
       );
 
       const results = await db

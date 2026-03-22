@@ -145,10 +145,5 @@ export const imageRoutes = new Elysia({ prefix: "/images", tags: ["Media"] })
         set.status = 500;
         return { error: "Failed to fetch image" };
       }
-    },
-    {
-      params: t.Object({
-        "*": t.String(),
-      }),
     }
   );

@@ -18,6 +18,7 @@ import {
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 import { storageService } from "../services/storage";
+import { cached, TTL } from "../lib/cache";
 
 // Helper to resolve image URLs
 function resolveImageUrl(path: string | null): string | null {
@@ -167,21 +168,23 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
   // ==========================================================================
 
   .get("/genres", async () => {
-    const allGenres = await db
-      .select({ id: genres.id, name: genres.name, slug: genres.slug })
-      .from(genres)
-      .orderBy(asc(genres.name));
-
-    return { data: allGenres };
+    return cached("genres:list", TTL.STATIC, async () => {
+      const allGenres = await db
+        .select({ id: genres.id, name: genres.name, slug: genres.slug })
+        .from(genres)
+        .orderBy(asc(genres.name));
+      return { data: allGenres };
+    });
   })
 
   .get("/streaming", async () => {
-    const services = await db
-      .select({ id: streamingServices.id, name: streamingServices.name, slug: streamingServices.slug, logoPath: streamingServices.logoPath })
-      .from(streamingServices)
-      .orderBy(asc(streamingServices.name));
-
-    return { data: services.map(s => ({ ...s, logoPath: resolveImageUrl(s.logoPath) })) };
+    return cached("streaming:list", TTL.STATIC, async () => {
+      const services = await db
+        .select({ id: streamingServices.id, name: streamingServices.name, slug: streamingServices.slug, logoPath: streamingServices.logoPath })
+        .from(streamingServices)
+        .orderBy(asc(streamingServices.name));
+      return { data: services.map((s) => ({ ...s, logoPath: resolveImageUrl(s.logoPath) })) };
+    });
   })
 
   // ==========================================================================
@@ -195,69 +198,72 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
       const type = query.type as "movie" | "series" | undefined;
       const limit = Math.min(Number(query.limit) || 20, 50);
 
-      const now = new Date();
-      let dateFilter: Date | null = null;
+      const cacheKey = `popular:${period}:${type ?? "all"}:${limit}`;
+      return cached(cacheKey, TTL.EXPENSIVE, async () => {
+        const now = new Date();
+        let dateFilter: Date | null = null;
 
-      switch (period) {
-        case "week":
-          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "month":
-          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case "year":
-          dateFilter = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          dateFilter = null;
-      }
+        switch (period) {
+          case "week":
+            dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "month":
+            dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case "year":
+            dateFilter = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            break;
+          default:
+            dateFilter = null;
+        }
 
-      // Calculate popular based on recent activity (diary, reviews, watchlist logs)
-      const activityConditions = [eq(activities.targetType, "media")];
-      if (dateFilter) activityConditions.push(gte(activities.createdAt, dateFilter));
+        // Calculate popular based on recent activity (diary, reviews, watchlist logs)
+        const activityConditions = [eq(activities.targetType, "media")];
+        if (dateFilter) activityConditions.push(gte(activities.createdAt, dateFilter));
 
-      const popularEntries = await db
-        .select({ mediaId: activities.targetId, total: count() })
-        .from(activities)
-        .where(and(...activityConditions))
-        .groupBy(activities.targetId)
-        .orderBy(desc(count()))
-        .limit(limit);
-
-      const popularIds = popularEntries
-        .map((r) => r.mediaId)
-        .filter((id): id is string => id !== null);
-
-      let results;
-      if (popularIds.length > 0) {
-        const typeCondition = type ? [eq(media.type, type)] : [];
-        results = await db
-          .select()
-          .from(media)
-          .where(and(inArray(media.id, popularIds), ...typeCondition));
-
-        // Preserve the activity-based order
-        const orderMap = new Map(popularIds.map((id, i) => [id, i]));
-        results.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
-      } else {
-        // Fallback to popularity field if no activity data
-        const whereClause = type ? eq(media.type, type) : undefined;
-        results = await db
-          .select()
-          .from(media)
-          .where(whereClause)
-          .orderBy(desc(media.popularity))
+        const popularEntries = await db
+          .select({ mediaId: activities.targetId, total: count() })
+          .from(activities)
+          .where(and(...activityConditions))
+          .groupBy(activities.targetId)
+          .orderBy(desc(count()))
           .limit(limit);
-      }
 
-      return {
-        data: results.map((item) => ({
-          ...item,
-          posterPath: resolveImageUrl(item.posterPath),
-          backdropPath: resolveImageUrl(item.backdropPath),
-        })),
-        period,
-      };
+        const popularIds = popularEntries
+          .map((r) => r.mediaId)
+          .filter((id): id is string => id !== null);
+
+        let results;
+        if (popularIds.length > 0) {
+          const typeCondition = type ? [eq(media.type, type)] : [];
+          results = await db
+            .select()
+            .from(media)
+            .where(and(inArray(media.id, popularIds), ...typeCondition));
+
+          // Preserve the activity-based order
+          const orderMap = new Map(popularIds.map((id, i) => [id, i]));
+          results.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+        } else {
+          // Fallback to popularity field if no activity data
+          const whereClause = type ? eq(media.type, type) : undefined;
+          results = await db
+            .select()
+            .from(media)
+            .where(whereClause)
+            .orderBy(desc(media.popularity))
+            .limit(limit);
+        }
+
+        return {
+          data: results.map((item) => ({
+            ...item,
+            posterPath: resolveImageUrl(item.posterPath),
+            backdropPath: resolveImageUrl(item.backdropPath),
+          })),
+          period,
+        };
+      });
     },
     {
       query: t.Object({
@@ -281,27 +287,45 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
       if (type) conditions.push(eq(media.type, type));
       if (year) conditions.push(sql`EXTRACT(YEAR FROM ${media.releaseDate}) = ${year}`);
 
+      // Avoid ORDER BY RANDOM() full-table sort — use random offset instead
       let results;
       if (genreId) {
+        const whereClause = and(eq(mediaGenres.genreId, genreId), ...conditions);
+        const [{ n }] = await db
+          .select({ n: count() })
+          .from(media)
+          .innerJoin(mediaGenres, eq(media.id, mediaGenres.mediaId))
+          .where(whereClause);
+        const randomOffset = Number(n) > limit ? Math.floor(Math.random() * (Number(n) - limit)) : 0;
         results = await db
           .select({ media })
           .from(media)
           .innerJoin(mediaGenres, eq(media.id, mediaGenres.mediaId))
-          .where(and(eq(mediaGenres.genreId, genreId), ...conditions))
-          .orderBy(sql`RANDOM()`)
-          .limit(limit);
+          .where(whereClause)
+          .limit(limit)
+          .offset(randomOffset);
       } else if (streamingService) {
+        const whereClause = and(eq(streamingServices.slug, streamingService), ...conditions);
+        const [{ n }] = await db
+          .select({ n: count() })
+          .from(media)
+          .innerJoin(mediaStreaming, eq(media.id, mediaStreaming.mediaId))
+          .innerJoin(streamingServices, eq(mediaStreaming.serviceId, streamingServices.id))
+          .where(whereClause);
+        const randomOffset = Number(n) > limit ? Math.floor(Math.random() * (Number(n) - limit)) : 0;
         results = await db
           .select({ media })
           .from(media)
           .innerJoin(mediaStreaming, eq(media.id, mediaStreaming.mediaId))
           .innerJoin(streamingServices, eq(mediaStreaming.serviceId, streamingServices.id))
-          .where(and(eq(streamingServices.slug, streamingService), ...conditions))
-          .orderBy(sql`RANDOM()`)
-          .limit(limit);
+          .where(whereClause)
+          .limit(limit)
+          .offset(randomOffset);
       } else {
         const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-        results = await db.select().from(media).where(whereClause).orderBy(sql`RANDOM()`).limit(limit);
+        const [{ n }] = await db.select({ n: count() }).from(media).where(whereClause);
+        const randomOffset = Number(n) > limit ? Math.floor(Math.random() * (Number(n) - limit)) : 0;
+        results = await db.select().from(media).where(whereClause).limit(limit).offset(randomOffset);
       }
 
       const data = results.map((r) => {

@@ -20,6 +20,7 @@ import {
   gte,
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { cached, invalidate, TTL } from "../lib/cache";
 import { storageService } from "../services/storage";
 import { getUserPlanTier } from "../lib/feature-gate";
 
@@ -451,61 +452,37 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "User not found" };
       }
 
-      const stats = await db
-        .select()
-        .from(userStats)
-        .where(eq(userStats.userId, profile.id))
-        .limit(1)
-        .then((res) => res[0]);
-
-      const followersRes = await db
-        .select({ total: count() })
-        .from(follows)
-        .where(eq(follows.followingId, profile.id));
-      const followersCount = Number(followersRes[0]?.total || 0);
-
-      const followingRes = await db
-        .select({ total: count() })
-        .from(follows)
-        .where(eq(follows.followerId, profile.id));
-      const followingCount = Number(followingRes[0]?.total || 0);
-
-      const moviesWatchedRes = await db
-        .select({ total: count() })
-        .from(diary)
-        .where(eq(diary.userId, profile.id));
-      const moviesWatched = Number(moviesWatchedRes[0]?.total || 0);
-
-      const reviewsRes = await db
-        .select({ total: count() })
-        .from(reviews)
-        .where(eq(reviews.userId, profile.id));
-      const reviewsCount = Number(reviewsRes[0]?.total || 0);
-
-      const listsRes = await db
-        .select({ total: count() })
-        .from(lists)
-        .where(eq(lists.userId, profile.id));
-      const listsCount = Number(listsRes[0]?.total || 0);
-
+      return cached(`user:stats:${profile.id}`, TTL.VOLATILE, async () => {
       // Films watched this year
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      const thisYearRes = await db
-        .select({ total: count() })
-        .from(diary)
-        .where(
-          and(
-            eq(diary.userId, profile.id),
-            gte(diary.watchedAt, startOfYear.toISOString().split("T")[0]),
-          ),
-        );
-      const thisYearCount = Number(thisYearRes[0]?.total || 0);
 
-      const clubsCountRes = await db
-        .select({ total: count() })
-        .from(clubMembers)
-        .where(eq(clubMembers.userId, profile.id));
-      const clubsCount = Number(clubsCountRes[0]?.total || 0);
+      const [
+        stats,
+        [followersRes],
+        [followingRes],
+        [moviesWatchedRes],
+        [reviewsRes],
+        [listsRes],
+        [thisYearRes],
+        [clubsCountRes],
+      ] = await Promise.all([
+        db.select().from(userStats).where(eq(userStats.userId, profile.id)).limit(1).then((r) => r[0]),
+        db.select({ total: count() }).from(follows).where(eq(follows.followingId, profile.id)),
+        db.select({ total: count() }).from(follows).where(eq(follows.followerId, profile.id)),
+        db.select({ total: count() }).from(diary).where(eq(diary.userId, profile.id)),
+        db.select({ total: count() }).from(reviews).where(eq(reviews.userId, profile.id)),
+        db.select({ total: count() }).from(lists).where(eq(lists.userId, profile.id)),
+        db.select({ total: count() }).from(diary).where(and(eq(diary.userId, profile.id), gte(diary.watchedAt, startOfYear.toISOString().split("T")[0]))),
+        db.select({ total: count() }).from(clubMembers).where(eq(clubMembers.userId, profile.id)),
+      ]);
+
+      const followersCount = Number(followersRes?.total || 0);
+      const followingCount = Number(followingRes?.total || 0);
+      const moviesWatched = Number(moviesWatchedRes?.total || 0);
+      const reviewsCount = Number(reviewsRes?.total || 0);
+      const listsCount = Number(listsRes?.total || 0);
+      const thisYearCount = Number(thisYearRes?.total || 0);
+      const clubsCount = Number(clubsCountRes?.total || 0);
 
       if (!stats) {
         // Return zeroed stats if not yet created, but with accurate dynamic counts
@@ -545,6 +522,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           averageRating: stats.averageRating ?? null,
         },
       };
+      }); // end cached
     },
     { params: t.Object({ username: t.String() }) },
   )
@@ -690,6 +668,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           followerId: user.id,
           followingId: targetUser.id,
         });
+        // Invalidate stats caches for both users (follower/following counts changed)
+        invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch(() => {});
         return { message: "Followed successfully" };
       } catch (e: any) {
         if (e.code === "23505") {
@@ -792,6 +772,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           ),
         );
 
+      // Invalidate stats caches for both users
+      invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch(() => {});
       return { message: "Unfollowed successfully" };
     },
     { requireAuth: true, params: t.Object({ userId: t.String() }) },
