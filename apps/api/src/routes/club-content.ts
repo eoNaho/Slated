@@ -1137,4 +1137,48 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       params: t.Object({ id: t.String(), pollId: t.String() }),
       body: t.Object({ optionId: t.String() }),
     }
+  )
+
+  // Delete a poll (creator, owner, or moderator)
+  .delete(
+    "/:id/polls/:pollId",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const [member] = await db
+        .select({ role: clubMembers.role })
+        .from(clubMembers)
+        .where(and(eq(clubMembers.clubId, params.id), eq(clubMembers.userId, user.id)))
+        .limit(1);
+
+      if (!member) {
+        set.status = 403;
+        return { error: "Not a member" };
+      }
+
+      const [poll] = await db
+        .select({ id: clubPolls.id, createdBy: clubPolls.createdBy })
+        .from(clubPolls)
+        .where(and(eq(clubPolls.id, params.pollId), eq(clubPolls.clubId, params.id)))
+        .limit(1);
+
+      if (!poll) {
+        set.status = 404;
+        return { error: "Poll not found" };
+      }
+
+      const isAdmin = member.role === "owner" || member.role === "moderator";
+      if (!isAdmin && poll.createdBy !== user.id) {
+        set.status = 403;
+        return { error: "Not authorized" };
+      }
+
+      await db.delete(clubPolls).where(eq(clubPolls.id, params.pollId));
+
+      return { success: true };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String(), pollId: t.String() }),
+    }
   );

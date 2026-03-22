@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import type { UserProfile, FavoriteFilm, UserIdentity } from "@/types";
 import { resolveImage, cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { FollowListDialog } from "./follow-list-dialog";
 import { WatchingNow } from "./watching-now";
 import { FramedAvatar } from "./framed-avatar";
 import { TitleBadge } from "./title-badge";
@@ -30,6 +32,7 @@ interface ProfileHeaderProps {
   profile: UserProfile;
   favorites: FavoriteFilm[];
   isOwnProfile?: boolean;
+  initialIsFollowing?: boolean;
   watchingNow?: any;
   stories?: Story[];
   highlights?: StoryHighlight[];
@@ -40,12 +43,15 @@ export function ProfileHeader({
   profile,
   favorites,
   isOwnProfile,
+  initialIsFollowing = false,
   watchingNow = null,
   stories = [],
   highlights = [],
   identity = null,
 }: ProfileHeaderProps) {
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [isPending, startTransition] = useTransition();
+  const [followDialog, setFollowDialog] = useState<"followers" | "following" | null>(null);
   const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(
     null,
   );
@@ -162,8 +168,22 @@ export function ProfileHeader({
                   </Link>
                 ) : (
                   <button
-                    onClick={() => setIsFollowing(!isFollowing)}
-                    className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all ${
+                    onClick={() => {
+                      startTransition(async () => {
+                        try {
+                          if (isFollowing) {
+                            await api.users.unfollow(profile.id);
+                          } else {
+                            await api.users.follow(profile.id);
+                          }
+                          setIsFollowing(!isFollowing);
+                        } catch {
+                          // silently ignore — UI stays unchanged
+                        }
+                      });
+                    }}
+                    disabled={isPending}
+                    className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 ${
                       isFollowing
                         ? "bg-zinc-800 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 border border-white/10"
                         : "bg-white text-zinc-950 hover:bg-zinc-200"
@@ -360,18 +380,24 @@ export function ProfileHeader({
             </span>
             <span className="text-zinc-500">lists</span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm">
+          <button
+            onClick={() => setFollowDialog("followers")}
+            className="flex items-center gap-1.5 text-sm hover:text-white transition-colors"
+          >
             <span className="font-semibold text-white">
               {profile.stats.followersCount.toLocaleString()}
             </span>
-            <span className="text-zinc-500">followers</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-sm">
+            <span className="text-zinc-500">seguidores</span>
+          </button>
+          <button
+            onClick={() => setFollowDialog("following")}
+            className="flex items-center gap-1.5 text-sm hover:text-white transition-colors"
+          >
             <span className="font-semibold text-white">
               {profile.stats.followingCount}
             </span>
-            <span className="text-zinc-500">following</span>
-          </div>
+            <span className="text-zinc-500">seguindo</span>
+          </button>
           {profile.stats.averageRating && (
             <div className="flex items-center gap-1.5 text-sm">
               <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
@@ -389,6 +415,16 @@ export function ProfileHeader({
         <StoryViewer
           stories={activeStoryGroup}
           onClose={() => setActiveStoryGroup(null)}
+        />
+      )}
+
+      {/* Follow List Dialog */}
+      {followDialog && (
+        <FollowListDialog
+          username={profile.username}
+          displayName={profile.displayName ?? null}
+          initialTab={followDialog}
+          onClose={() => setFollowDialog(null)}
         />
       )}
     </div>

@@ -95,10 +95,10 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     },
   )
 
-  // Get user by username (public)
+  // Get user by username (public, isFollowing included when authenticated)
   .get(
     "/:username",
-    async ({ params, set }: any) => {
+    async ({ params, set, request }: any) => {
       const [profile] = await db
         .select()
         .from(userTable)
@@ -115,10 +115,14 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "User not found" };
       }
 
-      const [socialLinks] = await db
-        .select()
-        .from(userSocialLinks)
-        .where(eq(userSocialLinks.userId, profile.id));
+      const session = await getOptionalSession(request.headers);
+
+      const [socialLinks, followRow] = await Promise.all([
+        db.select().from(userSocialLinks).where(eq(userSocialLinks.userId, profile.id)).then(r => r[0] ?? null),
+        session?.user && session.user.id !== profile.id
+          ? db.select({ id: follows.followerId }).from(follows).where(and(eq(follows.followerId, session.user.id), eq(follows.followingId, profile.id))).limit(1).then(r => r[0] ?? null)
+          : Promise.resolve(null),
+      ]);
 
       const { email, ...publicProfile } = profile;
 
@@ -131,6 +135,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
             ? (() => { try { return JSON.parse(publicProfile.bioExtended); } catch { return null; } })()
             : null,
           socialLinks,
+          isFollowing: !!followRow,
         },
       };
     },

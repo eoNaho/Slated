@@ -18,11 +18,12 @@ interface UserWithStories {
 }
 
 export function StoriesBar() {
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const [selectedUser, setSelectedUser] = React.useState<UserWithStories | null>(null);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
-  const { data: feedData, isLoading, refetch } = useStoriesFeed(1, true);
+  const isLoggedIn = !!session?.user;
+  const { data: feedData, isLoading, refetch } = useStoriesFeed(1, isLoggedIn);
 
   const userGroups = React.useMemo<UserWithStories[]>(() => {
     if (!feedData?.data) return [];
@@ -50,7 +51,10 @@ export function StoriesBar() {
     return Object.values(groups);
   }, [feedData]);
 
-  if (isLoading) {
+  // Hide entirely for anonymous users
+  if (!sessionPending && !isLoggedIn) return null;
+
+  if (sessionPending || isLoading) {
     return (
       <div className="flex gap-4 p-4 overflow-x-auto no-scrollbar">
         {[1, 2, 3, 4, 5].map((i) => (

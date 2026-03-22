@@ -115,13 +115,14 @@ async function fetchJsonAuth<T>(endpoint: string, cookieHeader: string): Promise
 export default async function ProfilePage({ params }: PageProps) {
   const { username } = await params;
 
-  // Phase 1: user, stats, and session in parallel
-  const [userRes, statsRes, sessionInfo] = await Promise.all([
-    fetchJson<{ data: UserProfile }>(`/users/${username}`),
-    fetchJson<{ data: UserStats }>(`/users/${username}/stats`),
-    getSessionInfo(),
-  ]);
+  // Phase 1: session first, then user+stats in parallel with auth cookies
+  const sessionInfo = await getSessionInfo();
   const { username: sessionUsername, userId: sessionUserId, cookieHeader } = sessionInfo;
+
+  const [userRes, statsRes] = await Promise.all([
+    fetchJsonAuth<{ data: UserProfile & { isFollowing?: boolean } }>(`/users/${username}`, cookieHeader),
+    fetchJson<{ data: UserStats }>(`/users/${username}/stats`),
+  ]);
 
   if (!userRes?.data) notFound();
 
@@ -153,6 +154,7 @@ export default async function ProfilePage({ params }: PageProps) {
 
   const profile: UserProfile = { ...user, stats };
   const isOwnProfile = sessionUsername === username;
+  const initialIsFollowing = !isOwnProfile && !!sessionUserId && !!(userRes.data as any).isFollowing;
 
   // Phase 2: reviews, lists, stories, identity (public) + diary/watchlist for own profile
   const [reviewsRes, listsRes, storiesRes, highlightsRes, identityRes, diaryRes, watchlistRes] = await Promise.all([
@@ -190,6 +192,7 @@ export default async function ProfilePage({ params }: PageProps) {
         username={username}
         isOwnProfile={isOwnProfile}
         currentUserId={sessionUserId ?? undefined}
+        initialIsFollowing={initialIsFollowing}
         favorites={[]}
         reviews={reviews}
         lists={lists}

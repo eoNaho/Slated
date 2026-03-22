@@ -84,7 +84,7 @@ export function ClubCard({ club }: ClubCardProps) {
           <div className="absolute top-0 left-0 right-0 p-4 flex items-start justify-between">
             {primaryCategory ? (
               <span
-                className="text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1.5 rounded-lg border border-white/10 backdrop-blur-md shadow-lg"
+                className="text-xs font-medium px-3 py-1 rounded-lg border border-white/10 backdrop-blur-md shadow-lg"
                 style={{
                   background: "rgba(0,0,0,0.4)",
                 }}
@@ -122,7 +122,7 @@ export function ClubCard({ club }: ClubCardProps) {
         <div className="px-4 py-4 flex flex-col gap-4 border-t border-white/5">
           {/* Progress Section */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
+            <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 text-zinc-500">
                 <Users className="h-3 w-3" />
                 <span>Members</span>
@@ -158,13 +158,13 @@ export function ClubCard({ club }: ClubCardProps) {
                   </div>
                 )}
               </div>
-              <span className="text-[11px] font-semibold text-zinc-500 group-hover/owner:text-zinc-300 transition-colors">
+              <span className="text-xs font-medium text-zinc-500 group-hover/owner:text-zinc-300 transition-colors">
                 {club.owner.displayName || club.owner.username}
               </span>
             </div>
 
             {/* View Link */}
-            <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+            <span className="text-xs font-medium text-purple-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
               Enter →
             </span>
           </div>

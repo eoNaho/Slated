@@ -56,6 +56,7 @@ interface ProfileTabsProps {
   username: string;
   isOwnProfile: boolean;
   currentUserId?: string;
+  initialIsFollowing?: boolean;
   favorites: FavoriteFilm[];
   reviews: Review[];
   lists: ListType[];
@@ -91,6 +92,7 @@ export function ProfileTabs({
   username,
   isOwnProfile,
   currentUserId,
+  initialIsFollowing = false,
   favorites,
   reviews,
   lists,
@@ -120,6 +122,7 @@ export function ProfileTabs({
         profile={profile}
         favorites={favorites}
         isOwnProfile={isOwnProfile}
+        initialIsFollowing={initialIsFollowing}
         watchingNow={watchingNow}
         stories={stories}
         highlights={highlights}
