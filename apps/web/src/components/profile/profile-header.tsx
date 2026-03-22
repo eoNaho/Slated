@@ -26,6 +26,7 @@ import { SupporterBadge, VerifiedBadge } from "./identity-badges";
 import { Story } from "@/types/stories";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { HighlightsRow } from "@/components/stories/HighlightsRow";
+import { Portal } from "@/components/ui/portal";
 import type { StoryHighlight } from "@/lib/api";
 
 interface ProfileHeaderProps {
@@ -57,10 +58,20 @@ export function ProfileHeader({
   );
 
   const { activeStories, hasUnseen } = useMemo(() => {
-    const active = stories.filter((s) => !s.isExpired && !s.isPinned);
+    const active = stories
+      .filter((s) => !s.isExpired && !s.isPinned)
+      .map((s) => ({
+        ...s,
+        user: {
+          id: s.user?.id ?? profile.id,
+          username: s.user?.username ?? profile.username,
+          displayName: s.user?.displayName ?? profile.displayName ?? null,
+          avatarUrl: s.user?.avatarUrl ?? profile.avatarUrl ?? null,
+        },
+      }));
     const unseen = active.some((s) => !s.hasViewed);
     return { activeStories: active, hasUnseen: unseen };
-  }, [stories]);
+  }, [stories, profile]);
 
   const bannerUrl =
     resolveImage(profile.coverUrl) ||
@@ -410,22 +421,26 @@ export function ProfileHeader({
         </div>
       </div>
 
-      {/* Story Viewer */}
+      {/* Story Viewer — rendered via portal to escape stacking context */}
       {activeStoryGroup && (
-        <StoryViewer
-          stories={activeStoryGroup}
-          onClose={() => setActiveStoryGroup(null)}
-        />
+        <Portal>
+          <StoryViewer
+            stories={activeStoryGroup}
+            onClose={() => setActiveStoryGroup(null)}
+          />
+        </Portal>
       )}
 
       {/* Follow List Dialog */}
       {followDialog && (
-        <FollowListDialog
-          username={profile.username}
-          displayName={profile.displayName ?? null}
-          initialTab={followDialog}
-          onClose={() => setFollowDialog(null)}
-        />
+        <Portal>
+          <FollowListDialog
+            username={profile.username}
+            displayName={profile.displayName ?? null}
+            initialTab={followDialog}
+            onClose={() => setFollowDialog(null)}
+          />
+        </Portal>
       )}
     </div>
   );

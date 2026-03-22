@@ -14,6 +14,7 @@ import {
   sql,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { storageService } from "../services/storage";
 
 export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -269,5 +270,63 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     {
       requireAuth: true,
       params: t.Object({ id: t.String(), storyId: t.String() }),
+    }
+  )
+
+  // Upload highlight cover image
+  .post(
+    "/:id/cover",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const [existing] = await db
+        .select({ id: storyHighlights.id, userId: storyHighlights.userId, coverImageUrl: storyHighlights.coverImageUrl })
+        .from(storyHighlights)
+        .where(eq(storyHighlights.id, params.id))
+        .limit(1);
+
+      if (!existing) { set.status = 404; return { error: "Highlight not found" }; }
+      if (existing.userId !== user.id) { set.status = 403; return { error: "Forbidden" }; }
+
+      const file = body.image;
+      if (!file) { set.status = 400; return { error: "No image provided" }; }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        set.status = 400;
+        return { error: "Invalid file type. Accepted: JPG, PNG, WEBP" };
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        set.status = 400;
+        return { error: "File too large. Maximum 5MB" };
+      }
+
+      // Delete old cover if exists
+      if (existing.coverImageUrl) {
+        await storageService.delete(existing.coverImageUrl).catch(() => {});
+      }
+
+      const buffer = await file.arrayBuffer();
+      const folder = `highlights/${user.id}/${params.id}`;
+      const { path } = await storageService.uploadStoryImage(buffer, folder);
+
+      const [updated] = await db
+        .update(storyHighlights)
+        .set({ coverImageUrl: path })
+        .where(eq(storyHighlights.id, params.id))
+        .returning();
+
+      return {
+        data: updated,
+        coverImageUrl: storageService.getImageUrl(path),
+      };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        image: t.File({ maxSize: "5m" }),
+      }),
     }
   );

@@ -7,6 +7,7 @@ import { cn, resolveImage } from "@/lib/utils";
 import { StoryHighlight } from "@/lib/api";
 import { HighlightViewer } from "./HighlightViewer";
 import { HighlightEditorModal } from "./HighlightEditorModal";
+import { Portal } from "@/components/ui/portal";
 
 interface HighlightsRowProps {
   highlights: StoryHighlight[];
@@ -17,6 +18,7 @@ interface HighlightsRowProps {
 export function HighlightsRow({ highlights, isOwnProfile, onHighlightCreated }: HighlightsRowProps) {
   const [viewingHighlight, setViewingHighlight] = React.useState<StoryHighlight | null>(null);
   const [isCreating, setIsCreating] = React.useState(false);
+  const [editingHighlight, setEditingHighlight] = React.useState<StoryHighlight | null>(null);
 
   if (highlights.length === 0 && !isOwnProfile) return null;
 
@@ -38,12 +40,12 @@ export function HighlightsRow({ highlights, isOwnProfile, onHighlightCreated }: 
         )}
 
         {highlights.map((highlight) => (
-          <button
-            key={highlight.id}
-            onClick={() => setViewingHighlight(highlight)}
-            className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl p-[2px] bg-gradient-to-br from-purple-500/60 to-pink-500/60 group-hover:from-purple-400 group-hover:to-pink-400 transition-all">
+          <div key={highlight.id} className="relative flex flex-col items-center gap-1.5 shrink-0 group/item">
+            {/* Thumbnail — click to view */}
+            <button
+              onClick={() => setViewingHighlight(highlight)}
+              className="w-16 h-16 rounded-2xl p-[2px] bg-gradient-to-br from-purple-500/60 to-pink-500/60 group-hover/item:from-purple-400 group-hover/item:to-pink-400 transition-all"
+            >
               <div className="relative w-full h-full rounded-[14px] overflow-hidden bg-zinc-900 border-2 border-zinc-950">
                 {highlight.coverImageUrl ? (
                   <Image
@@ -65,32 +67,52 @@ export function HighlightsRow({ highlights, isOwnProfile, onHighlightCreated }: 
                   </div>
                 )}
               </div>
-            </div>
+            </button>
+
+            {/* Edit button — sibling, not nested inside the view button */}
+            {isOwnProfile && (
+              <button
+                onClick={() => setEditingHighlight(highlight)}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-zinc-700"
+              >
+                <svg className="w-2.5 h-2.5 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            )}
+
             <span className={cn(
               "text-[10px] font-medium uppercase tracking-wider transition-colors max-w-[64px] truncate",
-              "text-zinc-500 group-hover:text-zinc-300"
+              "text-zinc-500 group-hover/item:text-zinc-300"
             )}>
               {highlight.name}
             </span>
-          </button>
+          </div>
         ))}
       </div>
 
       {viewingHighlight && (
-        <HighlightViewer
-          highlight={viewingHighlight}
-          onClose={() => setViewingHighlight(null)}
-        />
+        <Portal>
+          <HighlightViewer
+            highlight={viewingHighlight}
+            onClose={() => setViewingHighlight(null)}
+          />
+        </Portal>
       )}
 
-      {isCreating && (
-        <HighlightEditorModal
-          onClose={() => setIsCreating(false)}
-          onSuccess={() => {
-            setIsCreating(false);
-            onHighlightCreated?.();
-          }}
-        />
+      {(isCreating || editingHighlight) && (
+        <Portal>
+          <HighlightEditorModal
+            existing={editingHighlight ?? undefined}
+            onClose={() => { setIsCreating(false); setEditingHighlight(null); }}
+            onSuccess={() => {
+              setIsCreating(false);
+              setEditingHighlight(null);
+              onHighlightCreated?.();
+            }}
+          />
+        </Portal>
       )}
     </>
   );

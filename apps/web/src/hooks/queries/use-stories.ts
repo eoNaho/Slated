@@ -176,6 +176,30 @@ export function useDeleteHighlight() {
   });
 }
 
+export function useAddHighlightItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, storyIds }: { id: string; storyIds: string[] }) =>
+      api.highlights.addItems(id, storyIds),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["highlights"] });
+      queryClient.invalidateQueries({ queryKey: ["highlight", variables.id] });
+    },
+  });
+}
+
+export function useRemoveHighlightItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, storyId }: { id: string; storyId: string }) =>
+      api.highlights.removeItem(id, storyId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["highlights"] });
+      queryClient.invalidateQueries({ queryKey: ["highlight", variables.id] });
+    },
+  });
+}
+
 export function useToggleCloseFriend() {
   const queryClient = useQueryClient();
   return useMutation({

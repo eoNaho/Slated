@@ -2,10 +2,18 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { X, Loader2, Check } from "lucide-react";
+import { X, Loader2, Check, Trash2, Camera, ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
-import { useCreateHighlight, useUpdateHighlight, useStoryArchive } from "@/hooks/queries/use-stories";
-import { StoryHighlight } from "@/lib/api";
+import {
+  useCreateHighlight,
+  useUpdateHighlight,
+  useDeleteHighlight,
+  useAddHighlightItems,
+  useRemoveHighlightItem,
+  useStoryArchive,
+  useHighlightStories,
+} from "@/hooks/queries/use-stories";
+import { StoryHighlight, Story, api } from "@/lib/api";
 import { resolveImage } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -18,15 +26,44 @@ interface HighlightEditorModalProps {
 export function HighlightEditorModal({ existing, onClose, onSuccess }: HighlightEditorModalProps) {
   const [name, setName] = React.useState(existing?.name ?? "");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+
+  // Custom cover upload state
+  const coverInputRef = React.useRef<HTMLInputElement>(null);
+  const [coverFile, setCoverFile] = React.useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = React.useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = React.useState(false);
+
+  const isEditing = !!existing;
 
   const { data: archiveData, isLoading: archiveLoading } = useStoryArchive();
   const archivedStories = archiveData?.data ?? [];
 
+  // When editing, load current stories to pre-select them
+  const { data: highlightData, isLoading: highlightLoading } = useHighlightStories(
+    existing?.id ?? "",
+    isEditing
+  );
+
+  React.useEffect(() => {
+    if (isEditing && highlightData?.stories) {
+      const ids = new Set((highlightData.stories as Story[]).map((s) => s.id));
+      setSelectedIds(ids);
+    }
+  }, [isEditing, highlightData]);
+
   const createHighlight = useCreateHighlight();
   const updateHighlight = useUpdateHighlight();
+  const deleteHighlight = useDeleteHighlight();
+  const addItems = useAddHighlightItems();
+  const removeItem = useRemoveHighlightItem();
 
-  const isEditing = !!existing;
-  const isPending = createHighlight.isPending || updateHighlight.isPending;
+  const isSaving =
+    createHighlight.isPending ||
+    updateHighlight.isPending ||
+    addItems.isPending ||
+    removeItem.isPending ||
+    coverUploading;
 
   const toggleStory = (id: string) => {
     setSelectedIds((prev) => {
@@ -37,6 +74,14 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
     });
   };
 
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    const url = URL.createObjectURL(file);
+    setCoverPreview(url);
+  };
+
   const handleSubmit = async () => {
     if (!name.trim()) {
       toast.error("Nome é obrigatório");
@@ -44,19 +89,66 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
     }
     try {
       if (isEditing) {
-        await updateHighlight.mutateAsync({ id: existing.id, name: name.trim() });
+        // Upload cover if a new file was selected
+        let newCoverUrl: string | undefined;
+        if (coverFile) {
+          setCoverUploading(true);
+          const result = await api.highlights.uploadCover(existing.id, coverFile);
+          newCoverUrl = result.coverImageUrl;
+          setCoverUploading(false);
+        }
+
+        await updateHighlight.mutateAsync({
+          id: existing.id,
+          name: name.trim(),
+          ...(newCoverUrl !== undefined ? { cover_image_url: newCoverUrl } : {}),
+        });
+
+        // Diff stories
+        const currentIds = new Set((highlightData?.stories as Story[] ?? []).map((s) => s.id));
+        const toAdd = [...selectedIds].filter((id) => !currentIds.has(id));
+        const toRemove = [...currentIds].filter((id) => !selectedIds.has(id));
+
+        await Promise.all([
+          toAdd.length > 0 ? addItems.mutateAsync({ id: existing.id, storyIds: toAdd }) : null,
+          ...toRemove.map((storyId) => removeItem.mutateAsync({ id: existing.id, storyId })),
+        ]);
       } else {
-        await createHighlight.mutateAsync({
+        // For create: we create first, then upload cover if provided
+        const created = await createHighlight.mutateAsync({
           name: name.trim(),
           story_ids: Array.from(selectedIds),
         });
+
+        if (coverFile && created.data?.id) {
+          setCoverUploading(true);
+          await api.highlights.uploadCover(created.data.id, coverFile).catch(() => {});
+          setCoverUploading(false);
+        }
       }
+
       toast.success(isEditing ? "Highlight atualizado!" : "Highlight criado!");
       onSuccess();
     } catch {
+      setCoverUploading(false);
       toast.error("Erro ao salvar highlight");
     }
   };
+
+  const handleDelete = async () => {
+    try {
+      await deleteHighlight.mutateAsync(existing!.id);
+      toast.success("Highlight deletado");
+      onSuccess();
+    } catch {
+      toast.error("Erro ao deletar highlight");
+    }
+  };
+
+  const currentCoverUrl = coverPreview
+    ?? (existing?.coverImageUrl ? resolveImage(existing.coverImageUrl) : null);
+
+  const isLoading = isEditing && (archiveLoading || highlightLoading);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
@@ -66,7 +158,7 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
-        className="relative w-full sm:max-w-md bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+        className="relative w-full sm:max-w-md bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-white/10">
@@ -76,24 +168,80 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Name */}
-          <div>
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 block">Nome</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="ex. Favoritos, Viagens, 2024..."
-              maxLength={50}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-500/50 transition-colors placeholder:text-white/30"
-            />
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
           </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Cover image */}
+            <div>
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3 block">
+                Capa
+              </label>
+              <div className="flex items-center gap-4">
+                {/* Cover preview square */}
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  className="relative w-20 h-20 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-dashed border-white/20 hover:border-purple-500/50 transition-colors flex-shrink-0 group/cover"
+                >
+                  {currentCoverUrl ? (
+                    <Image fill src={currentCoverUrl} alt="Capa" className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="w-6 h-6 text-zinc-600 group-hover/cover:text-purple-400 transition-colors" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/cover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-white" />
+                  </div>
+                </button>
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => coverInputRef.current?.click()}
+                    className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors block"
+                  >
+                    {currentCoverUrl ? "Alterar imagem" : "Escolher imagem"}
+                  </button>
+                  <p className="text-xs text-zinc-600">JPG, PNG ou WebP · máx 5MB</p>
+                  {coverPreview && (
+                    <button
+                      type="button"
+                      onClick={() => { setCoverFile(null); setCoverPreview(null); }}
+                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleCoverSelect}
+              />
+            </div>
 
-          {/* Story picker — only shown when creating */}
-          {!isEditing && (
+            {/* Name */}
+            <div>
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 block">Nome</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="ex. Favoritos, Viagens, 2024..."
+                maxLength={50}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-500/50 transition-colors placeholder:text-white/30"
+              />
+            </div>
+
+            {/* Story picker */}
             <div>
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 block">
-                Adicionar stories ({selectedIds.size} selecionados)
+                Stories ({selectedIds.size} selecionados)
               </label>
               {archiveLoading ? (
                 <div className="flex justify-center py-8">
@@ -125,9 +273,9 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
                           </div>
                         )}
                         {selected && (
-                          <div className="absolute inset-0 bg-purple-500/30 flex items-center justify-center">
-                            <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
-                              <Check className="w-3.5 h-3.5 text-white" />
+                          <div className="absolute inset-0 bg-purple-500/30 flex items-start justify-end p-1.5">
+                            <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
                             </div>
                           </div>
                         )}
@@ -137,20 +285,57 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
                 </div>
               )}
             </div>
-          )}
-        </div>
+
+            {/* Delete — only in edit mode */}
+            {isEditing && (
+              <div className="pt-2 border-t border-white/5">
+                {!confirmDelete ? (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Deletar highlight
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-red-300">Tem certeza? Esta ação não pode ser desfeita.</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleteHighlight.isPending}
+                        className="flex-1 h-9 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 transition-colors text-white text-sm font-semibold flex items-center justify-center gap-1.5"
+                      >
+                        {deleteHighlight.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Confirmar
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white text-sm transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
-        <div className="p-5 border-t border-white/10">
-          <button
-            onClick={handleSubmit}
-            disabled={isPending || !name.trim()}
-            className="w-full h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 transition-colors text-white font-semibold flex items-center justify-center gap-2"
-          >
-            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isEditing ? "Salvar" : "Criar Highlight"}
-          </button>
-        </div>
+        {!isLoading && (
+          <div className="p-5 border-t border-white/10">
+            <button
+              onClick={handleSubmit}
+              disabled={isSaving || !name.trim()}
+              className="w-full h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 transition-colors text-white font-semibold flex items-center justify-center gap-2"
+            >
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSaving ? "Salvando..." : isEditing ? "Salvar" : "Criar Highlight"}
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );

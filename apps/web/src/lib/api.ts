@@ -882,6 +882,22 @@ export const highlightsApi = {
     fetcher<{ success: boolean }>(`/story-highlights/${id}/items/${storyId}`, {
       method: "DELETE",
     }),
+
+  uploadCover: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+    const res = await fetch(`${API_URL}/story-highlights/${id}/cover`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: "Upload failed" }));
+      throw new Error(error.error || "Upload failed");
+    }
+    return res.json() as Promise<{ data: StoryHighlight; coverImageUrl: string }>;
+  },
 };
 
 // ==================== CLOSE FRIENDS ====================
