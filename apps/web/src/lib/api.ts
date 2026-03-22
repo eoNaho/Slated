@@ -1062,7 +1062,7 @@ export const api = {
     block: (userId: string) =>
       fetcher<{ success: boolean }>("/blocks", {
         method: "POST",
-        body: JSON.stringify({ blockedId: userId }),
+        body: JSON.stringify({ userId }),
       }),
     unblock: (userId: string) =>
       fetcher<{ success: boolean }>(`/blocks/${userId}`, { method: "DELETE" }),

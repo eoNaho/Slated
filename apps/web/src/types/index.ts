@@ -24,6 +24,7 @@ export interface User {
   createdAt: string;
   lastActiveAt?: string | null;
   socialLinks?: UserSocialLinks | null;
+  bioExtended?: BioExtended | null;
 }
 
 export interface UserSocialLinks {
@@ -86,7 +87,13 @@ export interface Media {
 export interface MediaDetails extends Media {
   genres: Genre[];
   credits: Credit[];
-  streaming: { mediaId: string; serviceId: string; country: string; url?: string | null; service: StreamingService }[];
+  streaming: {
+    mediaId: string;
+    serviceId: string;
+    country: string;
+    url?: string | null;
+    service: StreamingService;
+  }[];
   externalRatings?: ExternalRating[];
 }
 
@@ -379,7 +386,13 @@ export interface Activity {
 export interface Notification {
   id: string;
   userId: string;
-  type: "follow" | "like" | "comment" | "achievement" | "club_invite" | "system";
+  type:
+    | "follow"
+    | "like"
+    | "comment"
+    | "achievement"
+    | "club_invite"
+    | "system";
   title: string;
   message?: string | null;
   data?: Record<string, unknown>;
@@ -396,7 +409,14 @@ export interface Achievement {
   description?: string | null;
   icon?: string | null;
   xpReward: number;
-  category?: "watching" | "social" | "critic" | "explorer" | "collector" | "special" | null;
+  category?:
+    | "watching"
+    | "social"
+    | "critic"
+    | "explorer"
+    | "collector"
+    | "special"
+    | null;
   type?: "milestone" | "streak" | "challenge" | "rare" | null;
   rarity?: "common" | "uncommon" | "rare" | "epic" | "legendary" | null;
   requirements?: string | null;
@@ -491,8 +511,14 @@ export interface UserIdentityPerks {
   activeTitleId?: string | null;
   badgeEnabled: boolean;
   verified: boolean;
-  frame?: Pick<ProfileFrame, "id" | "name" | "slug" | "color" | "isAnimated"> | null;
-  title?: Pick<ProfileTitle, "id" | "name" | "slug" | "bgColor" | "textColor"> | null;
+  frame?: Pick<
+    ProfileFrame,
+    "id" | "name" | "slug" | "color" | "isAnimated"
+  > | null;
+  title?: Pick<
+    ProfileTitle,
+    "id" | "name" | "slug" | "bgColor" | "textColor"
+  > | null;
 }
 
 export interface UserIdentity {
@@ -509,7 +535,7 @@ export interface BioLink {
 }
 
 export interface BioExtended {
-  headline?: string;
+  headline?: string | null;
   location?: string;
   website?: string;
   links?: BioLink[];

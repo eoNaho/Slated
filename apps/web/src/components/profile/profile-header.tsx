@@ -1,4 +1,4 @@
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -8,7 +8,6 @@ import {
   Share2,
   MoreHorizontal,
   Star,
-  Check,
   Settings,
   Twitter,
   Instagram,
@@ -17,9 +16,15 @@ import {
   Flag,
   Ban,
 } from "lucide-react";
-import type { UserProfile, FavoriteFilm, UserIdentity } from "@/types";
-import { resolveImage, cn } from "@/lib/utils";
+import type {
+  UserProfile,
+  FavoriteFilm,
+  UserIdentity,
+  CurrentActivity,
+} from "@/types";
+import { resolveImage } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
 import { FollowListDialog } from "./follow-list-dialog";
 import { WatchingNow } from "./watching-now";
 import { FramedAvatar } from "./framed-avatar";
@@ -38,7 +43,7 @@ interface ProfileHeaderProps {
   isOwnProfile?: boolean;
   currentUserId?: string;
   initialIsFollowing?: boolean;
-  watchingNow?: any;
+  watchingNow?: CurrentActivity | null;
   stories?: Story[];
   highlights?: StoryHighlight[];
   identity?: UserIdentity | null;
@@ -46,25 +51,43 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({
   profile,
-  favorites,
   isOwnProfile,
-  currentUserId,
   initialIsFollowing = false,
   watchingNow = null,
   stories = [],
   highlights = [],
   identity = null,
 }: ProfileHeaderProps) {
+  const { data: session } = useSession();
+  const sessionUserId = session?.user?.id;
+
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [isPending, startTransition] = useTransition();
-  const [followDialog, setFollowDialog] = useState<"followers" | "following" | null>(null);
+  const [followDialog, setFollowDialog] = useState<
+    "followers" | "following" | null
+  >(null);
   const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(
     null,
   );
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
+  const [blockFeedback, setBlockFeedback] = useState<string | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+
+  const openMoreMenu = () => {
+    if (moreButtonRef.current) {
+      const rect = moreButtonRef.current.getBoundingClientRect();
+      setMenuPos({
+        top: rect.bottom + 6,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setShowMoreMenu(true);
+  };
 
   const { activeStories, hasUnseen } = useMemo(() => {
     const active = stories
@@ -214,62 +237,12 @@ export function ProfileHeader({
                 )}
                 <div className="relative">
                   <button
-                    onClick={() => setShowMoreMenu((v) => !v)}
+                    ref={moreButtonRef}
+                    onClick={openMoreMenu}
                     className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
-                  {showMoreMenu && (
-                    <div
-                      className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl py-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {!isOwnProfile && currentUserId && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setShowMoreMenu(false);
-                              setShowReport(true);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
-                          >
-                            <Flag className="w-4 h-4 text-red-400" /> Denunciar usuário
-                          </button>
-                          <button
-                            onClick={async () => {
-                              setShowMoreMenu(false);
-                              setBlockLoading(true);
-                              try {
-                                if (isBlocked) {
-                                  await api.blocks.unblock(profile.id);
-                                  setIsBlocked(false);
-                                } else {
-                                  await api.blocks.block(profile.id);
-                                  setIsBlocked(true);
-                                }
-                              } catch { /* silent */ } finally {
-                                setBlockLoading(false);
-                              }
-                            }}
-                            disabled={blockLoading}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors disabled:opacity-50"
-                          >
-                            <Ban className="w-4 h-4 text-orange-400" />
-                            {isBlocked ? "Desbloquear" : "Bloquear"} usuário
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => {
-                          setShowMoreMenu(false);
-                          navigator.clipboard.writeText(window.location.href).catch(() => {});
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
-                      >
-                        <Share2 className="w-4 h-4 text-zinc-400" /> Copiar link do perfil
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -282,16 +255,16 @@ export function ProfileHeader({
             )}
 
             {/* Bio Extended */}
-            {(profile as any).bioExtended && (
+            {profile.bioExtended && (
               <div className="mt-2 space-y-1.5 max-w-xl">
-                {(profile as any).bioExtended.headline && (
+                {profile.bioExtended.headline && (
                   <p className="text-sm font-semibold text-zinc-200">
-                    {(profile as any).bioExtended.headline}
+                    {profile.bioExtended.headline}
                   </p>
                 )}
-                {(profile as any).bioExtended.moods?.length > 0 && (
+                {(profile.bioExtended.moods?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {(profile as any).bioExtended.moods.map(
+                    {profile.bioExtended.moods!.map(
                       (mood: string, i: number) => (
                         <span
                           key={i}
@@ -303,14 +276,14 @@ export function ProfileHeader({
                     )}
                   </div>
                 )}
-                {(profile as any).bioExtended.quote?.text && (
+                {profile.bioExtended.quote?.text && (
                   <blockquote className="border-l-2 border-purple-500/40 pl-3 mt-1">
                     <p className="text-xs italic text-zinc-500 line-clamp-2">
-                      &ldquo;{(profile as any).bioExtended.quote.text}&rdquo;
+                      &ldquo;{profile.bioExtended.quote.text}&rdquo;
                     </p>
-                    {(profile as any).bioExtended.quote.author && (
+                    {profile.bioExtended.quote.author && (
                       <p className="text-[10px] text-zinc-600 mt-0.5">
-                        &mdash; {(profile as any).bioExtended.quote.author}
+                        &mdash; {profile.bioExtended.quote.author}
                       </p>
                     )}
                   </blockquote>
@@ -525,9 +498,135 @@ export function ProfileHeader({
         </Portal>
       )}
 
-      {/* Close more menu on outside click */}
+      {/* Block Confirm Modal */}
+      {showBlockConfirm && (
+        <Portal>
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+            onClick={() => setShowBlockConfirm(false)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 space-y-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                  <Ban className="w-5 h-5 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    {isBlocked ? "Desbloquear usuário?" : "Bloquear usuário?"}
+                  </h3>
+                  <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
+                    {isBlocked
+                      ? `${profile.displayName || profile.username} poderá ver seu perfil e interagir com você novamente.`
+                      : `${profile.displayName || profile.username} não poderá ver seu perfil, seguir você ou interagir com seu conteúdo.`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowBlockConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    setBlockLoading(true);
+                    try {
+                      if (isBlocked) {
+                        await api.blocks.unblock(profile.id);
+                        setIsBlocked(false);
+                        setBlockFeedback("Usuário desbloqueado.");
+                      } else {
+                        await api.blocks.block(profile.id);
+                        setIsBlocked(true);
+                        setBlockFeedback("Usuário bloqueado.");
+                      }
+                      setTimeout(() => setBlockFeedback(null), 3000);
+                    } catch {
+                      setBlockFeedback("Falha ao executar ação.");
+                      setTimeout(() => setBlockFeedback(null), 3000);
+                    } finally {
+                      setBlockLoading(false);
+                      setShowBlockConfirm(false);
+                    }
+                  }}
+                  disabled={blockLoading}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-orange-500/80 hover:bg-orange-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {blockLoading ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : isBlocked ? (
+                    "Desbloquear"
+                  ) : (
+                    "Bloquear"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* Block feedback toast */}
+      {blockFeedback && (
+        <Portal>
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] px-4 py-2.5 rounded-xl bg-zinc-800 border border-white/10 text-sm text-white shadow-2xl">
+            {blockFeedback}
+          </div>
+        </Portal>
+      )}
+
+      {/* More menu dropdown — rendered via Portal to escape the z-10 stacking context */}
       {showMoreMenu && (
-        <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+        <Portal>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowMoreMenu(false)}
+          />
+          <div
+            className="fixed z-50 w-48 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl py-1"
+            style={{ top: menuPos.top, right: menuPos.right }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {!isOwnProfile && sessionUserId && sessionUserId !== profile.id && (
+              <>
+                <button
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    setShowReport(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                >
+                  <Flag className="w-4 h-4 text-red-400" /> Denunciar usuário
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    setShowBlockConfirm(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                >
+                  <Ban className="w-4 h-4 text-orange-400" />
+                  {isBlocked ? "Desbloquear" : "Bloquear"} usuário
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => {
+                setShowMoreMenu(false);
+                navigator.clipboard
+                  .writeText(window.location.href)
+                  .catch(() => {});
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+            >
+              <Share2 className="w-4 h-4 text-zinc-400" /> Copiar link do perfil
+            </button>
+          </div>
+        </Portal>
       )}
     </div>
   );
