@@ -722,44 +722,6 @@ export const storiesApi = {
   },
 };
 
-// ==================== WATCH PARTY ====================
-
-export interface WatchPartyRoom {
-  id: string;
-  code: string;
-  hostUserId: string;
-  title: string;
-  mediaTitle: string | null;
-  mediaSource: string | null;
-  status: "waiting" | "active" | "ended";
-  memberCount?: number;
-  maxMembers?: number;
-  createdAt: string;
-  endedAt?: string | null;
-}
-
-export const watchPartyApi = {
-  createRoom: (data: {
-    title: string;
-    mediaSource: "netflix" | "disney" | "max" | "prime";
-    mediaTitle?: string;
-    mediaUrl?: string;
-  }) =>
-    fetcher<{ code: string; id: string; title: string; status: string; createdAt: string }>(
-      "/watch-party/rooms",
-      { method: "POST", body: JSON.stringify(data) }
-    ),
-
-  getRoom: (code: string) =>
-    fetcher<WatchPartyRoom>(`/watch-party/rooms/${code}`),
-
-  endRoom: (code: string) =>
-    fetcher<{ ok: boolean }>(`/watch-party/rooms/${code}/end`, { method: "POST" }),
-
-  getMyRooms: () =>
-    fetcher<{ rooms: WatchPartyRoom[] }>("/watch-party/my-rooms"),
-};
-
 // ==================== EXPORT ALL ====================
 
 interface DiscoverOptions {
@@ -790,7 +752,6 @@ export const api = {
   plans: plansApi,
   stories: storiesApi,
   series: seriesApi,
-  watchParty: watchPartyApi,
   discover: {
     get: (options: DiscoverOptions = {}) => {
       const params = new URLSearchParams();

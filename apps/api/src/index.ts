@@ -34,7 +34,6 @@ import { stripeRoutes } from "./routes/stripeWebhook";
 import { imageRoutes } from "./routes/images";
 import { activityRoutes } from "./routes/activity";
 import { storiesRoutes } from "./routes/stories";
-import { watchPartyRoutes, mountWatchPartyWS } from "./routes/watch-party";
 import { discoverRoutes } from "./routes/discover";
 import { seriesRoutes } from "./routes/series";
 import { likesRoutes } from "./routes/likes";
@@ -172,14 +171,10 @@ const app = new Elysia()
       .use(storiesRoutes)
       .use(discoverRoutes)
       .use(seriesRoutes)
-      .use(likesRoutes)
-      .use(watchPartyRoutes),
+      .use(likesRoutes),
   )
 
   .listen(process.env.PORT || 3001);
-
-// Mount WebSocket endpoint for Watch Party (must be on root app, not inside group)
-mountWatchPartyWS(app);
 
 // Start cron jobs
 import { startCronJobs } from "./services/cron";

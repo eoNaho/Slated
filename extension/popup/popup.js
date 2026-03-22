@@ -94,34 +94,3 @@ function showHint(msg, type) {
   if (msg) hintTimeout = setTimeout(() => { hint.className = "hint"; }, 3000);
 }
 
-// ── Watch Party ───────────────────────────────────────────────────────────────
-
-const wpCodeInput = $("wp-code-input");
-const wpOpenRoom  = $("wp-open-room");
-const wpHint      = $("wp-hint");
-
-function updateWpLink() {
-  const code = wpCodeInput.value.trim().toUpperCase();
-  if (code.length === 6) {
-    wpOpenRoom.href = `${SITE_BASE}/watch-party/${code}`;
-    wpOpenRoom.style.pointerEvents = "";
-    wpOpenRoom.style.opacity = "";
-  } else {
-    wpOpenRoom.href = "#";
-    wpOpenRoom.style.pointerEvents = "none";
-    wpOpenRoom.style.opacity = "0.5";
-  }
-}
-
-wpCodeInput.addEventListener("input", updateWpLink);
-updateWpLink();
-
-wpOpenRoom.addEventListener("click", (e) => {
-  const code = wpCodeInput.value.trim().toUpperCase();
-  if (code.length !== 6) {
-    e.preventDefault();
-    wpHint.textContent = "O código deve ter 6 caracteres.";
-    wpHint.className = "hint show error";
-    setTimeout(() => { wpHint.className = "hint"; }, 3000);
-  }
-});
