@@ -14,7 +14,15 @@ export function resolveImage(
   tmdbSize: string = "w500",
 ): string | null {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
+  if (path.startsWith("http")) {
+    // If it's already a TMDB CDN URL, re-apply the requested size so callers
+    // that pass "original" aren't stuck with the w500 that's baked into the URL.
+    const tmdbMatch = path.match(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+(\/.+)$/);
+    if (tmdbMatch) {
+      return `https://image.tmdb.org/t/p/${tmdbSize}${tmdbMatch[1]}`;
+    }
+    return path;
+  }
   if (path.startsWith("tmdb:")) {
     const tmdbPath = path.slice(5); // strip "tmdb:"
     return `https://image.tmdb.org/t/p/${tmdbSize}${tmdbPath}`;

@@ -16,6 +16,7 @@ import {
   Plus,
 } from "lucide-react";
 import { CreateListModal } from "@/components/lists/CreateListModal";
+import { CreateScrobbleModal } from "@/components/profile/create-scrobble-modal";
 import {
   ProfileHeader,
   FavoriteFilms,
@@ -108,6 +109,7 @@ export function ProfileTabs({
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateList, setShowCreateList] = useState(false);
+  const [showCreateScrobble, setShowCreateScrobble] = useState(false);
 
   const { data: clubs = [], isPending: clubsPending } = useUserClubs(username, activeTab === "clubs");
   const { data: customCovers = {} } = useCustomCovers(username);
@@ -229,8 +231,19 @@ export function ProfileTabs({
             {activeTab === "activity" && <ActivityFeed activities={activity} />}
             {activeTab === "scrobbles" && (
               <div className="space-y-12">
+                {isOwnProfile && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setShowCreateScrobble(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Log Scrobble
+                    </button>
+                  </div>
+                )}
                 <ScrobblesStats userId={profile.id} />
-                <ScrobblesHistory scrobbles={scrobbles} />
+                <ScrobblesHistory scrobbles={scrobbles} userId={profile.id} isOwnProfile={isOwnProfile} />
               </div>
             )}
           </>
@@ -238,12 +251,17 @@ export function ProfileTabs({
       </div>
 
       {showCreateList && (
-        <CreateListModal 
+        <CreateListModal
           onClose={() => setShowCreateList(false)}
           onSuccess={() => {
-            // Refresh logic - in a real app we might use a router refresh or a global state update
             window.location.reload();
           }}
+        />
+      )}
+      {showCreateScrobble && (
+        <CreateScrobbleModal
+          onClose={() => setShowCreateScrobble(false)}
+          onSuccess={() => setShowCreateScrobble(false)}
         />
       )}
     </>

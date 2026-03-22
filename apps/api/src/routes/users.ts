@@ -317,14 +317,12 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         await storageService.delete(user.avatarUrl).catch(() => null);
         // Also try to delete the small variant
         await storageService
-          .delete(user.avatarUrl.replace(".webp", "-sm.webp").replace(".gif", "-sm.gif"))
+          .delete(user.avatarUrl.replace(".webp", "-sm.webp"))
           .catch(() => null);
       }
 
       const buffer = await file.arrayBuffer();
-      const { path } = isGif
-        ? await storageService.uploadGifAvatar(buffer, `users/${user.id}`)
-        : await storageService.uploadAvatar(buffer, `users/${user.id}`);
+      const { path } = await storageService.uploadAvatar(buffer, `users/${user.id}`, { animated: isGif });
 
       const [updated] = await db
         .update(userTable)
@@ -401,9 +399,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       }
 
       const buffer = await file.arrayBuffer();
-      const { path } = isCoverGif
-        ? await storageService.uploadGifCover(buffer, `users/${user.id}`)
-        : await storageService.uploadCover(buffer, `users/${user.id}`);
+      const { path } = await storageService.uploadCover(buffer, `users/${user.id}`, { animated: isCoverGif });
 
       const [updated] = await db
         .update(userTable)

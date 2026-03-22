@@ -418,6 +418,15 @@ export function ProfileHeader({
               <span className="text-zinc-500">avg</span>
             </div>
           )}
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-violet-600 text-[10px] font-bold text-white leading-none">
+              {profile.stats.level}
+            </span>
+            <span className="font-semibold text-white">
+              {profile.stats.xp.toLocaleString()}
+            </span>
+            <span className="text-zinc-500">XP</span>
+          </div>
         </div>
       </div>
 

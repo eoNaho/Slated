@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Search, Film } from "lucide-react";
+import { Plus, Search, Film, Mail } from "lucide-react";
 import { ClubCard } from "@/components/clubs/club-card";
 import { getPublicClubs } from "@/lib/queries/clubs";
 
@@ -72,16 +72,25 @@ export default async function ClubsPage({ searchParams }: PageProps) {
               </p>
             </div>
 
-            {/* CTA */}
-            <Link
-              href="/clubs/new"
-              className="group relative flex items-center gap-2 px-8 py-4 text-sm font-bold text-white uppercase tracking-wider transition-all duration-300 rounded-2xl overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 group-hover:from-purple-500 group-hover:to-indigo-500 transition-all" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.2),transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
-              <Plus className="h-4 w-4 relative z-10" />
-              <span className="relative z-10">Create Club</span>
-            </Link>
+            {/* CTAs */}
+            <div className="flex items-center gap-3">
+              <Link
+                href="/clubs/invites"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-zinc-300 hover:text-white border border-white/10 hover:border-white/20 rounded-2xl transition-colors"
+              >
+                <Mail className="h-4 w-4" />
+                Invites
+              </Link>
+              <Link
+                href="/clubs/new"
+                className="group relative flex items-center gap-2 px-8 py-4 text-sm font-bold text-white uppercase tracking-wider transition-all duration-300 rounded-2xl overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 group-hover:from-purple-500 group-hover:to-indigo-500 transition-all" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.2),transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Plus className="h-4 w-4 relative z-10" />
+                <span className="relative z-10">Create Club</span>
+              </Link>
+            </div>
           </div>
 
           {/* ── Filters ── */}

@@ -13,6 +13,7 @@ import {
   Pause,
 } from "lucide-react";
 import type { Media } from "@/types";
+import { resolveImage } from "@/lib/utils";
 
 interface HeroSliderProps {
   media: Media[];
@@ -104,7 +105,7 @@ export function HeroSlider({ media }: HeroSliderProps) {
         >
           <Image
             fill
-            src={slide.backdropPath || slide.posterPath || ""}
+            src={resolveImage(slide.backdropPath || slide.posterPath, "original") || slide.backdropPath || slide.posterPath || ""}
             alt=""
             className="object-cover"
             priority={index === 0}

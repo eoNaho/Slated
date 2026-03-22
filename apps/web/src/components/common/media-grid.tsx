@@ -18,6 +18,7 @@ export interface MediaGridItem {
 interface MediaGridProps {
   items: MediaGridItem[];
   isLoading?: boolean;
+  customCovers?: Record<string, string>;
   columns?: {
     default?: number;
     sm?: number;
@@ -30,7 +31,7 @@ interface MediaGridProps {
   onRemove?: (item: MediaGridItem) => void;
 }
 
-export function MediaGrid({ items, isLoading, columns = {}, renderOverlay, onAddToList, onRemove }: MediaGridProps) {
+export function MediaGrid({ items, isLoading, customCovers, columns = {}, renderOverlay, onAddToList, onRemove }: MediaGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -65,10 +66,11 @@ export function MediaGrid({ items, isLoading, columns = {}, renderOverlay, onAdd
   return (
     <div className={gridCols}>
       {items.map((item) => (
-        <MediaCard 
-          key={item.id} 
-          item={item} 
-          renderOverlay={renderOverlay} 
+        <MediaCard
+          key={item.id}
+          item={item}
+          customCover={customCovers?.[item.id]}
+          renderOverlay={renderOverlay}
           onAddToList={onAddToList}
           onRemove={onRemove}
         />
@@ -79,18 +81,20 @@ export function MediaGrid({ items, isLoading, columns = {}, renderOverlay, onAdd
 
 function MediaCard({
   item,
+  customCover,
   renderOverlay,
   onAddToList,
   onRemove
 }: {
   item: MediaGridItem;
+  customCover?: string;
   renderOverlay?: (item: MediaGridItem) => React.ReactNode;
   onAddToList?: (item: MediaGridItem) => void;
   onRemove?: (item: MediaGridItem) => void;
 }) {
   const mediaType = (item.type || item.mediaType || "movie") as "movie" | "series";
   const url = getMediaUrl({ ...item, type: mediaType });
-  const poster = resolveImage(item.posterPath);
+  const poster = customCover || resolveImage(item.posterPath);
 
   return (
     <Link 

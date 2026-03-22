@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Star, BookmarkPlus } from "lucide-react";
 import type { Media } from "@/types";
+import { resolveImage } from "@/lib/utils";
 
 interface HeroSectionProps {
   initialMedia?: Media[];
@@ -56,7 +57,7 @@ export function HeroSection({ initialMedia = [] }: HeroSectionProps) {
     );
   }
 
-  const backdropUrl = featured.backdropPath || featured.posterPath || "";
+  const backdropUrl = resolveImage(featured.backdropPath || featured.posterPath, "original") || featured.backdropPath || featured.posterPath || "";
   const year = featured.releaseDate
     ? new Date(featured.releaseDate).getFullYear()
     : null;

@@ -21,6 +21,11 @@ import type {
   EnrichedMediaData,
   SearchOptions,
   Comment,
+  Achievement,
+  XpActivity,
+  LeaderboardEntry,
+  Scrobble,
+  ClubInvite,
 } from "@/types";
 
 const API_URL =
@@ -216,6 +221,16 @@ export const mediaApi = {
     return fetcher<{ data: SearchResult[]; page: number; totalPages: number; total: number; hasNext: boolean; hasPrev: boolean }>(
       `/media/tmdb/${tmdbId}/similar?type=${type}&page=${page}`
     );
+  },
+
+  getGallery: (tmdbId: number, type: "movie" | "series") => {
+    return fetcher<{
+      data: {
+        videos: { key: string; name: string; type: string; site: string; official: boolean; published_at: string }[];
+        backdrops: { file_path: string; width: number; height: number; vote_average: number }[];
+        posters: { file_path: string; width: number; height: number; vote_average: number }[];
+      };
+    }>(`/media/tmdb/${tmdbId}/gallery?type=${type}`);
   },
 
   // Legacy / Local access
@@ -921,6 +936,57 @@ export const closeFriendsApi = {
     fetcher<{ isCloseFriend: boolean }>(`/close-friends/status/${userId}`),
 };
 
+// ==================== GAMIFICATION ====================
+
+export const gamificationApi = {
+  getAchievements: () =>
+    fetcher<{ data: Achievement[] }>("/gamification/achievements"),
+
+  getXpHistory: (limit = 20) =>
+    fetcher<{ data: XpActivity[] }>(`/gamification/xp-history?limit=${limit}`),
+
+  getLeaderboard: (limit = 50) =>
+    fetcher<{ data: LeaderboardEntry[] }>(`/gamification/leaderboard?limit=${limit}`),
+};
+
+// ==================== ACTIVITY / SCROBBLES ====================
+
+export const activityApi = {
+  getScrobbles: (userId: string, page = 1, limit = 20) =>
+    fetcher<PaginatedResponse<Scrobble>>(`/activity/scrobbles/${userId}?page=${page}&limit=${limit}`),
+
+  createScrobble: (data: {
+    title: string;
+    media_type: "movie" | "episode";
+    tmdb_id?: number;
+    season?: number;
+    episode?: number;
+    runtime_minutes?: number;
+    source?: string;
+    watched_at?: string;
+  }) =>
+    fetcher<{ data: Scrobble }>("/activity/scrobbles", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  deleteScrobble: (id: string) =>
+    fetcher<{ success: boolean }>(`/activity/scrobbles/${id}`, { method: "DELETE" }),
+};
+
+// ==================== CLUBS (INVITES) ====================
+
+export const clubsApi = {
+  getInvites: () =>
+    fetcher<{ data: ClubInvite[] }>("/clubs/invites"),
+
+  acceptInvite: (inviteId: string) =>
+    fetcher<{ success: boolean }>(`/clubs/invites/${inviteId}/accept`, { method: "POST" }),
+
+  declineInvite: (inviteId: string) =>
+    fetcher<{ success: boolean }>(`/clubs/invites/${inviteId}/decline`, { method: "POST" }),
+};
+
 // ==================== EXPORT ALL ====================
 
 interface DiscoverOptions {
@@ -954,6 +1020,9 @@ export const api = {
   highlights: highlightsApi,
   closeFriends: closeFriendsApi,
   series: seriesApi,
+  gamification: gamificationApi,
+  activity: activityApi,
+  clubs: clubsApi,
   discover: {
     get: (options: DiscoverOptions = {}) => {
       const params = new URLSearchParams();

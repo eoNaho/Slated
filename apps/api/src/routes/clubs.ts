@@ -23,6 +23,7 @@ import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 import { PLAN_LIMITS, planTierFromSubscription } from "../config/plans";
 import { CLUB_CATEGORIES } from "../db/schema/clubs";
+import { createNotification } from "./notifications";
 
 function resolveImageUrl(path: string | null): string | null {
   if (!path) return null;
@@ -1120,7 +1121,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
       const { user, params, body, set } = ctx;
 
       const [club] = await db
-        .select({ memberCount: clubs.memberCount, maxMembers: clubs.maxMembers })
+        .select({ name: clubs.name, memberCount: clubs.memberCount, maxMembers: clubs.maxMembers })
         .from(clubs)
         .where(eq(clubs.id, params.id))
         .limit(1);
@@ -1141,7 +1142,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
       }
 
       const [invitedUser] = await db
-        .select({ id: userTable.id })
+        .select({ id: userTable.id, username: userTable.username })
         .from(userTable)
         .where(eq(userTable.username, body.username))
         .limit(1);
@@ -1161,20 +1162,26 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
         return { error: "User is already a member" };
       }
 
-      try {
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        const [invite] = await db
-          .insert(clubInvites)
-          .values({ clubId: params.id, invitedBy: user.id, invitedUserId: invitedUser.id, expiresAt })
-          .returning();
-        return { data: invite };
-      } catch (e: any) {
-        if (e.code === "23505") {
-          set.status = 400;
-          return { error: "Invite already sent to this user" };
-        }
-        throw e;
-      }
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const [invite] = await db
+        .insert(clubInvites)
+        .values({ clubId: params.id, invitedBy: user.id, invitedUserId: invitedUser.id, expiresAt })
+        .onConflictDoUpdate({
+          target: [clubInvites.clubId, clubInvites.invitedUserId],
+          set: { invitedBy: user.id, status: "pending", expiresAt },
+        })
+        .returning();
+
+      // Notify invited user (fire-and-forget)
+      createNotification(
+        invitedUser.id,
+        "club_invite",
+        `Convite para o club "${club.name}"`,
+        `@${user.username} te convidou para entrar no club "${club.name}".`,
+        { clubId: params.id, inviteId: invite.id, invitedBy: user.username },
+      );
+
+      return { data: invite };
     },
     {
       requireAuth: true,

@@ -5,6 +5,7 @@ import {
   userAchievements,
   userStats,
   xpActivities,
+  user,
   eq,
   desc,
   and,
@@ -83,8 +84,12 @@ export const gamificationRoutes = new Elysia({ prefix: "/gamification", tags: ["
           level: userStats.level,
           moviesWatched: userStats.moviesWatched,
           reviewsCount: userStats.reviewsCount,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
         })
         .from(userStats)
+        .innerJoin(user, eq(userStats.userId, user.id))
         .orderBy(desc(userStats.xp))
         .limit(limit);
 

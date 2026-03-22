@@ -379,7 +379,7 @@ export interface Activity {
 export interface Notification {
   id: string;
   userId: string;
-  type: "follow" | "like" | "comment" | "achievement" | "system";
+  type: "follow" | "like" | "comment" | "achievement" | "club_invite" | "system";
   title: string;
   message?: string | null;
   data?: Record<string, unknown>;
@@ -388,7 +388,7 @@ export interface Notification {
   createdAt: string;
 }
 
-// ==================== ACHIEVEMENTS ====================
+// ==================== ACHIEVEMENTS & GAMIFICATION ====================
 
 export interface Achievement {
   id: string;
@@ -396,7 +396,16 @@ export interface Achievement {
   description?: string | null;
   icon?: string | null;
   xpReward: number;
-  tier: "bronze" | "silver" | "gold" | "platinum";
+  category?: "watching" | "social" | "critic" | "explorer" | "collector" | "special" | null;
+  type?: "milestone" | "streak" | "challenge" | "rare" | null;
+  rarity?: "common" | "uncommon" | "rare" | "epic" | "legendary" | null;
+  requirements?: string | null;
+  isSecret?: boolean;
+  createdAt?: string;
+  // Augmented fields when fetched with user context
+  isUnlocked?: boolean;
+  unlockedAt?: string | null;
+  progress?: number;
 }
 
 export interface UserAchievement {
@@ -405,6 +414,49 @@ export interface UserAchievement {
   achievementId: string;
   unlockedAt: string;
   achievement?: Achievement;
+}
+
+export interface XpActivity {
+  id: string;
+  userId: string;
+  type: string;
+  xpGained: number;
+  description?: string | null;
+  metadata?: string | null;
+  createdAt: string;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  xp: number;
+  level: number;
+  moviesWatched: number;
+  reviewsCount: number;
+}
+
+export interface ClubInvite {
+  id: string;
+  clubId: string;
+  invitedUserId: string;
+  invitedById: string;
+  expiresAt: string;
+  createdAt: string;
+  club: {
+    id: string;
+    name: string;
+    slug: string;
+    coverUrl?: string | null;
+    memberCount?: number;
+  };
+  invitedBy: {
+    id: string;
+    username: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
 }
 
 // ==================== IDENTITY & CUSTOMIZATION ====================

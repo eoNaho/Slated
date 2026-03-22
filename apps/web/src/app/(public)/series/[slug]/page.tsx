@@ -32,6 +32,7 @@ import { SeasonsPanel } from "@/components/series/seasons-panel";
 import { SectionLabel } from "@/components/common/section-label";
 import { StarRating } from "@/components/common/star-rating";
 import { resolveImage } from "@/lib/utils";
+import { MediaGallery } from "@/components/media/media-gallery";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -92,7 +93,7 @@ export default async function SeriesPage({ params }: PageProps) {
     ? resolveImage(series.posterPath) || series.posterPath
     : null;
   const backdropSrc = series.backdropPath
-    ? resolveImage(series.backdropPath) || series.backdropPath
+    ? resolveImage(series.backdropPath, "original") || series.backdropPath
     : null;
 
   return (
@@ -486,6 +487,15 @@ export default async function SeriesPage({ params }: PageProps) {
             )}
 
             <div className="border-t border-white/[0.04] mb-10" />
+
+            {series.tmdbId && (
+              <section className="mb-16">
+                <SectionLabel>Media</SectionLabel>
+                <div className="mt-6">
+                  <MediaGallery tmdbId={series.tmdbId} type="series" />
+                </div>
+              </section>
+            )}
 
             {/* ── POPULAR REVIEWS ──────────────────────────────────────── */}
             <section className="mb-12">

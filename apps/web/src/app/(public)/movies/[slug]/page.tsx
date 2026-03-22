@@ -13,7 +13,7 @@ import {
   Film,
   Clapperboard,
 } from "lucide-react";
-import { formatRuntime } from "@/lib/utils";
+import { formatRuntime, resolveImage } from "@/lib/utils";
 import { getMovie, getPopularReviews, getSimilarFilms, getPopularLists } from "@/lib/queries/media";
 import { MovieActions } from "@/components/movies/movie-actions";
 import { MediaCoverButton } from "@/components/media/media-cover-button";
@@ -27,6 +27,7 @@ import { SectionLabel } from "@/components/common/section-label";
 import { CrewChip } from "@/components/movies/crew-chip";
 import { MovieReviewCard } from "@/components/movies/movie-review-card";
 import { ListCard } from "@/components/movies/list-card";
+import { MediaGallery } from "@/components/media/media-gallery";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -105,7 +106,7 @@ export default async function MoviePage({ params }: PageProps) {
         {movie.backdropPath ? (
           <div className="absolute inset-0">
             <Image
-              src={movie.backdropPath}
+              src={resolveImage(movie.backdropPath, "original") || movie.backdropPath}
               alt={movie.title}
               fill
               className="object-cover object-[center_30%]"
@@ -398,6 +399,15 @@ export default async function MoviePage({ params }: PageProps) {
             )}
 
             <div className="border-t border-white/[0.04] mb-12" />
+
+            {movie.tmdbId && (
+              <section className="mb-16">
+                <SectionLabel>Media</SectionLabel>
+                <div className="mt-6">
+                  <MediaGallery tmdbId={movie.tmdbId} type="movie" />
+                </div>
+              </section>
+            )}
 
             <section className="mb-10">
               <div className="flex items-center justify-between mb-5">

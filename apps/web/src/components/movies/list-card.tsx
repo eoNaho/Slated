@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Film, Heart } from "lucide-react";
 import type { List } from "@/types";
+import { resolveImage } from "@/lib/utils";
 
 interface ListCardProps {
   list: List;
@@ -20,7 +21,7 @@ export function ListCard({ list }: ListCardProps) {
             key={i}
             className="w-10 h-14 rounded overflow-hidden ring-2 ring-[#0d0d0f]"
           >
-            <Image src={img} alt="" width={40} height={56} className="object-cover w-full h-full" />
+            <Image src={resolveImage(img, "w185") || ""} alt="" width={40} height={56} className="object-cover w-full h-full" />
           </div>
         ))}
         {(!list.coverImages || list.coverImages.length === 0) && (

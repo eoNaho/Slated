@@ -22,7 +22,11 @@ const jobs: {
   timer?: ReturnType<typeof setInterval>;
 }[] = [];
 
-export function registerJob(name: string, intervalMs: number, fn: () => Promise<void>): void {
+export function registerJob(
+  name: string,
+  intervalMs: number,
+  fn: () => Promise<void>,
+): void {
   jobs.push({ name, interval: intervalMs, fn });
 }
 
@@ -31,8 +35,8 @@ export function startCronJobs(): void {
 
   // ── Media pre-population ─────────────────────────────────────────────────
 
-  // registerJob("sync-trending", 24 * 60 * 60 * 1000, syncTrending);
-  // registerJob("sync-popular",  7 * 24 * 60 * 60 * 1000, syncPopular);
+  //registerJob("sync-trending", 24 * 60 * 60 * 1000, syncTrending);
+  //registerJob("sync-popular", 7 * 24 * 60 * 60 * 1000, syncPopular);
 
   // ── Platform maintenance ─────────────────────────────────────────────────
 
@@ -41,7 +45,9 @@ export function startCronJobs(): void {
   });
 
   registerJob("check-subscriptions", 24 * 60 * 60 * 1000, async () => {
-    logger.info("Subscription check — Stripe webhooks handle real-time; this is a safety net");
+    logger.info(
+      "Subscription check — Stripe webhooks handle real-time; this is a safety net",
+    );
   });
 
   // Daily Rewind — create rewind story drafts at 23:00 UTC
@@ -61,11 +67,14 @@ export function startCronJobs(): void {
       .update(stories)
       .set({ isExpired: true, isArchived: true })
       .where(
-        rawSql`${stories.expiresAt} < now() AND ${stories.isPinned} = false AND ${stories.isExpired} = false`
+        rawSql`${stories.expiresAt} < now() AND ${stories.isPinned} = false AND ${stories.isExpired} = false`,
       )
       .returning({ id: stories.id });
     if (result.length > 0) {
-      logger.info({ expired: result.length }, "expire-stories: marked stories as expired and archived");
+      logger.info(
+        { expired: result.length },
+        "expire-stories: marked stories as expired and archived",
+      );
     }
   });
 
@@ -80,7 +89,10 @@ export function startCronJobs(): void {
       }
     }, job.interval);
 
-    logger.info({ job: job.name, intervalMs: job.interval }, "Registered cron job");
+    logger.info(
+      { job: job.name, intervalMs: job.interval },
+      "Registered cron job",
+    );
   }
 
   /*
@@ -195,17 +207,18 @@ async function createDailyRewindStories(): Promise<void> {
 async function syncTrending(): Promise<void> {
   logger.info("sync-trending: starting");
 
-  const [dayMovies, weekMovies, daySeries, weekSeries] = await Promise.allSettled([
-    tmdbService.getTrending("day",  "movie", 1),
-    tmdbService.getTrending("week", "movie", 1),
-    tmdbService.getTrending("day",  "tv",    1),
-    tmdbService.getTrending("week", "tv",    1),
-  ]);
+  const [dayMovies, weekMovies, daySeries, weekSeries] =
+    await Promise.allSettled([
+      tmdbService.getTrending("day", "movie", 1),
+      tmdbService.getTrending("week", "movie", 1),
+      tmdbService.getTrending("day", "tv", 1),
+      tmdbService.getTrending("week", "tv", 1),
+    ]);
 
   const all = [
-    ...(dayMovies.status  === "fulfilled" ? dayMovies.value.results  : []),
+    ...(dayMovies.status === "fulfilled" ? dayMovies.value.results : []),
     ...(weekMovies.status === "fulfilled" ? weekMovies.value.results : []),
-    ...(daySeries.status  === "fulfilled" ? daySeries.value.results  : []),
+    ...(daySeries.status === "fulfilled" ? daySeries.value.results : []),
     ...(weekSeries.status === "fulfilled" ? weekSeries.value.results : []),
   ];
 
@@ -225,16 +238,16 @@ async function syncPopular(): Promise<void> {
 
   for (const page of [1, 2, 3, 4, 5]) {
     const [movies, series] = await Promise.allSettled([
-      tmdbService.getPopular("movie",  page),
+      tmdbService.getPopular("movie", page),
       tmdbService.getPopular("series", page),
     ]);
 
     const results = [
-      ...(movies.status  === "fulfilled" ? movies.value.results  : []),
-      ...(series.status  === "fulfilled" ? series.value.results : []),
+      ...(movies.status === "fulfilled" ? movies.value.results : []),
+      ...(series.status === "fulfilled" ? series.value.results : []),
     ];
 
-    total    += results.length;
+    total += results.length;
     imported += await batchImport(results);
 
     await sleep(500); // respect TMDB rate limits between pages
@@ -256,13 +269,20 @@ async function batchImport(
   if (results.length === 0) return 0;
 
   // Deduplicate by tmdbId
-  const unique = Array.from(new Map(results.map((r) => [r.tmdbId, r])).values());
+  const unique = Array.from(
+    new Map(results.map((r) => [r.tmdbId, r])).values(),
+  );
 
   // Single query to find which are already local
   const existing = await db
     .select({ tmdbId: media.tmdbId })
     .from(media)
-    .where(inArray(media.tmdbId, unique.map((r) => r.tmdbId)));
+    .where(
+      inArray(
+        media.tmdbId,
+        unique.map((r) => r.tmdbId),
+      ),
+    );
 
   const existingIds = new Set(existing.map((e) => e.tmdbId));
   const toImport = unique.filter((r) => !existingIds.has(r.tmdbId));

@@ -24,6 +24,7 @@ import { MediaSearchInput } from "@/components/media/media-search-input";
 import { toast } from "sonner";
 import { ListDetails, SearchResult } from "@/types";
 import Image from "next/image";
+import { useCustomCovers } from "@/hooks/queries/use-custom-covers";
 
 export default function ListDetailPageBySlug() {
   const { username, slug } = useParams();
@@ -91,6 +92,7 @@ export default function ListDetailPageBySlug() {
   };
 
   const isOwner = session?.user?.id === list?.userId;
+  const { data: customCovers = {} } = useCustomCovers(list?.user?.username);
 
   if (isLoading) {
     return (
@@ -268,6 +270,7 @@ export default function ListDetailPageBySlug() {
       <div className="container mx-auto px-6 pt-12">
         <MediaGrid
           items={list.items.map((i) => ({ ...i.media, id: i.mediaId }))}
+          customCovers={customCovers}
           onRemove={isOwner ? handleRemoveItem : undefined}
         />
 

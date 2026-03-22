@@ -71,21 +71,12 @@ export const mediaCoversRoutes = new Elysia({
       }
 
       const buffer = await file.arrayBuffer();
-      let path: string;
-      if (file.type === "image/gif") {
-        const result = await storageService.uploadRaw(
-          buffer,
-          `users/${user.id}/covers/${params.id}/poster.gif`,
-          "image/gif",
-        );
-        path = result.path;
-      } else {
-        const result = await storageService.uploadPoster(
-          buffer,
-          `users/${user.id}/covers/${params.id}`,
-        );
-        path = result.path;
-      }
+      const isGif = file.type === "image/gif";
+      const { path } = await storageService.uploadPoster(
+        buffer,
+        `users/${user.id}/covers/${params.id}`,
+        { animated: isGif },
+      );
 
       const [cover] = await db
         .insert(mediaCustomCovers)

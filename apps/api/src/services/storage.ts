@@ -154,16 +154,18 @@ export class StorageService {
 
   /**
    * Optimize and upload a poster image
-   * Creates both original and small sizes
+   * Creates both original and small sizes.
+   * Animated GIFs are converted to animated WebP automatically.
    */
   async uploadPoster(
     buffer: ArrayBuffer,
-    folder: string
+    folder: string,
+    { animated = false }: { animated?: boolean } = {}
   ): Promise<{ path: string; paths: { original: string; small: string } }> {
     const input = Buffer.from(buffer);
 
     // Optimize original size
-    const original = await sharp(input)
+    const original = await sharp(input, { animated })
       .resize({
         width: IMAGE_SIZES.poster.original.width,
         withoutEnlargement: true,
@@ -172,7 +174,7 @@ export class StorageService {
       .toBuffer();
 
     // Create small thumbnail
-    const small = await sharp(input)
+    const small = await sharp(input, { animated })
       .resize({
         width: IMAGE_SIZES.poster.small.width,
         withoutEnlargement: true,
@@ -245,20 +247,22 @@ export class StorageService {
 
   /**
    * Optimize and upload a user avatar (square)
-   * Creates both original (400px) and small (80px) sizes
+   * Creates both original (400px) and small (80px) sizes.
+   * Animated GIFs are converted to animated WebP automatically.
    */
   async uploadAvatar(
     buffer: ArrayBuffer,
-    folder: string
+    folder: string,
+    { animated = false }: { animated?: boolean } = {}
   ): Promise<{ path: string; paths: { original: string; small: string } }> {
     const input = Buffer.from(buffer);
 
-    const original = await sharp(input)
+    const original = await sharp(input, { animated })
       .resize({ width: 400, height: 400, fit: "cover", withoutEnlargement: true })
       .webp({ quality: 85 })
       .toBuffer();
 
-    const small = await sharp(input)
+    const small = await sharp(input, { animated })
       .resize({ width: 80, height: 80, fit: "cover", withoutEnlargement: true })
       .webp({ quality: 80 })
       .toBuffer();
@@ -300,15 +304,17 @@ export class StorageService {
 
   /**
    * Optimize and upload a user profile cover/banner
-   * Wide format (1920px max width)
+   * Wide format (1920px max width).
+   * Animated GIFs are converted to animated WebP automatically.
    */
   async uploadCover(
     buffer: ArrayBuffer,
-    folder: string
+    folder: string,
+    { animated = false }: { animated?: boolean } = {}
   ): Promise<{ path: string }> {
     const input = Buffer.from(buffer);
 
-    const optimized = await sharp(input)
+    const optimized = await sharp(input, { animated })
       .resize({ width: 1920, withoutEnlargement: true })
       .webp({ quality: 85 })
       .toBuffer();
@@ -319,31 +325,8 @@ export class StorageService {
     return { path };
   }
 
-  /**
-   * Upload a GIF avatar (Ultra only — skips Sharp, preserves animation)
-   */
-  async uploadGifAvatar(
-    buffer: ArrayBuffer,
-    folder: string,
-  ): Promise<{ path: string }> {
-    const input = Buffer.from(buffer);
-    const path = `${folder}/avatar.gif`;
-    await this.upload(input, path, "image/gif");
-    return { path };
-  }
-
-  /**
-   * Upload a GIF cover/banner (Ultra only — skips Sharp, preserves animation)
-   */
-  async uploadGifCover(
-    buffer: ArrayBuffer,
-    folder: string,
-  ): Promise<{ path: string }> {
-    const input = Buffer.from(buffer);
-    const path = `${folder}/cover.gif`;
-    await this.upload(input, path, "image/gif");
-    return { path };
-  }
+  // uploadGifAvatar and uploadGifCover removed — GIFs are now converted to
+  // animated WebP via uploadAvatar/uploadCover with { animated: true }.
 
   /**
    * Check if a file exists in B2

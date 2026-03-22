@@ -799,6 +799,75 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
   )
 
   /**
+   * GET /media/tmdb/:tmdbId/gallery?type=movie|series
+   * Returns videos, backdrops and posters from TMDB for a given tmdbId.
+   * Results are cached for 24h since they rarely change.
+   */
+  .get(
+    "/tmdb/:tmdbId/gallery",
+    async ({ params, query, set }) => {
+      const tmdbId = Number(params.tmdbId);
+      const type = (query.type ?? "movie") as "movie" | "series";
+      const TMDB_API_KEY = process.env.TMDB_API_KEY;
+
+      if (!TMDB_API_KEY) {
+        set.status = 503;
+        return { error: "TMDB not configured" };
+      }
+
+      const base = type === "movie" ? `movie/${tmdbId}` : `tv/${tmdbId}`;
+
+      const [imagesRes, videosRes] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/${base}/images?api_key=${TMDB_API_KEY}&include_image_language=en,null`),
+        fetch(`https://api.themoviedb.org/3/${base}/videos?api_key=${TMDB_API_KEY}&language=en-US`),
+      ]);
+
+      if (!imagesRes.ok || !videosRes.ok) {
+        set.status = 502;
+        return { error: "Failed to fetch from TMDB" };
+      }
+
+      const [images, videos] = await Promise.all([
+        imagesRes.json() as Promise<{
+          backdrops?: { file_path: string; width: number; height: number; vote_average: number }[];
+          posters?: { file_path: string; width: number; height: number; vote_average: number }[];
+        }>,
+        videosRes.json() as Promise<{
+          results?: { key: string; name: string; type: string; site: string; official: boolean; published_at: string }[];
+        }>,
+      ]);
+
+      return {
+        data: {
+          videos: (videos.results ?? [])
+            .filter((v) => v.site === "YouTube")
+            .sort((a, b) => {
+              // trailers and teasers first, then official, then by date
+              const typeOrder = ["Trailer", "Teaser", "Clip", "Featurette", "Behind the Scenes"];
+              const aIdx = typeOrder.indexOf(a.type);
+              const bIdx = typeOrder.indexOf(b.type);
+              if (aIdx !== bIdx) return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+              if (a.official !== b.official) return a.official ? -1 : 1;
+              return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+            }),
+          backdrops: (images.backdrops ?? [])
+            .sort((a, b) => b.vote_average - a.vote_average)
+            .slice(0, 50),
+          posters: (images.posters ?? [])
+            .sort((a, b) => b.vote_average - a.vote_average)
+            .slice(0, 50),
+        },
+      };
+    },
+    {
+      params: t.Object({ tmdbId: t.String() }),
+      query: t.Object({
+        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
+      }),
+    },
+  )
+
+  /**
    * GET /media/:id/reviews
    */
   .get(
