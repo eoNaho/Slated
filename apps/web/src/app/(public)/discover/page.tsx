@@ -4,7 +4,7 @@ import * as React from "react";
 import { api } from "@/lib/api";
 import { MediaGrid } from "@/components/common/media-grid";
 import { DiscoverFilters } from "@/components/discover/discover-filters";
-import { SearchResult } from "@/types";
+import type { SearchResult } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, LayoutGrid, Sparkles, Dices } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,9 +12,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AddToListModal } from "@/components/lists/AddToListModal";
 
 export default function DiscoverPage() {
-  const [items, setItems] = React.useState<any[]>([]);
-  const [genres, setGenres] = React.useState<any[]>([]);
-  const [streamingServices, setStreamingServices] = React.useState<any[]>([]);
+  const [items, setItems] = React.useState<SearchResult[]>([]);
+  const [genres, setGenres] = React.useState<{ id: number; name: string }[]>([]);
+  const [streamingServices, setStreamingServices] = React.useState<{ id: string; name: string; logoPath?: string | null }[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [page, setPage] = React.useState(1);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -28,7 +28,7 @@ export default function DiscoverPage() {
   const [isRoulette, setIsRoulette] = React.useState(false);
   const [rouletteCount, setRouletteCount] = React.useState(1);
   const [isSpinning, setIsSpinning] = React.useState(false);
-  const [listMedia, setListMedia] = React.useState<any>(null);
+  const [listMedia, setListMedia] = React.useState<SearchResult | null>(null);
 
   // Load initial static data (genres, streaming)
   React.useEffect(() => {
@@ -48,7 +48,7 @@ export default function DiscoverPage() {
   }, []);
 
   // Load results when filters or page changes
-  const loadResults = React.useCallback(async (pageNum: number, currentFilters: any, append = false) => {
+  const loadResults = React.useCallback(async (pageNum: number, currentFilters: typeof filters, append = false) => {
     if (isRoulette) return; // Don't auto-load in roulette mode
     setIsLoading(true);
     try {
@@ -56,7 +56,7 @@ export default function DiscoverPage() {
         page: pageNum,
         type: currentFilters.type === "all" ? undefined : currentFilters.type,
         genre: currentFilters.genre || undefined,
-        year: currentFilters.year || undefined,
+        year: currentFilters.year ? Number(currentFilters.year) : undefined,
         sortBy: currentFilters.sortBy,
         streaming: currentFilters.streaming || undefined,
       });
@@ -84,7 +84,7 @@ export default function DiscoverPage() {
         limit: rouletteCount,
         type: filters.type === "all" ? undefined : filters.type,
         genre: filters.genre || undefined,
-        year: filters.year || undefined,
+        year: filters.year ? Number(filters.year) : undefined,
         streaming: filters.streaming || undefined,
       });
       setItems(res.data);
@@ -268,7 +268,7 @@ export default function DiscoverPage() {
       <AnimatePresence>
         {listMedia && (
           <AddToListModal 
-            mediaId={listMedia.id}
+            mediaId={listMedia.localId ?? String(listMedia.id)}
             mediaTitle={listMedia.title}
             onClose={() => setListMedia(null)}
           />

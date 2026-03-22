@@ -663,7 +663,11 @@ export function SeasonsPanel({
           } else {
             const res = await api.series.getSeasonDetails(seriesId, seasonNumber);
             if (res.data?.episodes) {
-              fetched = res.data.episodes;
+              fetched = res.data.episodes.map((ep) => ({
+                ...ep,
+                title: ep.name,
+                seasonNumber,
+              }));
             }
           }
           setLoadedEpisodes((prev) => ({ ...prev, [seasonNumber]: fetched }));
