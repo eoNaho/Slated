@@ -11,10 +11,13 @@ import {
   ChevronRight,
   ShieldAlert,
   RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { resolveImage } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import Link from "next/link";
 import Image from "next/image";
 
 interface AdminUser {
@@ -26,7 +29,14 @@ interface AdminUser {
   status?: string | null;
   createdAt: string;
   image?: string | null;
+  avatarUrl?: string | null;
 }
+
+const ROLE_STYLES: Record<string, string> = {
+  admin: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+  moderator: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  user: "text-zinc-400 bg-zinc-800/60 border-zinc-700",
+};
 
 const STATUS_STYLES: Record<string, string> = {
   active: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -43,6 +53,7 @@ export function UsersTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [roleUpdating, setRoleUpdating] = useState<string | null>(null);
   const limit = 20;
 
   const load = useCallback(async () => {
@@ -87,6 +98,26 @@ export function UsersTable() {
       setError("Falha ao atualizar status.");
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const updateRole = async (
+    userId: string,
+    role: "user" | "moderator" | "admin",
+  ) => {
+    setRoleUpdating(userId);
+    try {
+      await apiFetch(`/admin/users/${userId}/role`, {
+        method: "PATCH",
+        body: { role },
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role } : u)),
+      );
+    } catch {
+      setError("Falha ao atualizar role.");
+    } finally {
+      setRoleUpdating(null);
     }
   };
 
@@ -139,7 +170,7 @@ export function UsersTable() {
       )}
 
       <div className="rounded-2xl border border-white/5 overflow-hidden bg-zinc-900/40">
-        <div className="grid grid-cols-[1fr_180px_100px_80px_160px] text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-white/5">
+        <div className="grid grid-cols-[1fr_180px_120px_80px_220px] text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-white/5">
           <div className="px-5 py-3">Usuário</div>
           <div className="px-4 py-3">Email</div>
           <div className="px-4 py-3">Role</div>
@@ -160,16 +191,18 @@ export function UsersTable() {
           users.map((u, i) => {
             const status = u.status || "active";
             const isUpdating = updating === u.id;
+            const isRoleUpdating = roleUpdating === u.id;
+            const avatarSrc = u.avatarUrl || u.image;
             return (
               <div
                 key={u.id}
-                className={`grid grid-cols-[1fr_180px_100px_80px_160px] border-b border-white/[0.03] last:border-0 ${i % 2 === 1 ? "bg-white/[0.01]" : ""}`}
+                className={`grid grid-cols-[1fr_180px_120px_80px_220px] border-b border-white/[0.03] last:border-0 ${i % 2 === 1 ? "bg-white/[0.01]" : ""}`}
               >
                 <div className="flex items-center gap-3 px-5 py-3.5">
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-                    {u.image ? (
+                  <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden relative">
+                    {avatarSrc ? (
                       <Image
-                        src={u.image}
+                        src={resolveImage(avatarSrc) ?? ""}
                         fill
                         alt=""
                         className="w-full h-full object-cover"
@@ -181,9 +214,12 @@ export function UsersTable() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
+                    <Link
+                      href={`/community/${u.id}`}
+                      className="text-sm font-medium text-white truncate hover:text-accent transition-colors block"
+                    >
                       {u.name || "—"}
-                    </p>
+                    </Link>
                     {u.username && (
                       <p className="text-xs text-zinc-500 truncate">
                         @{u.username}
@@ -197,11 +233,33 @@ export function UsersTable() {
                   </span>
                 </div>
                 <div className="flex items-center px-4 py-3.5">
-                  <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${u.role === "admin" ? "text-purple-400 bg-purple-500/10 border-purple-500/20" : "text-zinc-400 bg-zinc-800/60 border-zinc-700"}`}
-                  >
-                    {u.role}
-                  </span>
+                  {isRoleUpdating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                  ) : (
+                    <div className="relative group">
+                      <button
+                        className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${ROLE_STYLES[u.role] ?? ROLE_STYLES.user}`}
+                      >
+                        {u.role}
+                        <ChevronDown className="w-2.5 h-2.5 opacity-60" />
+                      </button>
+                      {u.role !== "admin" && (
+                        <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-20 bg-zinc-900 border border-white/10 rounded-lg shadow-xl overflow-hidden min-w-[110px]">
+                          {(["user", "moderator", "admin"] as const)
+                            .filter((r) => r !== u.role)
+                            .map((r) => (
+                              <button
+                                key={r}
+                                onClick={() => updateRole(u.id, r)}
+                                className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition-colors capitalize"
+                              >
+                                {r}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center px-4 py-3.5">
                   <span

@@ -1,15 +1,17 @@
 /**
  * Audit Log Service
- * Tracks important actions for security and compliance
+ * Tracks important actions for security and compliance.
+ * Persists to the audit_logs table in the database.
  */
 
-import { db, eq, desc } from "../db";
+import { db } from "../db";
+import { auditLogs } from "../db/schema/security";
+import { eq, desc } from "drizzle-orm";
 import { loggers } from "../utils/logger";
 
 const log = loggers.auth;
 
-// Audit log types
-type AuditAction =
+export type AuditAction =
   | "login"
   | "login_failed"
   | "logout"
@@ -20,7 +22,12 @@ type AuditAction =
   | "2fa_disabled"
   | "account_deleted"
   | "profile_updated"
-  | "admin_action";
+  | "admin_action"
+  | "admin_user_status_change"
+  | "admin_user_role_change"
+  | "admin_content_delete"
+  | "admin_report_resolve"
+  | "admin_feature_flag_update";
 
 interface AuditLogEntry {
   userId: string;
@@ -29,117 +36,78 @@ interface AuditLogEntry {
   entityId?: string;
   ipAddress?: string;
   userAgent?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
-
-// In-memory store (would be replaced with audit_logs table)
-const auditLogs: (AuditLogEntry & { id: string; createdAt: Date })[] = [];
 
 export class AuditService {
   /**
-   * Log an audit event
+   * Log an audit event to the database.
    */
   static async log(entry: AuditLogEntry): Promise<void> {
-    const logEntry = {
-      id: crypto.randomUUID(),
-      ...entry,
-      createdAt: new Date(),
-    };
+    try {
+      await db.insert(auditLogs).values({
+        userId: entry.userId,
+        action: entry.action,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        ipAddress: entry.ipAddress,
+        userAgent: entry.userAgent,
+        metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
+      });
+    } catch (err) {
+      // Never let audit logging crash the main request
+      log.warn({ err, action: entry.action }, "Audit log write failed");
+    }
 
-    auditLogs.push(logEntry);
-
-    // Also log to pino for immediate visibility
     log.info(
       {
         userId: entry.userId,
         action: entry.action,
-        entity: entry.entityType
-          ? `${entry.entityType}:${entry.entityId}`
-          : undefined,
+        entity: entry.entityType ? `${entry.entityType}:${entry.entityId}` : undefined,
         ip: entry.ipAddress,
       },
       `Audit: ${entry.action}`
     );
-
-    // In production, insert to audit_logs table:
-    // await db.insert(auditLogs).values(logEntry)
   }
 
   /**
-   * Get audit logs for a user
+   * Get recent audit logs (admin view).
    */
-  static async getByUser(
-    userId: string,
-    limit: number = 50
-  ): Promise<typeof auditLogs> {
-    return auditLogs
-      .filter((l) => l.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+  static async getRecent(limit = 100) {
+    return db
+      .select()
+      .from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   }
 
   /**
-   * Get recent audit logs (admin)
+   * Get audit logs for a specific user.
    */
-  static async getRecent(limit: number = 100): Promise<typeof auditLogs> {
-    return auditLogs
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+  static async getByUser(userId: string, limit = 50) {
+    return db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.userId, userId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   }
 
-  /**
-   * Helper: Log login
-   */
-  static async logLogin(
-    userId: string,
-    success: boolean,
-    ip?: string,
-    ua?: string
-  ): Promise<void> {
-    await this.log({
-      userId,
-      action: success ? "login" : "login_failed",
-      ipAddress: ip,
-      userAgent: ua,
-    });
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  static async logLogin(userId: string, success: boolean, ip?: string, ua?: string) {
+    await this.log({ userId, action: success ? "login" : "login_failed", ipAddress: ip, userAgent: ua });
   }
 
-  /**
-   * Helper: Log registration
-   */
-  static async logRegister(
-    userId: string,
-    ip?: string,
-    ua?: string
-  ): Promise<void> {
-    await this.log({
-      userId,
-      action: "register",
-      entityType: "user",
-      entityId: userId,
-      ipAddress: ip,
-      userAgent: ua,
-    });
+  static async logRegister(userId: string, ip?: string, ua?: string) {
+    await this.log({ userId, action: "register", entityType: "user", entityId: userId, ipAddress: ip, userAgent: ua });
   }
 
-  /**
-   * Helper: Log password change
-   */
-  static async logPasswordChange(userId: string, ip?: string): Promise<void> {
-    await this.log({
-      userId,
-      action: "password_change",
-      ipAddress: ip,
-    });
+  static async logPasswordChange(userId: string, ip?: string) {
+    await this.log({ userId, action: "password_change", ipAddress: ip });
   }
 
-  /**
-   * Helper: Log 2FA status change
-   */
-  static async log2FAChange(userId: string, enabled: boolean): Promise<void> {
-    await this.log({
-      userId,
-      action: enabled ? "2fa_enabled" : "2fa_disabled",
-    });
+  static async log2FAChange(userId: string, enabled: boolean) {
+    await this.log({ userId, action: enabled ? "2fa_enabled" : "2fa_disabled" });
   }
 }

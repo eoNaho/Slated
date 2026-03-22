@@ -12,7 +12,7 @@ interface MediaItem {
   title: string;
   type: "movie" | "series";
   year?: number | null;
-  posterUrl?: string | null;
+  posterPath?: string | null;
   rating?: number | null;
 }
 
@@ -35,10 +35,9 @@ export function ContentGrid() {
         limit: String(limit),
       });
       if (search) params.set("q", search);
-      const res = await apiFetch<any>(`/media?${params}`);
-      const data = res.data ?? res;
-      setItems(Array.isArray(data) ? data : []);
-      setTotal(res.total ?? res.pagination?.total ?? 0);
+      const res = await apiFetch<any>(`/media/library?${params}`);
+      setItems(Array.isArray(res.data) ? res.data : []);
+      setTotal(res.total ?? 0);
     } catch {
       setError("Falha ao carregar mídias.");
     } finally {
@@ -111,9 +110,9 @@ export function ContentGrid() {
             {items.map((item) => (
               <div key={item.id} className="space-y-2">
                 <div className="aspect-[2/3] rounded-xl overflow-hidden bg-zinc-800 border border-white/5 relative">
-                  {item.posterUrl ? (
+                  {item.posterPath ? (
                     <Image
-                      src={item.posterUrl}
+                      src={item.posterPath}
                       fill
                       alt={item.title}
                       className="w-full h-full object-cover"

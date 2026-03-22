@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { resolveImage } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   Command,
   Shield,
+  Activity,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -20,9 +22,10 @@ interface AdminUser {
   username?: string;
   email?: string;
   avatarUrl?: string;
+  role?: string;
 }
 
-const NAV_ITEMS = [
+const STAFF_NAV = [
   { label: "Overview", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Community", icon: Users, href: "/community" },
   { label: "Clubs", icon: Zap, href: "/clubs" },
@@ -32,11 +35,18 @@ const NAV_ITEMS = [
   { label: "Infrastructure", icon: ShieldCheck, href: "/system" },
 ];
 
-export function Sidebar({ admin }: { admin?: AdminUser }) {
-  const pathname = usePathname();
+const ADMIN_ONLY_NAV = [
+  { label: "Audit Logs", icon: Activity, href: "/audit-logs" },
+];
 
-  const displayName =
-    admin?.displayName || admin?.username || admin?.email || "Admin";
+export function Sidebar({ admin }: { admin?: AdminUser | null }) {
+  const pathname = usePathname();
+  const isAdmin = admin?.role === "admin";
+
+  const displayName = admin?.displayName || admin?.username || admin?.email || "Admin";
+  const roleLabel = admin?.role === "admin" ? "Admin" : admin?.role === "moderator" ? "Moderador" : "Staff";
+
+  const navItems = isAdmin ? [...STAFF_NAV, ...ADMIN_ONLY_NAV] : STAFF_NAV;
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-20 lg:w-64 flex flex-col z-50 transition-all duration-500 border-r border-white/5 bg-zinc-950/40 backdrop-blur-xl">
@@ -60,10 +70,10 @@ export function Sidebar({ admin }: { admin?: AdminUser }) {
       </div>
 
       {/* Navigation */}
-      <nav className="relative flex-1 px-4 lg:px-6 mt-6 space-y-1">
-        {NAV_ITEMS.map((item) => {
+      <nav className="relative flex-1 px-4 lg:px-6 mt-6 space-y-1 overflow-y-auto">
+        {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
           return (
             <Link
@@ -89,21 +99,23 @@ export function Sidebar({ admin }: { admin?: AdminUser }) {
         })}
       </nav>
 
-      {/* Management Profile */}
+      {/* Profile area */}
       <div className="relative p-6 border-t border-white/5 space-y-4">
-        <Link
-          href="/settings"
-          className="flex items-center gap-4 p-3 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors"
-        >
-          <Settings className="w-5 h-5" />
-          <span className="hidden lg:block text-sm font-medium">Settings</span>
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/settings"
+            className="flex items-center gap-4 p-3 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors"
+          >
+            <Settings className="w-5 h-5" />
+            <span className="hidden lg:block text-sm font-medium">Settings</span>
+          </Link>
+        )}
 
         <div className="hidden lg:flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center relative">
             {admin?.avatarUrl ? (
               <Image
-                src={admin.avatarUrl}
+                src={resolveImage(admin.avatarUrl) ?? ""}
                 fill
                 alt={displayName}
                 className="w-full h-full object-cover"
@@ -118,7 +130,7 @@ export function Sidebar({ admin }: { admin?: AdminUser }) {
             <p className="text-sm font-semibold text-white truncate">
               {displayName}
             </p>
-            <p className="text-xs text-zinc-500 truncate">System Access</p>
+            <p className="text-xs text-zinc-500 truncate">{roleLabel}</p>
           </div>
         </div>
       </div>

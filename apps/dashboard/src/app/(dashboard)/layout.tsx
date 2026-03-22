@@ -13,7 +13,8 @@ async function getAdminSession() {
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return data?.user?.role === "admin" ? data.user : null;
+    const role = data?.user?.role;
+    return role === "admin" || role === "moderator" ? data.user : null;
   } catch {
     return null;
   }

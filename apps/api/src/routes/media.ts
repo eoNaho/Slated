@@ -11,6 +11,7 @@ import {
   streamingServices,
   eq,
   and,
+  ilike,
   desc,
   count,
 } from "../db";
@@ -453,39 +454,21 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
     "/library",
     async ({ query }) => {
       const type = query.type as "movie" | "series" | undefined;
+      const q = query.q?.trim() || "";
       const page = Math.max(1, Number(query.page) || 1);
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
 
-      // Build query
-      let results;
-      let total;
+      const conditions = [];
+      if (type) conditions.push(eq(media.type, type));
+      if (q) conditions.push(ilike(media.title, `%${q}%`));
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-      if (type) {
-        results = await db
-          .select()
-          .from(media)
-          .where(eq(media.type, type))
-          .orderBy(desc(media.popularity))
-          .limit(limit)
-          .offset(offset);
-
-        const [countResult] = await db
-          .select({ total: count() })
-          .from(media)
-          .where(eq(media.type, type));
-        total = countResult.total;
-      } else {
-        results = await db
-          .select()
-          .from(media)
-          .orderBy(desc(media.popularity))
-          .limit(limit)
-          .offset(offset);
-
-        const [countResult] = await db.select({ total: count() }).from(media);
-        total = countResult.total;
-      }
+      const [results, [countResult]] = await Promise.all([
+        db.select().from(media).where(where).orderBy(desc(media.popularity)).limit(limit).offset(offset),
+        db.select({ total: count() }).from(media).where(where),
+      ]);
+      const total = countResult.total;
 
       // Resolve image URLs
       const data = results.map((item) => ({
@@ -507,6 +490,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
     {
       query: t.Object({
         type: t.Optional(t.String()),
+        q: t.Optional(t.String()),
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         sortBy: t.Optional(t.String()),

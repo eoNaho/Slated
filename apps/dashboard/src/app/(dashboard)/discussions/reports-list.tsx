@@ -3,26 +3,41 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   MessageSquare, CheckCircle, XCircle, Loader2,
-  RefreshCw, AlertTriangle, Clock,
+  RefreshCw, AlertTriangle, Clock, ArrowRight,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { resolveImage } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import Link from "next/link";
+import Image from "next/image";
 
-interface Report {
+interface Reporter {
   id: string;
-  targetType: string;
-  targetId: string;
-  reason: string;
-  description?: string | null;
-  status: "pending" | "resolved" | "dismissed";
-  createdAt: string;
+  displayName: string | null;
+  username: string | null;
+  avatarUrl: string | null;
 }
 
-type StatusFilter = "pending" | "resolved" | "dismissed";
+interface Report {
+  report: {
+    id: string;
+    targetType: string;
+    targetId: string;
+    reason: string;
+    description?: string | null;
+    status: string;
+    priority: string;
+    createdAt: string;
+  };
+  reporter: Reporter | null;
+}
+
+type StatusFilter = "pending" | "investigating" | "resolved" | "dismissed";
 
 const STATUS_TABS: { key: StatusFilter; label: string }[] = [
   { key: "pending", label: "Pendentes" },
+  { key: "investigating", label: "Investigando" },
   { key: "resolved", label: "Resolvidos" },
   { key: "dismissed", label: "Descartados" },
 ];
@@ -43,7 +58,7 @@ export function ReportsList() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ data: Report[] }>(`/admin/reports?status=${statusFilter}`);
+      const res = await apiFetch<{ data: Report[] }>(`/admin/reports?status=${statusFilter}&limit=30`);
       setReports(res.data);
     } catch {
       setError("Falha ao carregar reports.");
@@ -58,7 +73,7 @@ export function ReportsList() {
     setResolving(id);
     try {
       await apiFetch(`/admin/reports/${id}/resolve`, { method: "PATCH", body: { status } });
-      setReports((prev) => prev.filter((r) => r.id !== id));
+      setReports((prev) => prev.filter((r) => r.report.id !== id));
     } catch {
       setError("Falha ao resolver report.");
     } finally {
@@ -110,7 +125,7 @@ export function ReportsList() {
         </div>
       ) : (
         <div className="space-y-3">
-          {reports.map((report) => (
+          {reports.map(({ report, reporter }) => (
             <div key={report.id} className="glass-card rounded-2xl p-5 flex gap-4 items-start">
               <div className="shrink-0 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -123,28 +138,54 @@ export function ReportsList() {
                   </span>
                   <span className="text-xs text-zinc-600 font-mono">{report.targetId.slice(0, 8)}…</span>
                 </div>
+                {reporter && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-zinc-800 overflow-hidden relative shrink-0">
+                      {reporter.avatarUrl ? (
+                        <Image src={resolveImage(reporter.avatarUrl) ?? ""} fill alt="" className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-[8px] font-bold text-zinc-400">
+                            {(reporter.displayName || reporter.username)?.[0]?.toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-zinc-500">
+                      {reporter.displayName || reporter.username || "Usuário desconhecido"}
+                    </span>
+                  </div>
+                )}
                 {report.description && <p className="text-sm text-zinc-400 line-clamp-2">{report.description}</p>}
                 <div className="flex items-center gap-1.5 text-xs text-zinc-600">
                   <Clock className="w-3 h-3" />
                   {formatDate(report.createdAt)}
                 </div>
               </div>
-              {statusFilter === "pending" && (
-                <div className="shrink-0 flex items-center gap-2">
-                  {resolving === report.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
-                  ) : (
-                    <>
-                      <button onClick={() => resolve(report.id, "resolved")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-                        <CheckCircle className="w-3.5 h-3.5" /> Resolver
-                      </button>
-                      <button onClick={() => resolve(report.id, "dismissed")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                        <XCircle className="w-3.5 h-3.5" /> Descartar
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+              <div className="shrink-0 flex items-center gap-2">
+                <Link
+                  href={`/discussions/${report.id}`}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                {(statusFilter === "pending" || statusFilter === "investigating") && (
+                  <>
+                    {resolving === report.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                    ) : (
+                      <>
+                        <button onClick={() => resolve(report.id, "resolved")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+                          <CheckCircle className="w-3.5 h-3.5" /> Resolver
+                        </button>
+                        <button onClick={() => resolve(report.id, "dismissed")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                          <XCircle className="w-3.5 h-3.5" /> Descartar
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>

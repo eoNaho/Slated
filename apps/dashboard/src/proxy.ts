@@ -11,6 +11,7 @@ const PROTECTED_PATHS = [
   "/discussions",
   "/premium",
   "/system",
+  "/audit-logs",
 ];
 
 export async function proxy(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function proxy(request: NextRequest) {
 
     if (res.ok) {
       const data = await res.json();
-      if (data?.user?.role === "admin") {
+      if (data?.user?.role === "admin" || data?.user?.role === "moderator") {
         return NextResponse.next();
       }
     }
@@ -50,5 +51,6 @@ export const config = {
     "/discussions/:path*",
     "/premium/:path*",
     "/system/:path*",
+    "/audit-logs/:path*",
   ],
 };
