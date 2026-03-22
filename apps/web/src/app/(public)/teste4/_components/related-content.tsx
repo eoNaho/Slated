@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,10 +39,11 @@ export function RelatedContent({ related, title }: RelatedContentProps) {
         {related.map((item, index) => (
           <div key={index} className="group">
             <div className="aspect-[2/3] overflow-hidden rounded-md mb-2 relative bg-zinc-800">
-              <img
+              <Image
+                fill
                 src={item.poster || "/placeholder.svg"}
                 alt={item.title}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                className="object-cover transition-transform group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 

@@ -16,6 +16,7 @@ import {
 import { formatRuntime } from "@/lib/utils";
 import { getMovie, getPopularReviews, getSimilarFilms, getPopularLists } from "@/lib/queries/media";
 import { MovieActions } from "@/components/movies/movie-actions";
+import { MoviePoster } from "@/components/movies/movie-poster";
 import { CastCarousel } from "@/components/movies/cast-carousel";
 import { SimilarFilmsCarousel } from "@/components/movies/similar-films-carousel";
 import { WriteReviewButton } from "@/components/movies/write-review-button";
@@ -171,20 +172,11 @@ export default async function MoviePage({ params }: PageProps) {
                   boxShadow: "0 20px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)",
                 }}
               >
-                {movie.posterPath ? (
-                  <Image
-                    src={movie.posterPath}
-                    alt={movie.title}
-                    fill
-                    className="object-cover"
-                    priority
-                    sizes="(max-width: 1024px) 200px, 256px"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                    <Film className="h-16 w-16 text-zinc-800" />
-                  </div>
-                )}
+                <MoviePoster
+                  movieId={movie.id}
+                  title={movie.title}
+                  defaultPosterPath={movie.posterPath}
+                />
               </div>
             </div>
 
@@ -231,10 +223,11 @@ export default async function MoviePage({ params }: PageProps) {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center border border-white/5 overflow-hidden shrink-0">
                           {mapping.service.logoPath ? (
-                            <img 
+                            <Image 
                               src={mapping.service.logoPath} 
                               alt={mapping.service.name}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              fill
                             />
                           ) : (
                             <Play className="h-4 w-4 text-amber-400 fill-amber-400/20" />

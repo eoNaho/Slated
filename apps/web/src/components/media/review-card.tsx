@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Star, Heart, MessageCircle, Share2 } from "lucide-react";
 
 interface Review {
@@ -22,12 +23,12 @@ export function ReviewCard({ review }: ReviewCardProps) {
   return (
     <div className="bg-zinc-900/40 border border-white/5 rounded-xl p-5 hover:bg-zinc-900 hover:border-zinc-700 hover:shadow-lg transition-all group cursor-pointer h-full focus-within:ring-1 focus-within:ring-purple-500">
       <div className="flex gap-4">
-        <div className="flex-shrink-0 w-16 h-24 rounded-md overflow-hidden bg-zinc-800 shadow-lg">
-          <img
+        <div className="relative flex-shrink-0 w-16 h-24 rounded-md overflow-hidden bg-zinc-800 shadow-lg">
+          <Image
+            fill
             src={review.poster}
             alt={`Poster of ${review.movieTitle}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
+            className="object-cover"
           />
         </div>
 
@@ -38,11 +39,9 @@ export function ReviewCard({ review }: ReviewCardProps) {
                 {review.movieTitle}
               </h4>
               <div className="flex items-center gap-2 mt-1">
-                <img
-                  src={review.user.avatar}
-                  alt=""
-                  className="w-5 h-5 rounded-full border border-white/10"
-                />
+                <div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/10">
+                  <Image fill src={review.user.avatar} alt="" className="object-cover" />
+                </div>
                 <span className="text-xs text-zinc-400">
                   Review by{" "}
                   <span className="text-zinc-200 font-medium">

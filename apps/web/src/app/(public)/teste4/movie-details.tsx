@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -148,13 +149,14 @@ export function MovieDetails({ details }: MovieDetailsProps) {
           <div className="flex flex-col md:flex-row gap-8 w-full">
             {/* Poster */}
             <div className="w-48 md:w-64 flex-shrink-0 transform hover:scale-105 transition-transform duration-300 hidden md:block">
-              <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border-2 border-white/20">
-                <img
+              <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border-2 border-white/20">
+                <Image
+                  fill
                   src={
                     details.poster || details.posterUrl || "/placeholder.svg"
                   }
                   alt={details.title}
-                  className="w-full h-full object-cover"
+                  className="object-cover"
                 />
               </div>
             </div>
@@ -408,14 +410,15 @@ export function MovieDetails({ details }: MovieDetailsProps) {
                         {details.cast.slice(0, 4).map((person, index) => (
                           <div key={index} className="group">
                             <div className="aspect-[2/3] overflow-hidden rounded-md mb-2 relative">
-                              <img
+                              <Image
+                                fill
                                 src={
                                   person.profilePath ||
                                   person.profilePhoto ||
                                   "/placeholder.svg"
                                 }
                                 alt={person.name}
-                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                className="object-cover transition-transform group-hover:scale-105"
                               />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                             </div>
@@ -486,11 +489,14 @@ export function MovieDetails({ details }: MovieDetailsProps) {
                               key={index}
                               className="aspect-square bg-white/10 rounded-md flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer border border-white/10"
                             >
-                              <img
-                                src={service.logo || "/placeholder.svg"}
-                                alt={service.name}
-                                className="w-10 h-10 object-contain"
-                              />
+                              <div className="relative w-10 h-10 overflow-hidden">
+                                <Image
+                                  fill
+                                  src={service.logo || "/placeholder.svg"}
+                                  alt={service.name}
+                                  className="object-contain"
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -714,10 +720,11 @@ export function MovieDetails({ details }: MovieDetailsProps) {
                           key={index}
                           className="aspect-video rounded-lg overflow-hidden group relative"
                         >
-                          <img
+                          <Image
+                            fill
                             src={image || "/placeholder.svg"}
                             alt={`${details.title} - Imagem ${index + 1}`}
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            className="object-cover transition-transform group-hover:scale-105"
                           />
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <Button variant="ghost" size="icon">

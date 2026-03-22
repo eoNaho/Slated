@@ -18,6 +18,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { mediaApi, searchApi } from "@/lib/api";
 import type { SearchResult } from "@/types";
+import { resolveImage } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -164,7 +165,7 @@ function UserCard({
     >
       {user.avatarUrl ? (
         <Image
-          src={user.avatarUrl}
+          src={resolveImage(user.avatarUrl) || ""}
           alt={user.username}
           width={40}
           height={40}
@@ -362,7 +363,7 @@ function SearchPageInner() {
 
   const handleMediaClick = async (item: SearchResult) => {
     const segment = item.mediaType === "movie" ? "movies" : "series";
-    
+
     // 1. Prioridade: Slug local já conhecido
     if (item.isLocal && item.localSlug) {
       router.push(`/${segment}/${item.localSlug}`);
@@ -500,9 +501,11 @@ function SearchPageInner() {
                   Pessoas
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: activeTab === "all" ? 3 : 9 }).map((_, i) => (
-                    <SkeletonUserCard key={i} />
-                  ))}
+                  {Array.from({ length: activeTab === "all" ? 3 : 9 }).map(
+                    (_, i) => (
+                      <SkeletonUserCard key={i} />
+                    ),
+                  )}
                 </div>
               </section>
             )}
@@ -511,7 +514,11 @@ function SearchPageInner() {
                 {/* CORREÇÃO: Título mantido no skeleton para evitar layout shift */}
                 <h2 className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 opacity-50">
                   <Film className="h-3.5 w-3.5" />
-                  {activeTab === "movie" ? "Filmes" : activeTab === "series" ? "Séries" : "Filmes & Séries"}
+                  {activeTab === "movie"
+                    ? "Filmes"
+                    : activeTab === "series"
+                      ? "Séries"
+                      : "Filmes & Séries"}
                 </h2>
                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-6">
                   {Array.from({ length: 14 }).map((_, i) => (
@@ -559,7 +566,11 @@ function SearchPageInner() {
                 {/* CORREÇÃO: Título é sempre exibido, texto ajusta-se à aba */}
                 <h2 className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                   <Film className="h-3.5 w-3.5" />
-                  {activeTab === "movie" ? "Filmes" : activeTab === "series" ? "Séries" : "Filmes & Séries"}
+                  {activeTab === "movie"
+                    ? "Filmes"
+                    : activeTab === "series"
+                      ? "Séries"
+                      : "Filmes & Séries"}
                 </h2>
                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-4 gap-y-8 pt-2">
                   {mediaResults.map((item) => (

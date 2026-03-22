@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Search,
   Star,
@@ -277,14 +278,19 @@ export default function MovieReviewApp() {
             {/* HER0 SECTION */}
             <div className="relative w-full h-[85vh] md:h-[90vh] overflow-hidden">
               {/* Backdrop Image */}
-              <motion.img
+              <motion.div
                 initial={{ scale: 1.1 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 10, ease: "linear" }}
-                src={selectedMovie.backdrop}
-                alt={selectedMovie.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
+                className="absolute inset-0"
+              >
+                <Image
+                  fill
+                  src={selectedMovie.backdrop}
+                  alt={selectedMovie.title}
+                  className="object-cover"
+                />
+              </motion.div>
               {/* Gradients */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#14181c] via-[#14181c]/60 to-transparent"></div>
               <div className="absolute inset-0 bg-gradient-to-r from-[#14181c] via-transparent to-transparent opacity-80"></div>
@@ -298,11 +304,14 @@ export default function MovieReviewApp() {
                   transition={{ delay: 0.2, duration: 0.6 }}
                   className="hidden md:block shrink-0 relative group"
                 >
-                  <img
-                    src={selectedMovie.image}
-                    alt={selectedMovie.title}
-                    className="w-56 rounded-md shadow-2xl border border-white/10 group-hover:scale-105 transition-transform duration-500 ease-out"
-                  />
+                  <div className="relative w-56 aspect-[2/3] rounded-md shadow-2xl border border-white/10 overflow-hidden group-hover:scale-105 transition-transform duration-500 ease-out">
+                    <Image
+                      fill
+                      src={selectedMovie.image}
+                      alt={selectedMovie.title}
+                      className="object-cover"
+                    />
+                  </div>
                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-white text-xs font-bold flex items-center gap-1">
                     <Star size={12} className="fill-green-500 text-green-500" />{" "}
                     {selectedMovie.rating}
@@ -392,10 +401,14 @@ export default function MovieReviewApp() {
                 <div className="bg-[#1c2229] border border-gray-800 rounded-lg p-8 shadow-2xl">
                   <div className="flex items-start gap-4">
                     <div className="shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 p-[2px]">
-                      <img
-                        src={selectedMovie.authorImg}
-                        className="w-full h-full rounded-full border-2 border-[#1c2229]"
-                      />
+                      <div className="relative w-full h-full rounded-full overflow-hidden border-2 border-[#1c2229]">
+                        <Image
+                          fill
+                          src={selectedMovie.authorImg}
+                          alt={selectedMovie.author}
+                          className="object-cover"
+                        />
+                      </div>
                     </div>
                     <div className="flex-1 space-y-4">
                       <div className="flex justify-between items-baseline border-b border-gray-800 pb-4">
@@ -589,9 +602,11 @@ export default function MovieReviewApp() {
                     className="bg-[#1c2229] rounded-lg overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300"
                   >
                     <div className="relative aspect-[2/3] overflow-hidden">
-                      <img
+                      <Image
+                        fill
                         src={movie.image}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        alt={movie.title}
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
                     </div>
@@ -666,10 +681,11 @@ export default function MovieReviewApp() {
                 >
                   <div className="flex h-full">
                     <div className="w-1/3 relative overflow-hidden">
-                      <img
+                      <Image
+                        fill
                         src={movie.image}
                         alt={movie.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <div className="absolute top-2 left-2 bg-black/70 px-1.5 py-0.5 rounded text-[10px] font-bold text-white border border-white/20">
                         {movie.year}

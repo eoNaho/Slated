@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import {
   X,
@@ -166,11 +167,12 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
           style={{ height: 112 }}
         >
           {media.posterPath && (
-            <img
+            <Image
+              fill
               src={resolveImage(media.posterPath) ?? ""}
               alt=""
               aria-hidden
-              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30"
+              className="object-cover scale-110 blur-2xl opacity-30"
             />
           )}
           <div
@@ -191,15 +193,20 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
 
           <div className="absolute bottom-4 left-4 right-12 flex items-end gap-3">
             {media.posterPath && (
-              <img
-                src={resolveImage(media.posterPath) ?? ""}
-                alt={media.title}
-                className="w-14 h-20 object-cover rounded-lg shadow-xl flex-shrink-0"
+              <div
+                className="relative w-14 h-20 rounded-lg flex-shrink-0 overflow-hidden"
                 style={{
                   boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
                   outline: "1px solid rgba(255,255,255,0.1)",
                 }}
-              />
+              >
+                <Image
+                  fill
+                  src={resolveImage(media.posterPath) ?? ""}
+                  alt={media.title}
+                  className="object-cover"
+                />
+              </div>
             )}
             <div className="flex-1 min-w-0 pb-0.5">
               <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-500 mb-1">

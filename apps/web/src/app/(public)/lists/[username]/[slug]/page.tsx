@@ -22,12 +22,14 @@ import Link from "next/link";
 import { resolveImage } from "@/lib/utils";
 import { MediaSearchInput } from "@/components/media/media-search-input";
 import { toast } from "sonner";
+import { ListDetails, SearchResult } from "@/types";
+import Image from "next/image";
 
 export default function ListDetailPageBySlug() {
   const { username, slug } = useParams();
   const router = useRouter();
   const { data: session } = useSession();
-  const [list, setList] = React.useState<any>(null);
+  const [list, setList] = React.useState<ListDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -37,20 +39,28 @@ export default function ListDetailPageBySlug() {
       const res = await api.lists.getBySlug(username as string, slug as string);
       setList(res.data);
     } catch (err) {
-      console.error("Failed to load list", err);
+      console.error("Falha ao carregar a lista", err);
     } finally {
       setIsLoading(false);
     }
   }, [username, slug]);
 
-  const handleAddMedia = async (mediaItem: any) => {
+  const handleAddMedia = async (
+    mediaItem: Pick<
+      SearchResult,
+      "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"
+    > | null,
+  ) => {
     if (!mediaItem || !list) return;
     try {
-      await api.lists.addItem(list.id, mediaItem.id || mediaItem.localId);
-      toast.success(`${mediaItem.title} added to list`);
+      await api.lists.addItem(
+        list.id,
+        mediaItem.localId ?? String(mediaItem.id),
+      );
+      toast.success(`${mediaItem.title} adicionado à lista`);
       loadList();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add media");
+    } catch (err) {
+      toast.error((err as Error).message || "Falha ao adicionar media");
     }
   };
 
@@ -59,24 +69,24 @@ export default function ListDetailPageBySlug() {
   }, [loadList]);
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this list?")) return;
+    if (!confirm("Tem a certeza que deseja eliminar esta lista?")) return;
     setIsDeleting(true);
     try {
-      await api.lists.delete(list.id);
+      await api.lists.delete(list!.id);
       router.push(`/profile/${session?.user.username}?tab=lists`);
     } catch (err) {
-      console.error("Failed to delete list", err);
+      console.error("Falha ao eliminar a lista", err);
       setIsDeleting(false);
     }
   };
 
-  const handleRemoveItem = async (media: any) => {
-    if (!confirm(`Remove "${media.title}" from this list?`)) return;
+  const handleRemoveItem = async (media: { id: string; title: string }) => {
+    if (!confirm(`Remover "${media.title}" desta lista?`)) return;
     try {
-      await api.lists.removeItem(list.id, media.id);
+      await api.lists.removeItem(list!.id, media.id);
       loadList();
     } catch (err) {
-      console.error("Failed to remove item", err);
+      console.error("Falha ao remover item", err);
     }
   };
 
@@ -97,9 +107,11 @@ export default function ListDetailPageBySlug() {
           <ListIcon className="w-10 h-10" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-white">List not found</h1>
+          <h1 className="text-2xl font-bold text-white">
+            Lista não encontrada
+          </h1>
           <p className="text-zinc-500">
-            The list you are looking for doesn't exist or is private.
+            A lista que procura não existe ou é privada.
           </p>
         </div>
         <Button
@@ -107,7 +119,7 @@ export default function ListDetailPageBySlug() {
           variant="ghost"
           className="text-zinc-400"
         >
-          Go Back
+          Voltar
         </Button>
       </div>
     );
@@ -125,7 +137,7 @@ export default function ListDetailPageBySlug() {
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mb-8 text-sm font-bold group"
           >
             <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            BACK
+            VOLTAR
           </button>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -138,7 +150,7 @@ export default function ListDetailPageBySlug() {
                     <Lock className="w-3.5 h-3.5 text-amber-500" />
                   )}
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60">
-                    {list.isPublic ? "Public" : "Private"}
+                    {list.isPublic ? "Pública" : "Privada"}
                   </span>
                 </div>
                 <div className="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center gap-1.5">
@@ -161,28 +173,30 @@ export default function ListDetailPageBySlug() {
 
               <div className="flex items-center gap-6 pt-4">
                 <Link
-                  href={`/profile/${list.user.username}`}
+                  href={`/profile/${list.user?.username}`}
                   className="flex items-center gap-2 group"
                 >
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden ring-2 ring-white/5">
-                    {list.user.avatarUrl ? (
-                      <img
-                        src={resolveImage(list.user.avatarUrl) || ""}
-                        alt={list.user.username}
+                  {/* ADICIONADO 'relative' AQUI NA DIV DO AVATAR */}
+                  <div className="relative w-8 h-8 rounded-full bg-zinc-800 overflow-hidden ring-2 ring-white/5">
+                    {list.user?.avatarUrl ? (
+                      <Image
+                        fill
+                        src={resolveImage(list.user?.avatarUrl ?? null) || ""}
+                        alt={list.user?.username ?? ""}
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-purple-500/20 text-xs font-black text-purple-400">
-                        {list.user.username[0].toUpperCase()}
+                        {list.user?.username?.[0]?.toUpperCase()}
                       </div>
                     )}
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] text-zinc-500 font-black uppercase tracking-tight">
-                      Curated by
+                      Curado por
                     </span>
                     <span className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">
-                      @{list.user.username}
+                      @{list.user?.username}
                     </span>
                   </div>
                 </Link>
@@ -191,23 +205,23 @@ export default function ListDetailPageBySlug() {
 
                 <div className="flex flex-col">
                   <span className="text-[10px] text-zinc-500 font-black uppercase tracking-tight">
-                    Collection
+                    Coleção
                   </span>
                   <span className="text-sm font-bold text-white">
-                    {list.itemsCount} Items
+                    {list.itemsCount} Itens
                   </span>
                 </div>
               </div>
 
-              {/* Add Media Search (Only for Owner) */}
+              {/* Adicionar Media (Apenas para o Dono) */}
               {isOwner && (
                 <div className="pt-8 max-w-lg">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
-                      Add to this list
+                      Adicionar a esta lista
                     </label>
                     <MediaSearchInput
-                      placeholder="Search for more films or series..."
+                      placeholder="Procurar por mais filmes ou séries..."
                       onChange={handleAddMedia}
                       className="bg-white/5 border-white/10"
                     />
@@ -224,7 +238,7 @@ export default function ListDetailPageBySlug() {
                     className="h-12 px-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold gap-2"
                   >
                     <Edit2 className="w-4 h-4" />
-                    Edit
+                    Editar
                   </Button>
                   <Button
                     onClick={handleDelete}
@@ -236,13 +250,13 @@ export default function ListDetailPageBySlug() {
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}
-                    Delete
+                    Eliminar
                   </Button>
                 </>
               ) : (
                 <Button className="h-12 px-6 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold gap-2">
                   <Share2 className="w-4 h-4" />
-                  Share List
+                  Partilhar Lista
                 </Button>
               )}
             </div>
@@ -253,7 +267,7 @@ export default function ListDetailPageBySlug() {
       {/* List Content */}
       <div className="container mx-auto px-6 pt-12">
         <MediaGrid
-          items={list.items.map((i: any) => ({ ...i.media, id: i.mediaId }))}
+          items={list.items.map((i) => ({ ...i.media, id: i.mediaId }))}
           onRemove={isOwner ? handleRemoveItem : undefined}
         />
 
@@ -262,15 +276,15 @@ export default function ListDetailPageBySlug() {
             <LayoutGrid className="w-12 h-12 text-zinc-700" />
             <div className="space-y-1">
               <p className="text-lg font-bold text-white/40">
-                This list is empty
+                Esta lista está vazia
               </p>
               <p className="text-sm text-zinc-600">
-                Start discovery to add some media here.
+                Comece a explorar para adicionar alguma media aqui.
               </p>
             </div>
             <Link href="/discover">
               <Button className="mt-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold h-11 px-8">
-                Go Discover
+                Ir Descobrir
               </Button>
             </Link>
           </div>
@@ -279,7 +293,16 @@ export default function ListDetailPageBySlug() {
 
       {showEditModal && (
         <CreateListModal
-          initialData={list}
+          initialData={
+            list
+              ? {
+                  id: list.id,
+                  name: list.name,
+                  description: list.description ?? null,
+                  isPublic: list.isPublic,
+                }
+              : undefined
+          }
           onClose={() => setShowEditModal(false)}
           onSuccess={loadList}
         />
@@ -288,7 +311,7 @@ export default function ListDetailPageBySlug() {
   );
 }
 
-function LayoutGrid(props: any) {
+function LayoutGrid(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import {
   Star,
   Heart,
@@ -289,10 +290,11 @@ export default function ProfilePage() {
       <div className="relative">
         {/* Banner */}
         <div className="relative h-64 lg:h-80 w-full overflow-hidden">
-          <img
+          <Image
+            fill
             src={profile.bannerUrl}
             alt="Banner"
-            className="w-full h-full object-cover"
+            className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
         </div>
@@ -302,11 +304,12 @@ export default function ProfilePage() {
           <div className="flex flex-col md:flex-row gap-5 items-start md:items-end">
             {/* Avatar - Square */}
             <div className="relative shrink-0">
-              <div className="w-36 h-36 lg:w-40 lg:h-40 rounded-2xl bg-zinc-950 p-0.5 shadow-2xl ring-1 ring-white/10">
-                <img
+              <div className="relative w-36 h-36 lg:w-40 lg:h-40 rounded-2xl bg-zinc-950 p-0.5 shadow-2xl ring-1 ring-white/10 overflow-hidden">
+                <Image
+                  fill
                   src={profile.avatarUrl}
                   alt={profile.displayName}
-                  className="w-full h-full object-cover rounded-[14px]"
+                  className="object-cover rounded-[14px]"
                 />
               </div>
               {profile.isPro && (
@@ -470,10 +473,11 @@ export default function ProfilePage() {
                   {MOCK_FAVORITES.map((film) => (
                     <a key={film.id} href="#" className="group relative block">
                       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 shadow-lg ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-300 relative z-10 group-hover:-translate-y-2">
-                        <img
+                        <Image
+                          fill
                           src={film.poster}
                           alt={film.title}
-                          className="w-full h-full object-cover"
+                          className="object-cover"
                         />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                           <p className="text-xs text-zinc-400 uppercase tracking-wider mb-1">
@@ -508,9 +512,11 @@ export default function ProfilePage() {
                         {/* Poster Column */}
                         <div className="sm:w-32 md:w-40 shrink-0 relative">
                           <div className="aspect-[2/3] sm:h-full w-full relative">
-                            <img
+                            <Image
+                              fill
                               src={review.movie.poster}
-                              className="w-full h-full object-cover"
+                              alt={review.movie.title}
+                              className="object-cover"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 sm:bg-gradient-to-r sm:from-transparent sm:to-zinc-900/90" />
                           </div>
@@ -623,10 +629,14 @@ export default function ProfilePage() {
 
                       <div className="flex-1 min-w-0 bg-zinc-900/50 p-3 rounded-xl border border-white/5 hover:bg-zinc-800 hover:border-white/10 transition-all cursor-pointer">
                         <div className="flex gap-3">
-                          <img
-                            src={item.poster}
-                            className="w-10 h-14 object-cover rounded shadow-sm"
-                          />
+                          <div className="relative w-10 h-14 overflow-hidden rounded shadow-sm shrink-0">
+                            <Image
+                              fill
+                              src={item.poster}
+                              alt={item.title}
+                              className="object-cover"
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start">
                               <p className="text-sm font-medium text-white truncate pr-2">
@@ -666,10 +676,12 @@ export default function ProfilePage() {
                     <a key={list.id} href="#" className="group block">
                       <div className="relative h-40 rounded-2xl overflow-hidden shadow-lg border border-white/5">
                         {/* Background Blur */}
-                        <div className="absolute inset-0">
-                          <img
+                        <div className="absolute inset-0 relative">
+                          <Image
+                            fill
                             src={list.posters[0]}
-                            className="w-full h-full object-cover opacity-30 blur-xl scale-110"
+                            alt={list.name}
+                            className="object-cover opacity-30 blur-xl scale-110"
                           />
                         </div>
                         <div className="absolute inset-0 bg-black/40" />
@@ -693,11 +705,14 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-3 mt-2">
                               <div className="flex -space-x-2">
                                 {list.posters.map((p, i) => (
-                                  <img
-                                    key={i}
-                                    src={p}
-                                    className="w-6 h-6 rounded-full border border-zinc-900 object-cover"
-                                  />
+                                  <div key={i} className="relative w-6 h-6 rounded-full border border-zinc-900 overflow-hidden shrink-0">
+                                    <Image
+                                      fill
+                                      src={p}
+                                      alt=""
+                                      className="object-cover"
+                                    />
+                                  </div>
                                 ))}
                               </div>
                               <span className="text-xs text-zinc-400 flex items-center gap-1">

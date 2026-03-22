@@ -43,15 +43,15 @@ export const mediaCoversRoutes = new Elysia({
         return { error: "No image file provided" };
       }
 
-      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
       if (!allowed.includes(file.type)) {
         set.status = 400;
-        return { error: "Only JPEG, PNG and WebP images are allowed" };
+        return { error: "Only JPEG, PNG, WebP and GIF images are allowed" };
       }
 
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 10 * 1024 * 1024) {
         set.status = 400;
-        return { error: "Image must be under 5 MB" };
+        return { error: "Image must be under 10 MB" };
       }
 
       // Delete old custom cover if it exists
@@ -71,10 +71,21 @@ export const mediaCoversRoutes = new Elysia({
       }
 
       const buffer = await file.arrayBuffer();
-      const { path } = await storageService.uploadPoster(
-        buffer,
-        `users/${user.id}/covers/${params.id}`,
-      );
+      let path: string;
+      if (file.type === "image/gif") {
+        const result = await storageService.uploadRaw(
+          buffer,
+          `users/${user.id}/covers/${params.id}/poster.gif`,
+          "image/gif",
+        );
+        path = result.path;
+      } else {
+        const result = await storageService.uploadPoster(
+          buffer,
+          `users/${user.id}/covers/${params.id}`,
+        );
+        path = result.path;
+      }
 
       const [cover] = await db
         .insert(mediaCustomCovers)

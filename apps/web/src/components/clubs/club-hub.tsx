@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   Users,
@@ -150,11 +151,10 @@ function Avatar({
   const text = size === "md" ? "text-sm" : "text-xs";
   return (
     <div
-      className={`${dim} rounded-full shrink-0 overflow-hidden ring-1 ring-white/8`}
+      className={`relative ${dim} rounded-full shrink-0 overflow-hidden ring-1 ring-white/8`}
     >
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={resolveImage(src)!} alt={name} className="w-full h-full object-cover" />
+        <Image fill src={resolveImage(src)!} alt={name} className="object-cover" />
       ) : (
         <div
           className={`w-full h-full flex items-center justify-center ${text} font-black text-white`}
@@ -812,11 +812,11 @@ export function ClubHub({
         {/* Banner */}
         <div className="relative h-64 lg:h-80 w-full overflow-hidden bg-zinc-950">
           {club.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
+              fill
               src={club.coverUrl}
               alt={club.name}
-              className="w-full h-full object-cover"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-zinc-900 via-purple-950/40 to-black">
@@ -1890,11 +1890,11 @@ export function ClubHub({
                           style={{ background: "#111" }}
                         >
                           {item.mediaPosterPath ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            <Image
+                              fill
                               src={item.mediaPosterPath}
                               alt={item.mediaTitle}
-                              className="w-full h-full object-cover"
+                              className="object-cover"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -2150,12 +2150,14 @@ export function ClubHub({
                             )}
                             <div className="relative flex items-center gap-3 px-3.5 py-2.5">
                               {opt.mediaPosterPath && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={opt.mediaPosterPath}
-                                  alt=""
-                                  className="w-5 h-8 object-cover rounded shrink-0"
-                                />
+                                <div className="relative w-5 h-8 shrink-0 rounded overflow-hidden">
+                                  <Image
+                                    fill
+                                    src={opt.mediaPosterPath}
+                                    alt=""
+                                    className="object-cover"
+                                  />
+                                </div>
                               )}
                               <span className="text-sm text-zinc-200 flex-1">
                                 {opt.text}

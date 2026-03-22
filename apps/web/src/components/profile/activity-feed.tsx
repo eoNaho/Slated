@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Play,
   Star,
@@ -71,9 +72,9 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
   return (
     <div className="space-y-3">
       {activities.map((activity) => {
-        const Icon = activityIcons[activity.type];
-        const colorClass = activityColors[activity.type];
-        const label = activityLabels[activity.type];
+        const Icon = activityIcons[activity.type as keyof typeof activityIcons] ?? ActivityIcon;
+        const colorClass = activityColors[activity.type as keyof typeof activityColors] ?? "text-zinc-400 bg-zinc-500/10";
+        const label = activityLabels[activity.type as keyof typeof activityLabels] ?? activity.type;
 
         return (
           <div
@@ -94,12 +95,13 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
                   ? `/lists/${activity.data?.username || activity.user?.username}/${activity.data?.slug}`
                   : `/${activity.data?.mediaType === 'series' ? 'series' : 'movies'}/${activity.data?.id || activity.targetId}`
                 }
-                className="flex-shrink-0 w-12 h-16 rounded overflow-hidden bg-zinc-800"
+                className="relative flex-shrink-0 w-12 h-16 rounded overflow-hidden bg-zinc-800"
               >
-                <img
+                <Image
+                  fill
                   src={activity.data.posterPath}
                   alt=""
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  className="object-cover group-hover:scale-105 transition-transform"
                 />
               </Link>
             )}

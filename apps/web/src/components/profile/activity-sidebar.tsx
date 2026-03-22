@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Clock, Heart, Eye, Filter } from "lucide-react";
 import { RatingStars } from "./rating-stars";
 import { resolveImage } from "@/lib/utils";
@@ -6,6 +7,7 @@ import type { DiaryEntry } from "@/types";
 interface ActivitySidebarProps {
   entries: DiaryEntry[];
   limit?: number;
+  customCovers?: Record<string, string>;
 }
 
 function formatTimeAgo(dateStr: string): string {
@@ -21,7 +23,7 @@ function formatTimeAgo(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function ActivitySidebar({ entries, limit = 5 }: ActivitySidebarProps) {
+export function ActivitySidebar({ entries, limit = 5, customCovers }: ActivitySidebarProps) {
   const displayEntries = entries.slice(0, limit);
 
   return (
@@ -53,11 +55,14 @@ export function ActivitySidebar({ entries, limit = 5 }: ActivitySidebarProps) {
             <div className="flex-1 min-w-0 bg-zinc-900/50 p-3 rounded-xl border border-white/5 hover:bg-zinc-800 hover:border-white/10 transition-all cursor-pointer">
               <div className="flex gap-3">
                 {item.media?.posterPath && (
-                  <img
-                    src={resolveImage(item.media.posterPath) ?? ""}
-                    alt={item.media.title}
-                    className="w-10 h-14 object-cover rounded shadow-sm"
-                  />
+                  <div className="relative w-10 h-14 rounded overflow-hidden flex-shrink-0 shadow-sm">
+                    <Image
+                      fill
+                      src={(item.media.id && customCovers?.[item.media.id]) || resolveImage(item.media.posterPath) || ""}
+                      alt={item.media.title}
+                      className="object-cover"
+                    />
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">

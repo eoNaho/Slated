@@ -34,6 +34,7 @@ import {
 import { ClubCard } from "@/components/clubs/club-card";
 import type { Club } from "@/lib/queries/clubs";
 import { useUserClubs } from "@/hooks/queries/use-user-clubs";
+import { useCustomCovers } from "@/hooks/queries/use-custom-covers";
 import { Story } from "@/types/stories";
 import type {
   UserProfile,
@@ -104,6 +105,7 @@ export function ProfileTabs({
   const [showCreateList, setShowCreateList] = useState(false);
 
   const { data: clubs = [], isPending: clubsPending } = useUserClubs(username, activeTab === "clubs");
+  const { data: customCovers = {} } = useCustomCovers(username);
   const clubsLoaded = !clubsPending;
 
   const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
@@ -171,21 +173,21 @@ export function ProfileTabs({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-8 space-y-12">
                   <FavoriteFilms films={favorites} isEditable={isOwnProfile} />
-                  <ReviewsList reviews={reviews} limit={3} currentUserId={currentUserId} />
+                  <ReviewsList reviews={reviews} limit={3} currentUserId={currentUserId} customCovers={customCovers} />
                 </div>
                 <div className="lg:col-span-4 space-y-10">
                   <FavoriteGenres genres={[]} />
-                  <ActivitySidebar entries={diary} limit={5} />
+                  <ActivitySidebar entries={diary} limit={5} customCovers={customCovers} />
                   <UserLists lists={lists} limit={2} />
                 </div>
               </div>
             )}
 
-            {activeTab === "films" && <FilmsGrid entries={diary} />}
-            {activeTab === "diary" && <FilmsDiary entries={diary} />}
+            {activeTab === "films" && <FilmsGrid entries={diary} customCovers={customCovers} />}
+            {activeTab === "diary" && <FilmsDiary entries={diary} customCovers={customCovers} />}
             {activeTab === "reviews" &&
               (reviews.length > 0 ? (
-                <ReviewsList reviews={reviews} showViewAll={false} currentUserId={currentUserId} />
+                <ReviewsList reviews={reviews} showViewAll={false} currentUserId={currentUserId} customCovers={customCovers} />
               ) : (
                 <EmptyState icon={Star} message="No reviews yet." />
               ))}
@@ -215,8 +217,8 @@ export function ProfileTabs({
               ) : (
                 <EmptyState icon={Users} message="Nenhum club ainda." />
               ))}
-            {activeTab === "watchlist" && <WatchlistGrid items={watchlist} />}
-            {activeTab === "likes" && <LikesGrid items={likes} />}
+            {activeTab === "watchlist" && <WatchlistGrid items={watchlist} customCovers={customCovers} />}
+            {activeTab === "likes" && <LikesGrid items={likes} customCovers={customCovers} />}
             {activeTab === "activity" && <ActivityFeed activities={activity} />}
             {activeTab === "scrobbles" && (
               <div className="space-y-12">

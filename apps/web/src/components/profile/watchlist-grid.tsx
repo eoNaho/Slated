@@ -1,10 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Clock, Film, Tv, Flame } from "lucide-react";
 import type { WatchlistItem } from "@/types";
 import { getMediaUrl } from "@/lib/utils";
 
 interface WatchlistGridProps {
   items: WatchlistItem[];
+  customCovers?: Record<string, string>;
 }
 
 const priorityColors = {
@@ -19,7 +21,7 @@ const priorityLabels = {
   low: "Low",
 };
 
-export function WatchlistGrid({ items }: WatchlistGridProps) {
+export function WatchlistGrid({ items, customCovers }: WatchlistGridProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
@@ -37,10 +39,11 @@ export function WatchlistGrid({ items }: WatchlistGridProps) {
       {items.map((item) => (
         <Link key={item.id} href={getMediaUrl(item.media)} className="group">
           <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 mb-2">
-            <img
-              src={item.media.posterPath || ""}
+            <Image
+              fill
+              src={customCovers?.[item.media.id] || item.media.posterPath || ""}
               alt={item.media.title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
 
             {/* Priority Badge */}

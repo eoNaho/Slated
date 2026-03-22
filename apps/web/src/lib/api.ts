@@ -220,7 +220,7 @@ export const mediaApi = {
     fetcher<{ data: MediaDetails }>(`/media/slug/${slug}`),
 
   getState: (id: string) =>
-    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null } }>(
+    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null; customCoverUrl: string | null } }>(
       `/media/${id}/state`
     ),
 

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, MessageCircle, Heart, Send, Bookmark } from "lucide-react";
 import { Story } from "@/types/stories";
 import { StoryTemplate } from "./StoryTemplates";
@@ -106,10 +107,11 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
       {/* Ambient background — show the uploaded image if available, otherwise the template */}
       <div className="absolute inset-0 pointer-events-none">
         {currentStory.imageUrl ? (
-          <img
+          <Image
+            fill
             src={resolveImage(currentStory.imageUrl) || ""}
             alt=""
-            className="w-full h-full object-cover opacity-30 blur-3xl scale-125"
+            className="object-cover opacity-30 blur-3xl scale-125"
           />
         ) : (
           <div className="opacity-30 blur-3xl scale-125 h-full w-full">
@@ -137,10 +139,11 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }: StoryViewerP
         {/* Header */}
         <div className="absolute top-8 inset-x-6 z-50 flex items-center justify-between group">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5">
-              <img
+            <div className="relative w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden">
+              <Image
+                fill
                 src={resolveImage(currentStory.user?.avatarUrl) || "/placeholder-user.jpg"}
-                className="w-full h-full rounded-full object-cover"
+                className="rounded-full object-cover"
                 alt=""
               />
             </div>

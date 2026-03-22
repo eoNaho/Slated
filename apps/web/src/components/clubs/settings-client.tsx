@@ -20,6 +20,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import Image from "next/image";
 import { useSession } from "@/lib/auth-client";
 import type { Club } from "@/lib/queries/clubs";
 
@@ -321,8 +322,7 @@ export function ClubSettingsClient({ slug }: { slug: string }) {
             <div className="relative rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 shadow-inner group/banner"
               style={{ aspectRatio: "21/9" }}>
               {displayBanner ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
+                <Image fill src={displayBanner} alt="Banner" className="object-cover" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-zinc-800 bg-gradient-to-br from-zinc-900 to-black">
                   <ImagePlus className="h-10 w-10 opacity-20" />

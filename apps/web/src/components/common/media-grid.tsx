@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Star, LayoutGrid, Plus, Trash2 } from "lucide-react";
 import { cn, getMediaUrl, resolveImage } from "@/lib/utils";
 import { SearchResult } from "@/types";
@@ -87,10 +88,11 @@ function MediaCard({
     >
       <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 ring-1 ring-white/5 shadow-2xl">
         {poster ? (
-          <img 
-            src={poster} 
-            alt={item.title} 
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+          <Image
+            fill
+            src={poster}
+            alt={item.title}
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-zinc-700 uppercase font-black text-[10px] px-2 text-center">

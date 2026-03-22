@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Play, ChevronRight, RotateCcw } from "lucide-react";
 import { RatingStars } from "./rating-stars";
 import type { DiaryEntry } from "@/types";
@@ -35,10 +36,11 @@ export function RecentWatches({ entries, limit = 6 }: RecentWatchesProps) {
           >
             <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 mb-2">
               {entry.media && (
-                <img
+                <Image
+                  fill
                   src={entry.media.posterPath || ""}
                   alt={entry.media.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               )}
               {entry.isRewatch && (

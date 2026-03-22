@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -670,14 +671,17 @@ export function SettingsClient() {
           <aside className="w-52 flex-shrink-0">
             {/* Avatar block */}
             <div className="flex items-center gap-3 mb-8 px-1">
-              <img
-                src={
-                  resolveImage(profile?.avatarUrl || u.image || u.avatarUrl) ||
-                  `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
-                }
-                alt={username}
-                className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10"
-              />
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden ring-1 ring-white/10 flex-shrink-0">
+                <Image
+                  fill
+                  src={
+                    resolveImage(profile?.avatarUrl || u.image || u.avatarUrl) ||
+                    `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
+                  }
+                  alt={username}
+                  className="object-cover"
+                />
+              </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white truncate">
                   {u.displayName || u.name || username}
@@ -749,14 +753,15 @@ export function SettingsClient() {
                       onTouchMove={handleCoverDragMove}
                       onTouchEnd={handleCoverDragEnd}
                     >
-                      <img
+                      <Image
+                        fill
                         src={
                           resolveImage(profile?.coverUrl || u.coverUrl) ||
                           "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200"
                         }
                         alt="Banner Preview"
                         draggable={false}
-                        className={`w-full h-full object-cover transition-[opacity,filter] duration-500 ${coverLoading ? "opacity-40 blur-sm" : ""}`}
+                        className={`object-cover transition-[opacity,filter] duration-500 ${coverLoading ? "opacity-40 blur-sm" : ""}`}
                         style={{
                           objectPosition: coverPosition,
                           transform: `scale(${coverZoom / 100})`,
@@ -888,13 +893,14 @@ export function SettingsClient() {
                   <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-sm">
                     <div className="relative group">
                       <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-purple-500/20 bg-zinc-900 shadow-2xl relative">
-                        <img
+                        <Image
+                          fill
                           src={
                             resolveImage(profile?.avatarUrl || u.image || u.avatarUrl) ||
                             `https://ui-avatars.com/api/?name=${username}&size=120&background=7c3aed&color=fff`
                           }
                           alt={username}
-                          className={`w-full h-full object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
+                          className={`object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
                         />
 
                         {/* Avatar Overlay */}

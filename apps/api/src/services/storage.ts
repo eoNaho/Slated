@@ -77,6 +77,9 @@ export class StorageService {
   getImageUrl(path: string): string {
     if (!path) return "";
 
+    // If it's already a full URL, return as-is
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+
     // Handle TMDB fallback paths (starts with "tmdb:")
     if (path.startsWith("tmdb:")) {
       const tmdbPath = path.replace("tmdb:", "");
@@ -135,6 +138,18 @@ export class StorageService {
     }
 
     throw new Error("Upload failed");
+  }
+
+  /**
+   * Upload a file as-is without any optimization (e.g. animated GIFs)
+   */
+  async uploadRaw(
+    buffer: ArrayBuffer,
+    path: string,
+    contentType: string
+  ): Promise<{ path: string }> {
+    const input = Buffer.from(buffer);
+    return this.upload(input, path, contentType);
   }
 
   /**

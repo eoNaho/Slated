@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Heart, ChevronRight } from "lucide-react";
 import type { FavoriteFilm } from "@/types";
 import { slugify } from "@/lib/utils";
@@ -39,10 +40,11 @@ export function FavoriteFilms({ films, isEditable }: FavoriteFilmsProps) {
             className="group relative block"
           >
             <div className="aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 shadow-lg ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all duration-300 relative z-10 group-hover:-translate-y-2">
-              <img
+              <Image
+                fill
                 src={film.posterPath}
                 alt={film.title}
-                className="w-full h-full object-cover"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                 {film.director ? (

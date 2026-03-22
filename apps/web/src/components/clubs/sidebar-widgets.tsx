@@ -14,6 +14,7 @@ import {
   Plus
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import type { 
   Club, 
   ClubEvent, 
@@ -168,10 +169,11 @@ export function WatchlistSpotlightWidget({ item }: { item?: ClubWatchlistItem })
     <WidgetWrapper title="Watchlist Spotlight" icon={Bookmark}>
       <div className="relative aspect-[16/9] rounded-2xl overflow-hidden border border-white/5 mb-4 group/poster">
         {item.mediaPosterPath ? (
-          <img 
-            src={`https://image.tmdb.org/t/p/w500${item.mediaPosterPath}`} 
+          <Image
+            fill
+            src={`https://image.tmdb.org/t/p/w500${item.mediaPosterPath}`}
             alt={item.mediaTitle}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover/poster:scale-110"
+            className="object-cover transition-transform duration-500 group-hover/poster:scale-110"
           />
         ) : (
           <div className="w-full h-full bg-zinc-900 flex items-center justify-center">

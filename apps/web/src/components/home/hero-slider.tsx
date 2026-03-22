@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Play,
   Plus,
@@ -101,11 +102,12 @@ export function HeroSlider({ media }: HeroSliderProps) {
           className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? "opacity-100" : "opacity-0"}`}
           aria-hidden={index !== currentIndex}
         >
-          <img
+          <Image
+            fill
             src={slide.backdropPath || slide.posterPath || ""}
             alt=""
-            className="w-full h-full object-cover"
-            loading={index === 0 ? "eager" : "lazy"}
+            className="object-cover"
+            priority={index === 0}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/80 to-transparent" />
@@ -243,10 +245,11 @@ export function HeroSlider({ media }: HeroSliderProps) {
                   )}
 
                   <div className="w-12 h-16 rounded-md overflow-hidden flex-shrink-0 relative bg-zinc-800">
-                    <img
+                    <Image
+                      fill
                       src={slide.posterPath || ""}
                       alt=""
-                      className="w-full h-full object-cover"
+                      className="object-cover"
                     />
                     {idx === currentIndex && !isPaused && (
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center">

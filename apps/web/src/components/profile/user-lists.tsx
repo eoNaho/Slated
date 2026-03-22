@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { List, Heart, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { resolveImage } from "@/lib/utils";
@@ -160,10 +161,11 @@ function ListItem({ list, variant }: ListItemProps) {
               return (
                 <div key={i} className="relative w-full h-full bg-zinc-800/50">
                   {image ? (
-                    <img
+                    <Image
+                      fill
                       src={resolveImage(image) || ""}
                       alt=""
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/[0.02]" />
@@ -184,7 +186,9 @@ function ListItem({ list, variant }: ListItemProps) {
               {list.user && (
                 <div className="flex items-center gap-1.5">
                   {list.user.avatarUrl ? (
-                    <img src={resolveImage(list.user.avatarUrl) || ""} alt="" className="w-4 h-4 rounded-full" />
+                    <div className="relative w-4 h-4 rounded-full overflow-hidden">
+                      <Image fill src={resolveImage(list.user.avatarUrl) || ""} alt="" className="object-cover" />
+                    </div>
                   ) : (
                     <div className="w-4 h-4 rounded-full bg-zinc-800" />
                   )}
@@ -225,10 +229,11 @@ function ListItem({ list, variant }: ListItemProps) {
               return (
                 <div key={i} className="relative w-full h-full bg-zinc-800/50">
                   {image ? (
-                    <img
+                    <Image
+                      fill
                       src={resolveImage(image) || ""}
                       alt=""
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/[0.02]" />
@@ -250,7 +255,9 @@ function ListItem({ list, variant }: ListItemProps) {
               {list.user && (
                 <div className="flex items-center gap-1.5">
                   {list.user.avatarUrl ? (
-                    <img src={resolveImage(list.user.avatarUrl) || ""} alt="" className="w-3.5 h-3.5 rounded-full" />
+                    <div className="relative w-3.5 h-3.5 rounded-full overflow-hidden">
+                      <Image fill src={resolveImage(list.user.avatarUrl) || ""} alt="" className="object-cover" />
+                    </div>
                   ) : (
                     <div className="w-3.5 h-3.5 rounded-full bg-zinc-800" />
                   )}
@@ -276,10 +283,11 @@ function ListItem({ list, variant }: ListItemProps) {
           return (
             <div key={i} className="relative w-full h-full bg-zinc-800/50">
               {image ? (
-                <img
+                <Image
+                  fill
                   src={resolveImage(image) || ""}
                   alt=""
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : (
                 <div className="w-full h-full bg-white/[0.02]" />
@@ -300,7 +308,9 @@ function ListItem({ list, variant }: ListItemProps) {
           {list.user && (
             <div className="flex items-center gap-1.5">
               {list.user.avatarUrl ? (
-                <img src={resolveImage(list.user.avatarUrl) || ""} alt="" className="w-4 h-4 rounded-full" />
+                <div className="relative w-4 h-4 rounded-full overflow-hidden">
+                  <Image fill src={resolveImage(list.user.avatarUrl) || ""} alt="" className="object-cover" />
+                </div>
               ) : (
                 <div className="w-4 h-4 rounded-full bg-zinc-800" />
               )}

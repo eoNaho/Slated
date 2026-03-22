@@ -1,13 +1,15 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Film, Grid, LayoutGrid, Filter } from "lucide-react";
 import type { DiaryEntry } from "@/types";
 import { getMediaUrl, resolveImage } from "@/lib/utils";
 
 interface FilmsGridProps {
   entries: DiaryEntry[];
+  customCovers?: Record<string, string>;
 }
 
-export function FilmsGrid({ entries }: FilmsGridProps) {
+export function FilmsGrid({ entries, customCovers }: FilmsGridProps) {
   // Extract unique films from diary entries
   const films = entries.map((e) => e.media).filter(Boolean);
 
@@ -50,10 +52,11 @@ export function FilmsGrid({ entries }: FilmsGridProps) {
             className="group relative aspect-[2/3] rounded overflow-hidden bg-zinc-900"
           >
             {film && (
-              <img
-                src={resolveImage(film.posterPath) ?? ""}
+              <Image
+                fill
+                src={(film?.id && customCovers?.[film.id]) || resolveImage(film.posterPath) || ""}
                 alt={film.title}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
               />
             )}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

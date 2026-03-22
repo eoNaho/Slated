@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Users, Lock, Film } from "lucide-react";
 import type { Club } from "@/lib/queries/clubs";
 import { resolveImage } from "@/lib/utils";
@@ -45,11 +46,11 @@ export function ClubCard({ club }: ClubCardProps) {
           style={{ aspectRatio: "16/9" }}
         >
           {club.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
+              fill
               src={club.coverUrl}
               alt={club.name}
-              className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
+              className="object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
             />
           ) : (
             <div
@@ -141,13 +142,13 @@ export function ClubCard({ club }: ClubCardProps) {
           <div className="flex items-center justify-between">
             {/* Owner */}
             <div className="flex items-center gap-2 group/owner">
-              <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 ring-1 ring-white/10 bg-zinc-800 transition-transform group-hover/owner:scale-110">
+              <div className="relative w-6 h-6 rounded-full overflow-hidden shrink-0 ring-1 ring-white/10 bg-zinc-800 transition-transform group-hover/owner:scale-110">
                 {club.owner.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
+                    fill
                     src={resolveImage(club.owner.avatarUrl)!}
                     alt=""
-                    className="w-full h-full object-cover"
+                    className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-white bg-purple-900/80">

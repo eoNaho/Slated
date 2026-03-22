@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   RotateCcw,
   ChevronLeft,
@@ -15,6 +16,7 @@ import { getMediaUrl, resolveImage } from "@/lib/utils";
 
 interface FilmsDiaryProps {
   entries: DiaryEntry[];
+  customCovers?: Record<string, string>;
 }
 
 // Group entries by month
@@ -37,7 +39,7 @@ function formatMonthYear(key: string): string {
   return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-export function FilmsDiary({ entries }: FilmsDiaryProps) {
+export function FilmsDiary({ entries, customCovers }: FilmsDiaryProps) {
   const allYears = Array.from(
     new Set(entries.map((e) => new Date(e.watchedAt).getFullYear()))
   ).sort((a, b) => b - a);
@@ -124,12 +126,13 @@ export function FilmsDiary({ entries }: FilmsDiaryProps) {
                   {entry.media && (
                     <Link
                       href={getMediaUrl(entry.media)}
-                      className="flex-shrink-0 w-12 h-16 rounded overflow-hidden bg-zinc-800"
+                      className="relative flex-shrink-0 w-12 h-16 rounded overflow-hidden bg-zinc-800"
                     >
-                      <img
-                        src={resolveImage(entry.media.posterPath) ?? ""}
+                      <Image
+                        fill
+                        src={(entry.media.id && customCovers?.[entry.media.id]) || resolveImage(entry.media.posterPath) || ""}
                         alt={entry.media.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        className="object-cover group-hover:scale-105 transition-transform"
                       />
                     </Link>
                   )}

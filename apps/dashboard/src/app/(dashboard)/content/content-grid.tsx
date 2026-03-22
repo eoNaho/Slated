@@ -5,6 +5,7 @@ import { Film, Search, Loader2, RefreshCw, Star, Tv } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import Image from "next/image";
 
 interface MediaItem {
   id: string;
@@ -29,7 +30,10 @@ export function ContentGrid() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
       if (search) params.set("q", search);
       const res = await apiFetch<any>(`/media?${params}`);
       const data = res.data ?? res;
@@ -42,7 +46,9 @@ export function ContentGrid() {
     }
   }, [page, search]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +66,10 @@ export function ContentGrid() {
         icon={Film}
         badge={total}
         actions={
-          <button onClick={load} className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors">
+          <button
+            onClick={load}
+            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors"
+          >
             <RefreshCw className="w-4 h-4" />
           </button>
         }
@@ -77,7 +86,10 @@ export function ContentGrid() {
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-accent/40 transition-colors"
           />
         </div>
-        <button type="submit" className="px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors">
+        <button
+          type="submit"
+          className="px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors"
+        >
           Buscar
         </button>
       </form>
@@ -99,25 +111,45 @@ export function ContentGrid() {
             {items.map((item) => (
               <div key={item.id} className="space-y-2">
                 <div className="aspect-[2/3] rounded-xl overflow-hidden bg-zinc-800 border border-white/5 relative">
-                  {item.posterUrl
-                    ? <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-zinc-700">{item.type === "series" ? <Tv className="w-8 h-8" /> : <Film className="w-8 h-8" />}</div>
-                  }
+                  {item.posterUrl ? (
+                    <Image
+                      src={item.posterUrl}
+                      fill
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                      {item.type === "series" ? (
+                        <Tv className="w-8 h-8" />
+                      ) : (
+                        <Film className="w-8 h-8" />
+                      )}
+                    </div>
+                  )}
                   <div className="absolute top-1.5 left-1.5">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${item.type === "series" ? "bg-blue-500/80 text-white" : "bg-purple-500/80 text-white"}`}>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${item.type === "series" ? "bg-blue-500/80 text-white" : "bg-purple-500/80 text-white"}`}
+                    >
                       {item.type === "series" ? "Série" : "Filme"}
                     </span>
                   </div>
                   {item.rating != null && (
                     <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-black/70 rounded-md px-1.5 py-0.5">
                       <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                      <span className="text-[10px] font-bold text-white">{Number(item.rating).toFixed(1)}</span>
+                      <span className="text-[10px] font-bold text-white">
+                        {Number(item.rating).toFixed(1)}
+                      </span>
                     </div>
                   )}
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-zinc-300 truncate">{item.title}</p>
-                  {item.year && <p className="text-[11px] text-zinc-600">{item.year}</p>}
+                  <p className="text-xs font-medium text-zinc-300 truncate">
+                    {item.title}
+                  </p>
+                  {item.year && (
+                    <p className="text-[11px] text-zinc-600">{item.year}</p>
+                  )}
                 </div>
               </div>
             ))}
@@ -125,9 +157,23 @@ export function ContentGrid() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 pt-2">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 border border-white/10 disabled:opacity-30 transition-colors">Anterior</button>
-              <span className="text-sm text-zinc-500">{page} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 border border-white/10 disabled:opacity-30 transition-colors">Próxima</button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 border border-white/10 disabled:opacity-30 transition-colors"
+              >
+                Anterior
+              </button>
+              <span className="text-sm text-zinc-500">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 border border-white/10 disabled:opacity-30 transition-colors"
+              >
+                Próxima
+              </button>
             </div>
           )}
         </>

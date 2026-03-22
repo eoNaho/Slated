@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { Search, Popcorn, Tv, X } from "lucide-react";
@@ -12,8 +12,16 @@ import { useClickOutside } from "@/hooks/use-click-outside";
 import type { SearchResult } from "@/types";
 
 interface MediaSearchInputProps {
-  value?: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"> | null;
-  onChange: (value: Pick<SearchResult, "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"> | null) => void;
+  value?: Pick<
+    SearchResult,
+    "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"
+  > | null;
+  onChange: (
+    value: Pick<
+      SearchResult,
+      "id" | "title" | "posterPath" | "mediaType" | "localId" | "localSlug"
+    > | null,
+  ) => void;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -28,25 +36,17 @@ export function MediaSearchInput({
 }: MediaSearchInputProps) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
-  const [isOpen, setIsOpen] = useState(false);
+  const [manualClose, setManualClose] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: autocompleteData, isPending: isLoading } = useSearchAutocomplete(
-    !value ? debouncedQuery : "",
-  );
+  const { data: autocompleteData, isPending: isLoading } =
+    useSearchAutocomplete(!value ? debouncedQuery : "");
   const results: SearchResult[] = autocompleteData ?? [];
 
-  // Sync open state: open when results arrive, close when query cleared
-  useEffect(() => {
-    if (!debouncedQuery) {
-      setIsOpen(false);
-    } else if (results.length > 0) {
-      setIsOpen(true);
-    }
-  }, [debouncedQuery, results.length]);
+  const isOpen = !!debouncedQuery && results.length > 0 && !manualClose;
 
-  useClickOutside(dropdownRef, () => setIsOpen(false));
+  useClickOutside(dropdownRef, () => setManualClose(true));
 
   const handleSelect = (item: SearchResult) => {
     onChange({
@@ -58,7 +58,7 @@ export function MediaSearchInput({
       localSlug: item.localSlug,
     });
     setQuery("");
-    setIsOpen(false);
+    setManualClose(false);
   };
 
   const handleClear = () => {
@@ -69,7 +69,9 @@ export function MediaSearchInput({
 
   if (value) {
     return (
-      <div className={`relative flex items-center gap-3 p-2 rounded-xl bg-[#1a1525]/80 border border-white/10 ${className}`}>
+      <div
+        className={`relative flex items-center gap-3 p-2 rounded-xl bg-[#1a1525]/80 border border-white/10 ${className}`}
+      >
         <div className="relative h-12 w-8 shrink-0 rounded-md overflow-hidden bg-black/50">
           {value.posterPath ? (
             <Image
@@ -80,13 +82,19 @@ export function MediaSearchInput({
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-white/20">
-              {value.mediaType === "movie" ? <Popcorn className="h-4 w-4" /> : <Tv className="h-4 w-4" />}
+              {value.mediaType === "movie" ? (
+                <Popcorn className="h-4 w-4" />
+              ) : (
+                <Tv className="h-4 w-4" />
+              )}
             </div>
           )}
         </div>
-        
+
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{value.title}</p>
+          <p className="text-sm font-medium text-white truncate">
+            {value.title}
+          </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded-sm">
               {value.mediaType}
@@ -114,10 +122,8 @@ export function MediaSearchInput({
         <Input
           ref={inputRef}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => {
-            if (results.length > 0) setIsOpen(true);
-          }}
+          onChange={(e) => { setQuery(e.target.value); setManualClose(false); }}
+          onFocus={() => setManualClose(false)}
           placeholder={placeholder}
           className="pl-9 bg-[#1a1525]/80 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-amber-500/50"
           autoFocus={autoFocus}
@@ -149,11 +155,15 @@ export function MediaSearchInput({
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                      {item.mediaType === "movie" ? <Popcorn className="h-4 w-4" /> : <Tv className="h-4 w-4" />}
+                      {item.mediaType === "movie" ? (
+                        <Popcorn className="h-4 w-4" />
+                      ) : (
+                        <Tv className="h-4 w-4" />
+                      )}
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white/90 group-hover:text-white truncate">
                     {item.title}
@@ -163,7 +173,9 @@ export function MediaSearchInput({
                     {item.releaseDate && (
                       <>
                         <span>•</span>
-                        <span>{format(new Date(item.releaseDate), "yyyy")}</span>
+                        <span>
+                          {format(new Date(item.releaseDate), "yyyy")}
+                        </span>
                       </>
                     )}
                   </div>
@@ -176,7 +188,7 @@ export function MediaSearchInput({
 
       {isOpen && query && !isLoading && results.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 p-4 rounded-xl bg-[#0f0a14] border border-white/10 shadow-xl z-50 text-center text-sm text-white/50">
-          No results found for "{query}"
+          No results found for &quot;{query}&quot;
         </div>
       )}
     </div>

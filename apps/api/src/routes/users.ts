@@ -758,4 +758,34 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       return { message: "Unfollowed successfully" };
     },
     { requireAuth: true, params: t.Object({ userId: t.String() }) },
+  )
+
+  // Get all custom covers for a user (public — used to display their profile)
+  // Uses :username param to avoid conflict, but resolves by ID via query param
+  .get(
+    "/:username/custom-covers",
+    async (ctx: any) => {
+      const { params } = ctx;
+      const { mediaCustomCovers } = await import("../db");
+
+      const [target] = await db
+        .select({ id: userTable.id })
+        .from(userTable)
+        .where(eq(userTable.username, params.username))
+        .limit(1);
+
+      if (!target) return { data: {} };
+
+      const covers = await db
+        .select({ mediaId: mediaCustomCovers.mediaId, imagePath: mediaCustomCovers.imagePath })
+        .from(mediaCustomCovers)
+        .where(eq(mediaCustomCovers.userId, target.id));
+
+      const map: Record<string, string> = {};
+      for (const c of covers) {
+        map[c.mediaId] = storageService.getImageUrl(c.imagePath);
+      }
+      return { data: map };
+    },
+    { params: t.Object({ username: t.String() }) },
   );

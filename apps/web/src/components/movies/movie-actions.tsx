@@ -108,6 +108,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
         }
       } else {
         toast.success("Capa personalizada salva!");
+        invalidateState();
       }
     } catch {
       toast.error("Erro ao enviar capa");
@@ -218,7 +219,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
           )}
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/gif"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];

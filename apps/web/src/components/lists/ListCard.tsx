@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { List as ListIcon, Lock, Globe, Ghost } from "lucide-react";
 import { cn, resolveImage } from "@/lib/utils";
 
@@ -52,9 +53,9 @@ export function ListCard({ list }: ListCardProps) {
         <div className="flex items-center gap-2">
            {list.user && (
              <>
-               <div className="w-5 h-5 rounded-full bg-zinc-800 overflow-hidden ring-1 ring-white/10">
+               <div className="relative w-5 h-5 rounded-full bg-zinc-800 overflow-hidden ring-1 ring-white/10">
                   {list.user.avatarUrl ? (
-                    <img src={resolveImage(list.user.avatarUrl) || ""} alt={list.user.username} className="w-full h-full object-cover" />
+                    <Image fill src={resolveImage(list.user.avatarUrl) || ""} alt={list.user.username} className="object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-purple-500/20 text-[8px] font-black text-purple-400">
                        {list.user.username[0].toUpperCase()}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { resolveImage } from "@/lib/utils";
 import type { ProfileFrame } from "@/types";
@@ -50,8 +51,8 @@ export function FramedAvatar({
             onClick && "active:scale-95 transition-transform"
           )}
         >
-          <div className={cn("w-full h-full bg-zinc-950 overflow-hidden border-2 border-zinc-950", inner)}>
-            <img src={src} alt={username} className={cn("w-full h-full object-cover", img)} />
+          <div className={cn("relative w-full h-full bg-zinc-950 overflow-hidden border-2 border-zinc-950", inner)}>
+            <Image fill src={src} alt={username} className={cn("object-cover", img)} />
           </div>
         </div>
       </div>
@@ -74,8 +75,8 @@ export function FramedAvatar({
           )}
           style={{ background: frame.color }}
         >
-          <div className={cn("w-full h-full bg-zinc-950 overflow-hidden border-2 border-zinc-950", inner)}>
-            <img src={src} alt={username} className={cn("w-full h-full object-cover", img)} />
+          <div className={cn("relative w-full h-full bg-zinc-950 overflow-hidden border-2 border-zinc-950", inner)}>
+            <Image fill src={src} alt={username} className={cn("object-cover", img)} />
           </div>
         </div>
       </div>
@@ -95,8 +96,8 @@ export function FramedAvatar({
           onClick && "active:scale-95 transition-transform"
         )}
       >
-        <div className={cn("w-full h-full bg-zinc-950 overflow-hidden border-2 border-zinc-950", inner)}>
-          <img src={src} alt={username} className={cn("w-full h-full object-cover", img)} />
+        <div className={cn("relative w-full h-full bg-zinc-950 overflow-hidden border-2 border-zinc-950", inner)}>
+          <Image fill src={src} alt={username} className={cn("object-cover", img)} />
         </div>
       </div>
     </div>

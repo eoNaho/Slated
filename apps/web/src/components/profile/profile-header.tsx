@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Calendar,
   MapPin,
@@ -71,10 +72,11 @@ export function ProfileHeader({
           }}
         />
         {/* Main image */}
-        <img
+        <Image
+          fill
           src={bannerUrl}
           alt="Banner"
-          className="relative w-full h-full object-cover"
+          className="object-cover"
           style={{
             objectPosition: profile.coverPosition || "50% 50%",
             transform: `scale(${(Number(profile.coverZoom) || 100) / 100})`,
@@ -336,11 +338,12 @@ export function ProfileHeader({
                 onClick={() => setActiveStoryGroup([story])}
               >
                 <div className="w-16 h-16 rounded-2xl p-[2px] bg-zinc-800 ring-1 ring-white/10 group-hover:ring-purple-500/50 transition-all">
-                  <div className="w-full h-full rounded-[14px] overflow-hidden bg-zinc-900 border-2 border-zinc-950">
+                  <div className="relative w-full h-full rounded-[14px] overflow-hidden bg-zinc-900 border-2 border-zinc-950">
                     {story.imageUrl ? (
-                      <img
+                      <Image
+                        fill
                         src={resolveImage(story.imageUrl) || ""}
-                        className="w-full h-full object-cover"
+                        className="object-cover"
                         alt=""
                       />
                     ) : (

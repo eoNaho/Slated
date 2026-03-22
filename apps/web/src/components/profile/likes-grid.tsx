@@ -1,13 +1,15 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Heart, Film, Tv } from "lucide-react";
 import type { LikeItem } from "@/types";
 import { getMediaUrl } from "@/lib/utils";
 
 interface LikesGridProps {
   items: LikeItem[];
+  customCovers?: Record<string, string>;
 }
 
-export function LikesGrid({ items }: LikesGridProps) {
+export function LikesGrid({ items, customCovers }: LikesGridProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
@@ -23,10 +25,11 @@ export function LikesGrid({ items }: LikesGridProps) {
       {items.map((item) => (
         <Link key={item.id} href={getMediaUrl(item.media)} className="group">
           <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 mb-2">
-            <img
-              src={item.media.posterPath || ""}
+            <Image
+              fill
+              src={customCovers?.[item.media.id] || item.media.posterPath || ""}
               alt={item.media.title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
 
             {/* Type Badge */}

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Filter } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -160,7 +161,7 @@ export function DiscoverFilters({
                           )
                         }
                         className={cn(
-                          "w-10 h-10 rounded-xl border transition-all overflow-hidden flex items-center justify-center p-1.5 bg-zinc-950",
+                          "relative w-10 h-10 rounded-xl border transition-all overflow-hidden flex items-center justify-center p-1.5 bg-zinc-950",
                           filters.streaming === s.id
                             ? "border-purple-500/50 ring-2 ring-purple-500/10"
                             : "border-white/5 hover:border-white/10 opacity-40 hover:opacity-100",
@@ -168,10 +169,11 @@ export function DiscoverFilters({
                         title={s.name}
                       >
                         {s.logoPath ? (
-                          <img
+                          <Image
+                            fill
                             src={s.logoPath}
                             alt={s.name}
-                            className="w-full h-full object-contain rounded-[4px]"
+                            className="object-contain rounded-[4px]"
                           />
                         ) : (
                           <span className="text-[8px] font-bold">

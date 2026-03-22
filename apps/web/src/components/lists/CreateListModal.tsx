@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { cn, resolveImage } from "@/lib/utils";
 import { MediaSearchInput } from "@/components/media/media-search-input";
-import type { SearchResult, Media } from "@/types";
+import type { SearchResult } from "@/types";
 import Image from "next/image";
 
 interface CreateListModalProps {
@@ -27,7 +27,7 @@ export function CreateListModal({ initialData, onClose, onSuccess }: CreateListM
   const [isPublic, setIsPublic] = React.useState(initialData?.isPublic ?? true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [selectedMedia, setSelectedMedia] = React.useState<any[]>([]);
+  const [selectedMedia, setSelectedMedia] = React.useState<Pick<SearchResult, "id" | "localId" | "title" | "posterPath" | "mediaType" | "localSlug">[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +48,13 @@ export function CreateListModal({ initialData, onClose, onSuccess }: CreateListM
           name,
           description,
           isPublic,
-          item_ids: selectedMedia.map(m => m.id || m.localId),
+          item_ids: selectedMedia.map(m => m.localId ?? String(m.id)).filter(Boolean),
         });
       }
       onSuccess?.();
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to save list");
+    } catch (err) {
+      setError((err as Error).message || "Failed to save list");
     } finally {
       setIsSubmitting(false);
     }

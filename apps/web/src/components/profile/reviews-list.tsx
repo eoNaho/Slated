@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Star,
   Heart,
@@ -25,6 +26,7 @@ interface ReviewsListProps {
   limit?: number;
   showViewAll?: boolean;
   currentUserId?: string;
+  customCovers?: Record<string, string>;
 }
 
 // ── Comment Item ─────────────────────────────────────────────────────────────
@@ -77,9 +79,9 @@ function CommentItem({
   return (
     <div className="flex gap-3 group">
       {/* Avatar */}
-      <div className="w-7 h-7 rounded-full bg-zinc-800 flex-shrink-0 overflow-hidden">
+      <div className="relative w-7 h-7 rounded-full bg-zinc-800 flex-shrink-0 overflow-hidden">
         {avatar ? (
-          <img src={avatar} alt={name} className="w-full h-full object-cover" />
+          <Image fill src={avatar} alt={name} className="object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
             {name[0].toUpperCase()}
@@ -272,9 +274,11 @@ function CommentSection({
 function ReviewCard({
   review,
   currentUserId,
+  customCovers,
 }: {
   review: Review;
   currentUserId?: string;
+  customCovers?: Record<string, string>;
 }) {
   const [spoilerRevealed, setSpoilerRevealed] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -315,10 +319,11 @@ function ReviewCard({
               href={getMediaUrl(review.media)}
               className="block aspect-[2/3] sm:h-full w-full relative"
             >
-              <img
-                src={resolveImage(review.media.posterPath) ?? ""}
+              <Image
+                fill
+                src={(review.media.id && customCovers?.[review.media.id]) || resolveImage(review.media.posterPath) || ""}
                 alt={review.media.title}
-                className="w-full h-full object-cover"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 sm:bg-gradient-to-r sm:from-transparent sm:to-zinc-900/90" />
             </Link>
@@ -434,6 +439,7 @@ export function ReviewsList({
   limit,
   showViewAll = true,
   currentUserId,
+  customCovers,
 }: ReviewsListProps) {
   const displayReviews = limit ? reviews.slice(0, limit) : reviews;
 
@@ -462,6 +468,7 @@ export function ReviewsList({
             key={review.id}
             review={review}
             currentUserId={currentUserId}
+            customCovers={customCovers}
           />
         ))}
       </div>

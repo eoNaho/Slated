@@ -25,6 +25,8 @@ import {
   getSeriesSeasons,
 } from "@/lib/queries/media";
 import { SeriesActions } from "@/components/series/series-actions";
+import { MovieReviewCard } from "@/components/movies/movie-review-card";
+import { MoviePoster } from "@/components/movies/movie-poster";
 import { SeasonsPanel } from "@/components/series/seasons-panel";
 import { SectionLabel } from "@/components/common/section-label";
 import { StarRating } from "@/components/common/star-rating";
@@ -170,20 +172,12 @@ export default async function SeriesPage({ params }: PageProps) {
                 className="relative rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-transform duration-500 group-hover:scale-[1.02]"
                 style={{ aspectRatio: "2/3" }}
               >
-                {posterSrc ? (
-                  <Image
-                    src={posterSrc}
-                    alt={series.title}
-                    fill
-                    className="object-cover"
-                    priority
-                    sizes="(max-width: 1024px) 160px, 240px"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                    <Tv className="h-12 w-12 text-zinc-800" />
-                  </div>
-                )}
+                <MoviePoster
+                  movieId={series.id}
+                  title={series.title}
+                  defaultPosterPath={posterSrc}
+                  sizes="(max-width: 1024px) 160px, 240px"
+                />
               </div>
             </div>
 
@@ -251,10 +245,11 @@ export default async function SeriesPage({ params }: PageProps) {
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden border border-white/5">
                           {mapping.service.logoPath ? (
-                            <img
+                            <Image
                               src={mapping.service.logoPath}
                               alt={mapping.service.name}
                               className="w-full h-full object-cover"
+                              fill
                             />
                           ) : (
                             <Play className="h-3.5 w-3.5 text-indigo-400 fill-indigo-400/20" />
@@ -507,64 +502,9 @@ export default async function SeriesPage({ params }: PageProps) {
             <section className="mb-12">
               <SectionLabel>Popular Reviews</SectionLabel>
               {reviews.length > 0 ? (
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 space-y-4">
                   {reviews.slice(0, 3).map((review) => (
-                    <div
-                      key={review.id}
-                      className="p-5 rounded-2xl border border-white/[0.05] hover:border-white/10 transition-all"
-                      style={{ background: "rgba(255,255,255,0.015)" }}
-                    >
-                      <div className="flex items-start gap-3.5">
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0 ring-1 ring-white/10">
-                          {review.user?.avatarUrl ? (
-                            <Image
-                              src={
-                                resolveImage(review.user.avatarUrl) ||
-                                review.user.avatarUrl
-                              }
-                              alt={review.user.username}
-                              width={40}
-                              height={40}
-                              className="rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-zinc-600 text-sm">👤</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <Link
-                              href={`/profile/${review.user?.username}`}
-                              className="font-bold text-sm text-white hover:text-indigo-400 transition-colors"
-                            >
-                              {review.user?.displayName ||
-                                review.user?.username}
-                            </Link>
-                            {review.rating && (
-                              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20">
-                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                                <span className="text-xs font-bold text-amber-400">
-                                  {review.rating}/10
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-zinc-300 text-sm leading-relaxed line-clamp-3">
-                            {review.content}
-                          </p>
-                          <div className="flex items-center gap-4 mt-3 text-xs text-zinc-600">
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              {review.likesCount}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="h-3 w-3" />
-                              {review.commentsCount}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <MovieReviewCard key={review.id} review={review} />
                   ))}
                 </div>
               ) : (
