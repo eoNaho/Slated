@@ -2,50 +2,32 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Play, X, ChevronLeft, ChevronRight, Image as ImageIcon, Film, Maximize2 } from "lucide-react";
+import { Play, X, ChevronLeft, ChevronRight, Image as ImageIcon, Film, Maximize2, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
-
-type VideoItem = {
-  key: string;
-  name: string;
-  type: string;
-  site: string;
-  official: boolean;
-  published_at: string;
-};
-
-type ImageItem = {
-  file_path: string;
-  width: number;
-  height: number;
-  vote_average: number;
-};
-
-type GalleryData = {
-  videos: VideoItem[];
-  backdrops: ImageItem[];
-  posters: ImageItem[];
-};
+import { cn, resolveImage } from "@/lib/utils";
+import type { MediaGalleryData, MediaVideo, MediaImage } from "@/types";
 
 type Tab = "videos" | "backdrops" | "posters";
 
 interface MediaGalleryProps {
-  tmdbId: number;
-  type: "movie" | "series";
+  mediaId: string;
 }
 
-export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
-  const [data, setData] = useState<GalleryData | null>(null);
+export function MediaGallery({ mediaId }: MediaGalleryProps) {
+  const [data, setData] = useState<MediaGalleryData | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("videos");
-  const [lightbox, setLightbox] = useState<{ images: ImageItem[]; index: number } | null>(null);
-  const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [lightbox, setLightbox] = useState<{ images: MediaImage[]; index: number } | null>(null);
+  const [activeVideo, setActiveVideo] = useState<MediaVideo | null>(null);
+
+  // Limits per tab before "show more" appears
+  const LIMITS: Record<Tab, number> = { videos: 6, backdrops: 8, posters: 14 };
 
   useEffect(() => {
-    api.media.getGallery(tmdbId, type)
+    api.media.getGallery(mediaId)
       .then((res) => setData(res.data))
       .catch(() => {});
-  }, [tmdbId, type]);
+  }, [mediaId]);
 
   const closeLightbox = useCallback(() => setLightbox(null), []);
   const closeVideo = useCallback(() => setActiveVideo(null), []);
@@ -76,20 +58,24 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
   if (!data) return null;
 
   const { videos, backdrops, posters } = data;
-  const totalVideos = videos.length;
-  const totalBackdrops = backdrops.length;
-  const totalPosters = posters.length;
 
-  if (totalVideos + totalBackdrops + totalPosters === 0) return null;
+  if (videos.length + backdrops.length + posters.length === 0) return null;
 
   const tabs: { id: Tab; label: string; count: number; icon: React.ReactNode }[] = [
-    { id: "videos", label: "Videos", count: totalVideos, icon: <Film className="w-3.5 h-3.5" /> },
-    { id: "backdrops", label: "Backdrops", count: totalBackdrops, icon: <ImageIcon className="w-3.5 h-3.5" /> },
-    { id: "posters", label: "Posters", count: totalPosters, icon: <ImageIcon className="w-3.5 h-3.5" /> },
+    { id: "videos",   label: "Videos",   count: videos.length,   icon: <Film className="w-3.5 h-3.5" /> },
+    { id: "backdrops", label: "Backdrops", count: backdrops.length, icon: <ImageIcon className="w-3.5 h-3.5" /> },
+    { id: "posters",  label: "Posters",  count: posters.length,  icon: <ImageIcon className="w-3.5 h-3.5" /> },
   ].filter((t) => t.count > 0);
 
-  // Ensure active tab exists
-  const safeTab = tabs.find((t) => t.id === activeTab) ? activeTab : tabs[0]?.id ?? "videos";
+  const safeTab = tabs.find((t) => t.id === activeTab) ? activeTab : (tabs[0]?.id ?? "videos");
+
+  const limit = LIMITS[safeTab];
+  const visibleVideos   = expanded ? videos   : videos.slice(0, limit);
+  const visibleBackdrops = expanded ? backdrops : backdrops.slice(0, limit);
+  const visiblePosters  = expanded ? posters  : posters.slice(0, limit);
+  const hasMore = (safeTab === "videos" && videos.length > limit)
+    || (safeTab === "backdrops" && backdrops.length > limit)
+    || (safeTab === "posters" && posters.length > limit);
 
   return (
     <section>
@@ -98,7 +84,7 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); setExpanded(false); }}
             className={cn(
               "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
               safeTab === tab.id
@@ -121,7 +107,7 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
       {/* Videos grid */}
       {safeTab === "videos" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {videos.map((video) => (
+          {visibleVideos.map((video) => (
             <button
               key={video.key}
               onClick={() => setActiveVideo(video)}
@@ -151,15 +137,15 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
       {/* Backdrops grid */}
       {safeTab === "backdrops" && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {backdrops.map((img, i) => (
+          {visibleBackdrops.map((img) => (
             <button
               key={img.file_path}
-              onClick={() => setLightbox({ images: backdrops, index: i })}
+              onClick={() => setLightbox({ images: backdrops, index: backdrops.indexOf(img) })}
               className="group relative aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/5 hover:border-white/15 transition-all"
             >
               <Image
                 fill
-                src={`https://image.tmdb.org/t/p/w500${img.file_path}`}
+                src={resolveImage(img.file_path, "w500") || ""}
                 alt=""
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
@@ -174,15 +160,15 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
       {/* Posters grid */}
       {safeTab === "posters" && (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
-          {posters.map((img, i) => (
+          {visiblePosters.map((img) => (
             <button
               key={img.file_path}
-              onClick={() => setLightbox({ images: posters, index: i })}
+              onClick={() => setLightbox({ images: posters, index: posters.indexOf(img) })}
               className="group relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 border border-white/5 hover:border-white/15 transition-all"
             >
               <Image
                 fill
-                src={`https://image.tmdb.org/t/p/w342${img.file_path}`}
+                src={resolveImage(img.file_path, "w342") || ""}
                 alt=""
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
@@ -191,6 +177,19 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
               </div>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Show more / collapse */}
+      {(hasMore || expanded) && (
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-400 hover:text-white text-sm font-semibold transition-all"
+          >
+            <ChevronDown className={cn("w-4 h-4 transition-transform", expanded && "rotate-180")} />
+            {expanded ? "Show less" : `Show all ${safeTab === "videos" ? videos.length : safeTab === "backdrops" ? backdrops.length : posters.length}`}
+          </button>
         </div>
       )}
 
@@ -261,14 +260,14 @@ export function MediaGallery({ tmdbId, type }: MediaGalleryProps) {
           >
             {(() => {
               const img = lightbox.images[lightbox.index];
-              const isPortrait = img.height > img.width;
+              const isPortrait = (img.height ?? 0) > (img.width ?? 1);
               return (
                 <div className={cn("relative rounded-xl overflow-hidden shadow-2xl", isPortrait ? "h-full max-w-sm mx-auto" : "w-full")}>
                   <Image
-                    src={`https://image.tmdb.org/t/p/original${img.file_path}`}
+                    src={resolveImage(img.file_path, "original") || ""}
                     alt=""
-                    width={img.width}
-                    height={img.height}
+                    width={img.width ?? 1920}
+                    height={img.height ?? 1080}
                     className="object-contain max-h-[75vh] w-auto mx-auto"
                     style={{ maxWidth: "100%" }}
                   />

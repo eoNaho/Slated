@@ -400,14 +400,12 @@ export default async function MoviePage({ params }: PageProps) {
 
             <div className="border-t border-white/[0.04] mb-12" />
 
-            {movie.tmdbId && (
-              <section className="mb-16">
-                <SectionLabel>Media</SectionLabel>
-                <div className="mt-6">
-                  <MediaGallery tmdbId={movie.tmdbId} type="movie" />
-                </div>
-              </section>
-            )}
+            <section className="mb-16">
+              <SectionLabel>Media</SectionLabel>
+              <div className="mt-6">
+                <MediaGallery mediaId={movie.id} />
+              </div>
+            </section>
 
             <section className="mb-10">
               <div className="flex items-center justify-between mb-5">

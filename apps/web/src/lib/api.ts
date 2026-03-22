@@ -26,6 +26,7 @@ import type {
   LeaderboardEntry,
   Scrobble,
   ClubInvite,
+  MediaGalleryData,
 } from "@/types";
 
 const API_URL =
@@ -223,15 +224,8 @@ export const mediaApi = {
     );
   },
 
-  getGallery: (tmdbId: number, type: "movie" | "series") => {
-    return fetcher<{
-      data: {
-        videos: { key: string; name: string; type: string; site: string; official: boolean; published_at: string }[];
-        backdrops: { file_path: string; width: number; height: number; vote_average: number }[];
-        posters: { file_path: string; width: number; height: number; vote_average: number }[];
-      };
-    }>(`/media/tmdb/${tmdbId}/gallery?type=${type}`);
-  },
+  getGallery: (mediaId: string) =>
+    fetcher<{ data: MediaGalleryData }>(`/media/${mediaId}/gallery`),
 
   // Legacy / Local access
   getById: (id: string) => fetcher<{ data: MediaDetails }>(`/media/${id}`),

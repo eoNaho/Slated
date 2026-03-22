@@ -623,6 +623,30 @@ export interface ActivityStats {
   }[];
 }
 
+// ==================== MEDIA GALLERY ====================
+
+export interface MediaVideo {
+  key: string;
+  name: string;
+  type: string;
+  site: string;
+  official: boolean | null;
+  published_at: string | null;
+}
+
+export interface MediaImage {
+  file_path: string;
+  width: number | null;
+  height: number | null;
+  vote_average: number | null;
+}
+
+export interface MediaGalleryData {
+  videos: MediaVideo[];
+  backdrops: MediaImage[];
+  posters: MediaImage[];
+}
+
 // ==================== API ERROR ====================
 
 export interface ApiError {

@@ -50,6 +50,13 @@
       "when": 1774103054241,
       "tag": "0006_watch_party",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774197604025,
+      "tag": "0007_odd_oracle",
+      "breakpoints": true
     }
   ]
 }

@@ -746,6 +746,13 @@ export class TMDBService {
         });
       }
 
+      // Fire-and-forget gallery sync (videos + backdrop/poster images)
+      import("./tmdb-gallery").then(({ syncMediaGallery }) => {
+        syncMediaGallery(insertedMedia.id, insertedMedia.tmdbId, type).catch((err) =>
+          logger.warn({ err }, "Background gallery sync failed")
+        );
+      });
+
       // Fire-and-forget: upload people profile photos to B2 if enabled
       if (UPLOAD_TMDB_IMAGES && storageService.isConfigured()) {
         uploadPeoplePhotos(allPeople).catch((err) =>

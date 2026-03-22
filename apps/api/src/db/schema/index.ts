@@ -14,3 +14,4 @@ export * from "./clubs";
 export * from "./activity";
 export * from "./stories";
 export * from "./identity";
+export * from "./gallery";

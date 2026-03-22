@@ -799,71 +799,91 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
   )
 
   /**
-   * GET /media/tmdb/:tmdbId/gallery?type=movie|series
-   * Returns videos, backdrops and posters from TMDB for a given tmdbId.
-   * Results are cached for 24h since they rarely change.
+   * GET /media/:id/gallery
+   * Returns videos, backdrops and posters from the local DB.
+   * If no gallery data exists yet (new import), triggers a background sync and returns empty.
    */
   .get(
-    "/tmdb/:tmdbId/gallery",
-    async ({ params, query, set }) => {
-      const tmdbId = Number(params.tmdbId);
-      const type = (query.type ?? "movie") as "movie" | "series";
-      const TMDB_API_KEY = process.env.TMDB_API_KEY;
+    "/:id/gallery",
+    async ({ params, set }) => {
+      const { mediaVideos, mediaImages } = await import("../db");
 
-      if (!TMDB_API_KEY) {
-        set.status = 503;
-        return { error: "TMDB not configured" };
+      // Verify media exists
+      const [mediaRecord] = await db
+        .select({ id: media.id, tmdbId: media.tmdbId, type: media.type })
+        .from(media)
+        .where(eq(media.id, params.id))
+        .limit(1);
+
+      if (!mediaRecord) {
+        set.status = 404;
+        return { error: "Media not found" };
       }
 
-      const base = type === "movie" ? `movie/${tmdbId}` : `tv/${tmdbId}`;
+      const typeOrder = ["Trailer", "Teaser", "Clip", "Featurette", "Behind the Scenes"];
 
-      const [imagesRes, videosRes] = await Promise.all([
-        fetch(`https://api.themoviedb.org/3/${base}/images?api_key=${TMDB_API_KEY}&include_image_language=en,null`),
-        fetch(`https://api.themoviedb.org/3/${base}/videos?api_key=${TMDB_API_KEY}&language=en-US`),
+      const [videos, backdrops, posters] = await Promise.all([
+        db
+          .select({
+            key: mediaVideos.tmdbKey,
+            name: mediaVideos.name,
+            type: mediaVideos.type,
+            site: mediaVideos.site,
+            official: mediaVideos.official,
+            published_at: mediaVideos.publishedAt,
+          })
+          .from(mediaVideos)
+          .where(eq(mediaVideos.mediaId, params.id))
+          .orderBy(mediaVideos.publishedAt),
+        db
+          .select({
+            file_path: mediaImages.filePath,
+            width: mediaImages.width,
+            height: mediaImages.height,
+            vote_average: mediaImages.voteAverage,
+          })
+          .from(mediaImages)
+          .where(and(eq(mediaImages.mediaId, params.id), eq(mediaImages.imageType, "backdrop")))
+          .orderBy(desc(mediaImages.voteAverage))
+          .limit(50),
+        db
+          .select({
+            file_path: mediaImages.filePath,
+            width: mediaImages.width,
+            height: mediaImages.height,
+            vote_average: mediaImages.voteAverage,
+          })
+          .from(mediaImages)
+          .where(and(eq(mediaImages.mediaId, params.id), eq(mediaImages.imageType, "poster")))
+          .orderBy(desc(mediaImages.voteAverage))
+          .limit(50),
       ]);
 
-      if (!imagesRes.ok || !videosRes.ok) {
-        set.status = 502;
-        return { error: "Failed to fetch from TMDB" };
+      // If no gallery data yet, trigger background sync and return empty
+      if (videos.length === 0 && backdrops.length === 0 && posters.length === 0 && mediaRecord.tmdbId) {
+        import("../services/tmdb-gallery").then(({ syncMediaGallery }) => {
+          syncMediaGallery(mediaRecord.id, mediaRecord.tmdbId!, mediaRecord.type as "movie" | "series")
+            .catch((err) => logger.error({ err, mediaId: mediaRecord.id }, "On-demand gallery sync failed"));
+        });
       }
-
-      const [images, videos] = await Promise.all([
-        imagesRes.json() as Promise<{
-          backdrops?: { file_path: string; width: number; height: number; vote_average: number }[];
-          posters?: { file_path: string; width: number; height: number; vote_average: number }[];
-        }>,
-        videosRes.json() as Promise<{
-          results?: { key: string; name: string; type: string; site: string; official: boolean; published_at: string }[];
-        }>,
-      ]);
 
       return {
         data: {
-          videos: (videos.results ?? [])
-            .filter((v) => v.site === "YouTube")
+          videos: videos
             .sort((a, b) => {
-              // trailers and teasers first, then official, then by date
-              const typeOrder = ["Trailer", "Teaser", "Clip", "Featurette", "Behind the Scenes"];
-              const aIdx = typeOrder.indexOf(a.type);
-              const bIdx = typeOrder.indexOf(b.type);
+              const aIdx = typeOrder.indexOf(a.type ?? "");
+              const bIdx = typeOrder.indexOf(b.type ?? "");
               if (aIdx !== bIdx) return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
-              if (a.official !== b.official) return a.official ? -1 : 1;
-              return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+              if (a.official !== b.official) return (a.official ? -1 : 1);
+              return new Date(b.published_at ?? 0).getTime() - new Date(a.published_at ?? 0).getTime();
             }),
-          backdrops: (images.backdrops ?? [])
-            .sort((a, b) => b.vote_average - a.vote_average)
-            .slice(0, 50),
-          posters: (images.posters ?? [])
-            .sort((a, b) => b.vote_average - a.vote_average)
-            .slice(0, 50),
+          backdrops,
+          posters,
         },
       };
     },
     {
-      params: t.Object({ tmdbId: t.String() }),
-      query: t.Object({
-        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
-      }),
+      params: t.Object({ id: t.String({ format: "uuid" }) }),
     },
   )
 

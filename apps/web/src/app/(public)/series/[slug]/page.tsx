@@ -488,14 +488,12 @@ export default async function SeriesPage({ params }: PageProps) {
 
             <div className="border-t border-white/[0.04] mb-10" />
 
-            {series.tmdbId && (
-              <section className="mb-16">
-                <SectionLabel>Media</SectionLabel>
-                <div className="mt-6">
-                  <MediaGallery tmdbId={series.tmdbId} type="series" />
-                </div>
-              </section>
-            )}
+            <section className="mb-16">
+              <SectionLabel>Media</SectionLabel>
+              <div className="mt-6">
+                <MediaGallery mediaId={series.id} />
+              </div>
+            </section>
 
             {/* ── POPULAR REVIEWS ──────────────────────────────────────── */}
             <section className="mb-12">
