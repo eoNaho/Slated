@@ -19,6 +19,7 @@ import {
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
+import { getUserPlanTier } from "../lib/feature-gate";
 
 function resolveImageUrl(path: string | null): string | null {
   if (!path) return null;
@@ -33,20 +34,21 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     "/me",
     async (ctx: any) => {
       const { user } = ctx;
-      const [settings] = await db
-        .select()
-        .from(userSettings)
-        .where(eq(userSettings.userId, user.id));
-      const [socialLinks] = await db
-        .select()
-        .from(userSocialLinks)
-        .where(eq(userSocialLinks.userId, user.id));
+
+      const [fullUser, settings, socialLinks] = await Promise.all([
+        db.select().from(userTable).where(eq(userTable.id, user.id)).limit(1).then(r => r[0]),
+        db.select().from(userSettings).where(eq(userSettings.userId, user.id)).then(r => r[0]),
+        db.select().from(userSocialLinks).where(eq(userSocialLinks.userId, user.id)).then(r => r[0]),
+      ]);
 
       return {
         data: {
-          ...user,
-          avatarUrl: resolveImageUrl(user.avatarUrl),
-          coverUrl: resolveImageUrl(user.coverUrl),
+          ...fullUser,
+          avatarUrl: resolveImageUrl(fullUser?.avatarUrl ?? null),
+          coverUrl: resolveImageUrl(fullUser?.coverUrl ?? null),
+          bioExtended: fullUser?.bioExtended
+            ? (() => { try { return JSON.parse(fullUser.bioExtended); } catch { return null; } })()
+            : null,
           settings,
           socialLinks,
         },
@@ -87,6 +89,9 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           ...publicProfile,
           avatarUrl: resolveImageUrl(publicProfile.avatarUrl),
           coverUrl: resolveImageUrl(publicProfile.coverUrl),
+          bioExtended: publicProfile.bioExtended
+            ? (() => { try { return JSON.parse(publicProfile.bioExtended); } catch { return null; } })()
+            : null,
           socialLinks,
         },
       };
@@ -99,21 +104,34 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     "/me",
     async (ctx: any) => {
       const { user, body } = ctx;
+      const updateData: Record<string, any> = { updatedAt: new Date() };
+      if (body.displayName !== undefined) updateData.displayName = body.displayName;
+      if (body.bio !== undefined) updateData.bio = body.bio;
+      if (body.location !== undefined) updateData.location = body.location;
+      if (body.website !== undefined) updateData.website = body.website;
+      if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
+      if (body.coverUrl !== undefined) updateData.coverUrl = body.coverUrl;
+      if (body.bioExtended !== undefined)
+        updateData.bioExtended = body.bioExtended
+          ? JSON.stringify(body.bioExtended)
+          : null;
+      if (body.coverPosition !== undefined) updateData.coverPosition = body.coverPosition;
+      if (body.coverZoom !== undefined) updateData.coverZoom = body.coverZoom;
+
       const [updated] = await db
         .update(userTable)
-        .set({
-          displayName: body.displayName,
-          bio: body.bio,
-          location: body.location,
-          website: body.website,
-          avatarUrl: body.avatarUrl,
-          coverUrl: body.coverUrl,
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(userTable.id, user.id))
         .returning();
 
-      return { data: updated };
+      return {
+        data: {
+          ...updated,
+          bioExtended: updated.bioExtended
+            ? JSON.parse(updated.bioExtended)
+            : null,
+        },
+      };
     },
     {
       requireAuth: true,
@@ -124,6 +142,54 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         website: t.Optional(t.String()),
         avatarUrl: t.Optional(t.String()),
         coverUrl: t.Optional(t.String()),
+        coverPosition: t.Optional(t.String()),
+        coverZoom: t.Optional(t.String()),
+        bioExtended: t.Optional(
+          t.Nullable(
+            t.Object({
+              headline: t.Optional(t.String()),
+              location: t.Optional(t.String()),
+              website: t.Optional(t.String()),
+              links: t.Optional(
+                t.Array(
+                  t.Object({
+                    label: t.String(),
+                    url: t.String(),
+                    icon: t.Optional(t.String()),
+                  })
+                )
+              ),
+              quote: t.Optional(
+                t.Nullable(
+                  t.Object({
+                    text: t.String(),
+                    author: t.Optional(t.String()),
+                    source: t.Optional(t.String()),
+                  })
+                )
+              ),
+              moods: t.Optional(t.Array(t.String())),
+              currentlyWatching: t.Optional(
+                t.Nullable(
+                  t.Object({
+                    mediaId: t.String(),
+                    note: t.Optional(t.String()),
+                    startedAt: t.Optional(t.String()),
+                    progress: t.Optional(t.Number()),
+                  })
+                )
+              ),
+              sections: t.Optional(
+                t.Array(
+                  t.Object({
+                    title: t.String(),
+                    content: t.String(),
+                  })
+                )
+              ),
+            })
+          )
+        ),
       }),
     },
   )
@@ -183,16 +249,24 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "No image file provided" };
       }
 
-      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-      if (!allowed.includes(file.type)) {
-        set.status = 400;
-        return { error: "Only JPEG, PNG and WebP images are allowed" };
+      const tier = await getUserPlanTier(user.id);
+      const isGif = file.type === "image/gif";
+
+      if (isGif && tier !== "ultra") {
+        set.status = 403;
+        return { error: "GIF avatars require an Ultra subscription" };
       }
 
-      const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+      if (!allowed.includes(file.type)) {
+        set.status = 400;
+        return { error: "Only JPEG, PNG, WebP and GIF images are allowed" };
+      }
+
+      const MAX_SIZE = isGif ? 8 * 1024 * 1024 : 5 * 1024 * 1024; // 8 MB for GIF, 5 MB otherwise
       if (file.size > MAX_SIZE) {
         set.status = 400;
-        return { error: "Image must be under 5 MB" };
+        return { error: `Image must be under ${isGif ? "8" : "5"} MB` };
       }
 
       // Delete old avatar if it was a custom upload
@@ -200,15 +274,14 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         await storageService.delete(user.avatarUrl).catch(() => null);
         // Also try to delete the small variant
         await storageService
-          .delete(user.avatarUrl.replace(".webp", "-sm.webp"))
+          .delete(user.avatarUrl.replace(".webp", "-sm.webp").replace(".gif", "-sm.gif"))
           .catch(() => null);
       }
 
       const buffer = await file.arrayBuffer();
-      const { path } = await storageService.uploadAvatar(
-        buffer,
-        `users/${user.id}`,
-      );
+      const { path } = isGif
+        ? await storageService.uploadGifAvatar(buffer, `users/${user.id}`)
+        : await storageService.uploadAvatar(buffer, `users/${user.id}`);
 
       const [updated] = await db
         .update(userTable)
@@ -259,16 +332,24 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "No image file provided" };
       }
 
-      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-      if (!allowed.includes(file.type)) {
-        set.status = 400;
-        return { error: "Only JPEG, PNG and WebP images are allowed" };
+      const coverTier = await getUserPlanTier(user.id);
+      const isCoverGif = file.type === "image/gif";
+
+      if (isCoverGif && coverTier !== "ultra") {
+        set.status = 403;
+        return { error: "GIF covers require an Ultra subscription" };
       }
 
-      const MAX_SIZE = 10 * 1024 * 1024; // 10 MB (banners are larger)
-      if (file.size > MAX_SIZE) {
+      const allowedCover = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+      if (!allowedCover.includes(file.type)) {
         set.status = 400;
-        return { error: "Image must be under 10 MB" };
+        return { error: "Only JPEG, PNG, WebP and GIF images are allowed" };
+      }
+
+      const MAX_COVER_SIZE = isCoverGif ? 15 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > MAX_COVER_SIZE) {
+        set.status = 400;
+        return { error: `Image must be under ${isCoverGif ? "15" : "10"} MB` };
       }
 
       // Delete old cover if it was a custom upload
@@ -277,10 +358,9 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       }
 
       const buffer = await file.arrayBuffer();
-      const { path } = await storageService.uploadCover(
-        buffer,
-        `users/${user.id}`,
-      );
+      const { path } = isCoverGif
+        ? await storageService.uploadGifCover(buffer, `users/${user.id}`)
+        : await storageService.uploadCover(buffer, `users/${user.id}`);
 
       const [updated] = await db
         .update(userTable)

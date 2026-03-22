@@ -613,6 +613,50 @@ export const peopleApi = {
     }>(`/people/${id}`),
 };
 
+// ==================== IDENTITY ====================
+
+export const identityApi = {
+  getMe: () =>
+    fetcher<{ data: import("@/types").UserIdentity }>("/identity/me"),
+
+  getFrames: () =>
+    fetcher<{ data: import("@/types").ProfileFrame[] }>("/identity/frames"),
+
+  getTitles: () =>
+    fetcher<{ data: import("@/types").ProfileTitle[] }>("/identity/titles"),
+
+  setFrame: (frameId: string | null) =>
+    fetcher<{ data: import("@/types").UserIdentityPerks }>("/identity/frame", {
+      method: "PATCH",
+      body: JSON.stringify({ frameId }),
+    }),
+
+  setTitle: (titleId: string | null) =>
+    fetcher<{ data: import("@/types").UserIdentityPerks }>("/identity/title", {
+      method: "PATCH",
+      body: JSON.stringify({ titleId }),
+    }),
+
+  updateAppearance: (data: {
+    accentColor?: string | null;
+    profileTheme?: string | null;
+    showcasedBadges?: string[];
+  }) =>
+    fetcher<{ data: Record<string, unknown> }>("/identity/appearance", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  unlockTitle: (titleId: string) =>
+    fetcher<{ data: { userId: string; titleId: string; unlockedAt: string } }>(
+      `/identity/titles/${titleId}/unlock`,
+      { method: "POST" }
+    ),
+
+  getByUsername: (username: string) =>
+    fetcher<{ data: import("@/types").UserIdentity }>(`/identity/${username}`),
+};
+
 // ==================== PLANS ====================
 
 export const plansApi = {
@@ -750,6 +794,7 @@ export const api = {
   comments: commentsApi,
   people: peopleApi,
   plans: plansApi,
+  identity: identityApi,
   stories: storiesApi,
   series: seriesApi,
   discover: {
@@ -780,7 +825,7 @@ export const api = {
       if (options.type) params.set("type", options.type);
       return fetcher<{ data: SearchResult[] }>(`/discover/popular?${params}`);
     }
-  }
+  },
 };
 
 export { ApiError };

@@ -14,9 +14,12 @@ import {
   Clapperboard,
   Film,
 } from "lucide-react";
-import type { UserProfile, FavoriteFilm } from "@/types";
+import type { UserProfile, FavoriteFilm, UserIdentity } from "@/types";
 import { resolveImage, cn } from "@/lib/utils";
 import { WatchingNow } from "./watching-now";
+import { FramedAvatar } from "./framed-avatar";
+import { TitleBadge } from "./title-badge";
+import { SupporterBadge, VerifiedBadge } from "./identity-badges";
 import { Story } from "@/types/stories";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 
@@ -26,6 +29,7 @@ interface ProfileHeaderProps {
   isOwnProfile?: boolean;
   watchingNow?: any;
   stories?: Story[];
+  identity?: UserIdentity | null;
 }
 
 export function ProfileHeader({
@@ -34,9 +38,12 @@ export function ProfileHeader({
   isOwnProfile,
   watchingNow = null,
   stories = [],
+  identity = null,
 }: ProfileHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(null);
+  const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(
+    null,
+  );
 
   // Separate active stories from pinned stories (highlights)
   const { activeStories, pinnedStories, hasUnseen } = useMemo(() => {
@@ -46,55 +53,59 @@ export function ProfileHeader({
     return { activeStories: active, pinnedStories: pinned, hasUnseen: unseen };
   }, [stories]);
 
-  // Use coverUrl as banner, fallback to first favorite poster
   const bannerUrl =
     resolveImage(profile.coverUrl) ||
-    favorites[0]?.posterPath ||
     "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920";
 
   return (
     <div className="relative">
       {/* Banner */}
-      <div className="relative h-64 lg:h-80 w-full overflow-hidden">
+      <div className="relative h-64 lg:h-80 w-full overflow-hidden bg-zinc-900">
+        {/* Blurred ambient backdrop */}
+        <div
+          className="absolute inset-0 scale-110 blur-2xl opacity-70"
+          style={{
+            backgroundImage: `url(${bannerUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: profile.coverPosition || "50% 50%",
+          }}
+        />
+        {/* Main image */}
         <img
           src={bannerUrl}
           alt="Banner"
-          className="w-full h-full object-cover"
+          className="relative w-full h-full object-cover"
+          style={{
+            objectPosition: profile.coverPosition || "50% 50%",
+            transform: `scale(${(Number(profile.coverZoom) || 100) / 100})`,
+            transformOrigin: profile.coverPosition || "50% 50%",
+          }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
       </div>
 
       {/* Profile Content */}
       <div className="container mx-auto px-6 relative z-10 -mt-24 lg:-mt-28">
         <div className="flex flex-col md:flex-row gap-5 items-start md:items-end">
-          {/* Avatar - Custom Rounded Square with Story Support */}
-          <div 
-            className="relative shrink-0 group cursor-pointer"
-            onClick={() => {
-              if (activeStories.length > 0) {
-                setActiveStoryGroup(activeStories);
+          {/* Avatar with frame, story ring and premium badge */}
+          <div className="relative shrink-0">
+            <FramedAvatar
+              avatarUrl={profile.avatarUrl}
+              username={profile.username}
+              frame={identity?.perks?.frame}
+              hasUnseen={hasUnseen}
+              size="xl"
+              onClick={
+                activeStories.length > 0
+                  ? () => setActiveStoryGroup(activeStories)
+                  : undefined
               }
-            }}
-          >
-            <div className={cn(
-              "w-36 h-36 lg:w-40 lg:h-40 rounded-2xl bg-zinc-950 p-0.5 shadow-2xl transition-transform active:scale-95",
-              hasUnseen ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[3px] animate-gradient-xy" : "ring-1 ring-white/10"
-            )}>
-              <div className="w-full h-full rounded-[14px] bg-zinc-950 overflow-hidden border-2 border-zinc-950">
-                <img
-                  src={
-                    resolveImage(profile.avatarUrl) ||
-                    `https://ui-avatars.com/api/?name=${profile.username}&size=160&background=7c3aed&color=fff`
-                  }
-                  alt={profile.displayName || profile.username}
-                  className="w-full h-full object-cover rounded-[12px]"
-                />
-              </div>
-            </div>
+            />
+            {/* Premium pulsing star badge */}
             {profile.isPremium && (
               <div className="absolute top-0 -right-2 z-20">
                 <span className="relative flex h-8 w-8">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-25"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-25" />
                   <span className="relative inline-flex rounded-full h-8 w-8 bg-zinc-900 border border-purple-500/40 items-center justify-center">
                     <Star className="h-4 w-4 text-purple-400 fill-purple-400" />
                   </span>
@@ -111,12 +122,16 @@ export function ProfileHeader({
                   <h1 className="text-4xl lg:text-5xl font-bold text-white truncate">
                     {profile.displayName || profile.username}
                   </h1>
-                  {profile.isVerified && (
-                    <div className="shrink-0 p-1 rounded-full bg-blue-500/10 border border-blue-500/30">
-                      <Check className="h-4 w-4 text-blue-400" />
-                    </div>
+                  {identity?.perks?.verified && <VerifiedBadge />}
+                  {profile.isPremium && identity?.perks?.badgeEnabled && (
+                    <SupporterBadge />
                   )}
                 </div>
+                {identity?.perks?.title && (
+                  <div className="mb-1">
+                    <TitleBadge title={identity.perks.title} />
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-sm text-zinc-400">
                   <span>@{profile.username}</span>
                   {profile.location && (
@@ -169,6 +184,43 @@ export function ProfileHeader({
               </p>
             )}
 
+            {/* Bio Extended */}
+            {(profile as any).bioExtended && (
+              <div className="mt-2 space-y-1.5 max-w-xl">
+                {(profile as any).bioExtended.headline && (
+                  <p className="text-sm font-semibold text-zinc-200">
+                    {(profile as any).bioExtended.headline}
+                  </p>
+                )}
+                {(profile as any).bioExtended.moods?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(profile as any).bioExtended.moods.map(
+                      (mood: string, i: number) => (
+                        <span
+                          key={i}
+                          className="px-2 py-0.5 rounded-full text-[11px] bg-zinc-800/80 border border-white/8 text-zinc-400"
+                        >
+                          {mood}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                )}
+                {(profile as any).bioExtended.quote?.text && (
+                  <blockquote className="border-l-2 border-purple-500/40 pl-3 mt-1">
+                    <p className="text-xs italic text-zinc-500 line-clamp-2">
+                      &ldquo;{(profile as any).bioExtended.quote.text}&rdquo;
+                    </p>
+                    {(profile as any).bioExtended.quote.author && (
+                      <p className="text-[10px] text-zinc-600 mt-0.5">
+                        &mdash; {(profile as any).bioExtended.quote.author}
+                      </p>
+                    )}
+                  </blockquote>
+                )}
+              </div>
+            )}
+
             {/* Meta Links */}
             <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
               {profile.website && (
@@ -186,7 +238,11 @@ export function ProfileHeader({
               {/* Social Links */}
               {profile.socialLinks?.twitter && (
                 <a
-                  href={profile.socialLinks.twitter.startsWith("http") ? profile.socialLinks.twitter : `https://twitter.com/${profile.socialLinks.twitter}`}
+                  href={
+                    profile.socialLinks.twitter.startsWith("http")
+                      ? profile.socialLinks.twitter
+                      : `https://twitter.com/${profile.socialLinks.twitter}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
@@ -197,7 +253,11 @@ export function ProfileHeader({
               )}
               {profile.socialLinks?.instagram && (
                 <a
-                  href={profile.socialLinks.instagram.startsWith("http") ? profile.socialLinks.instagram : `https://instagram.com/${profile.socialLinks.instagram}`}
+                  href={
+                    profile.socialLinks.instagram.startsWith("http")
+                      ? profile.socialLinks.instagram
+                      : `https://instagram.com/${profile.socialLinks.instagram}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
@@ -208,7 +268,11 @@ export function ProfileHeader({
               )}
               {profile.socialLinks?.letterboxd && (
                 <a
-                  href={profile.socialLinks.letterboxd.startsWith("http") ? profile.socialLinks.letterboxd : `https://letterboxd.com/${profile.socialLinks.letterboxd}`}
+                  href={
+                    profile.socialLinks.letterboxd.startsWith("http")
+                      ? profile.socialLinks.letterboxd
+                      : `https://letterboxd.com/${profile.socialLinks.letterboxd}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
@@ -219,7 +283,11 @@ export function ProfileHeader({
               )}
               {profile.socialLinks?.imdb && (
                 <a
-                  href={profile.socialLinks.imdb.startsWith("http") ? profile.socialLinks.imdb : `https://imdb.com/name/${profile.socialLinks.imdb}`}
+                  href={
+                    profile.socialLinks.imdb.startsWith("http")
+                      ? profile.socialLinks.imdb
+                      : `https://imdb.com/name/${profile.socialLinks.imdb}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"

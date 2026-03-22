@@ -2,8 +2,8 @@
 
 import React from "react";
 import Image from "next/image";
-import { Story, WatchContent, ListContent, RatingContent, PollContent, HotTakeContent } from "@/types/stories";
-import { Star, Play, List, BarChart2, Flame } from "lucide-react";
+import { Story, WatchContent, ListContent, RatingContent, PollContent, HotTakeContent, RewindContent } from "@/types/stories";
+import { Star, Play, List, BarChart2, Flame, Rewind } from "lucide-react";
 import { cn, resolveImage } from "@/lib/utils";
 
 // --- Watch Template ---
@@ -218,6 +218,63 @@ export const HotTakeTemplate = ({ content }: { content: HotTakeContent }) => (
   </div>
 );
 
+// --- Rewind Template ---
+export const RewindTemplate = ({ content }: { content: RewindContent }) => (
+  <div className="relative h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-b from-indigo-950 to-black overflow-hidden">
+    {/* Ambient glow */}
+    <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-72 h-72 bg-purple-600/20 rounded-full blur-[80px]" />
+    </div>
+
+    <div className="relative z-10 flex flex-col items-center text-center w-full">
+      <div className="mb-4 p-3 rounded-2xl bg-white/5 border border-white/10">
+        <Rewind className="w-7 h-7 text-purple-300" />
+      </div>
+      <p className="text-purple-300 text-xs font-bold uppercase tracking-widest mb-1">Daily Rewind</p>
+      <p className="text-white/40 text-xs mb-8">{content.date}</p>
+
+      {/* Poster grid */}
+      {content.media_watched.length > 0 && (
+        <div className={cn(
+          "grid gap-3 mb-8 w-full max-w-xs",
+          content.media_watched.length === 1 ? "grid-cols-1 justify-items-center" :
+          content.media_watched.length === 2 ? "grid-cols-2" : "grid-cols-3"
+        )}>
+          {content.media_watched.slice(0, 6).map((item) => (
+            <div
+              key={item.id}
+              className="aspect-[2/3] relative rounded-lg overflow-hidden shadow-lg ring-1 ring-white/10"
+            >
+              {item.poster_path ? (
+                <Image
+                  src={resolveImage(item.poster_path) || ""}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                  <Play className="w-6 h-6 text-zinc-600" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="text-3xl font-black text-white mb-1">
+        {content.media_watched.length} {content.media_watched.length === 1 ? "film" : "films"}
+      </h2>
+      <p className="text-white/50 text-sm">watched today</p>
+      {content.top_genre && (
+        <p className="mt-3 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold">
+          Top genre: {content.top_genre}
+        </p>
+      )}
+    </div>
+  </div>
+);
+
 // --- Story Template Switcher ---
 export const StoryTemplate = ({
   story,
@@ -250,6 +307,8 @@ export const StoryTemplate = ({
       );
     case "hot_take":
       return <HotTakeTemplate content={content as HotTakeContent} />;
+    case "rewind":
+      return <RewindTemplate content={content as RewindContent} />;
     default:
       return (
         <div className="h-full w-full flex items-center justify-center text-white/40">

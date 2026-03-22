@@ -12,6 +12,7 @@ import type {
   Activity,
   DiaryEntry,
   WatchlistItem,
+  UserIdentity,
 } from "@/types";
 import type { Story } from "@/types/stories";
 
@@ -152,8 +153,8 @@ export default async function ProfilePage({ params }: PageProps) {
   const profile: UserProfile = { ...user, stats };
   const isOwnProfile = sessionUsername === username;
 
-  // Phase 2: reviews, lists, stories (public) + diary/watchlist for own profile
-  const [reviewsRes, listsRes, storiesRes, diaryRes, watchlistRes] = await Promise.all([
+  // Phase 2: reviews, lists, stories, identity (public) + diary/watchlist for own profile
+  const [reviewsRes, listsRes, storiesRes, identityRes, diaryRes, watchlistRes] = await Promise.all([
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
@@ -161,6 +162,7 @@ export default async function ProfilePage({ params }: PageProps) {
       `/lists?user_id=${user.id}&limit=10`,
     ),
     fetchJson<{ data: Story[] }>(`/stories/user/${username}`),
+    fetchJson<{ data: UserIdentity }>(`/identity/${username}`),
     isOwnProfile
       ? fetchJsonAuth<{ data: DiaryEntry[] }>("/diary", cookieHeader)
       : Promise.resolve(null),
@@ -172,6 +174,7 @@ export default async function ProfilePage({ params }: PageProps) {
   const reviews = reviewsRes?.data ?? [];
   const lists = listsRes?.data ?? [];
   const stories = storiesRes?.data ?? [];
+  const identity = identityRes?.data ?? null;
   const activity = activitiesRes?.data ?? [];
   const diary = diaryRes?.data ?? [];
   const watchlist = watchlistRes?.data ?? [];
@@ -188,6 +191,7 @@ export default async function ProfilePage({ params }: PageProps) {
         reviews={reviews}
         lists={lists}
         stories={stories}
+        identity={identity}
         diary={diary}
         watchlist={watchlist}
         watchingNow={activityNowRes?.data}

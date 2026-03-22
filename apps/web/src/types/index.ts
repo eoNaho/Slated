@@ -13,6 +13,8 @@ export interface User {
   bio?: string | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
+  coverPosition?: string | null;
+  coverZoom?: string | null;
   location?: string | null;
   website?: string | null;
   isVerified: boolean;
@@ -403,6 +405,71 @@ export interface UserAchievement {
   achievementId: string;
   unlockedAt: string;
   achievement?: Achievement;
+}
+
+// ==================== IDENTITY & CUSTOMIZATION ====================
+
+export interface ProfileFrame {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  isAnimated: boolean;
+  minPlan: string;
+  previewUrl?: string | null;
+  isUnlocked?: boolean;
+}
+
+export interface ProfileTitle {
+  id: string;
+  name: string;
+  slug: string;
+  bgColor: string;
+  textColor: string;
+  source: "plan" | "xp" | "achievement";
+  minPlan?: string | null;
+  xpRequired?: number | null;
+  achievementId?: string | null;
+  isUnlocked?: boolean;
+}
+
+export interface UserIdentityPerks {
+  userId: string;
+  frameId?: string | null;
+  activeTitleId?: string | null;
+  badgeEnabled: boolean;
+  verified: boolean;
+  frame?: Pick<ProfileFrame, "id" | "name" | "slug" | "color" | "isAnimated"> | null;
+  title?: Pick<ProfileTitle, "id" | "name" | "slug" | "bgColor" | "textColor"> | null;
+}
+
+export interface UserIdentity {
+  perks: UserIdentityPerks | null;
+  accentColor?: string | null;
+  profileTheme?: string | null;
+  showcasedBadges?: string[];
+}
+
+export interface BioLink {
+  label: string;
+  url: string;
+  icon?: string;
+}
+
+export interface BioExtended {
+  headline?: string;
+  location?: string;
+  website?: string;
+  links?: BioLink[];
+  quote?: { text: string; author?: string; source?: string } | null;
+  moods?: string[];
+  currentlyWatching?: {
+    mediaId: string;
+    note?: string;
+    startedAt?: string;
+    progress?: number;
+  } | null;
+  sections?: { title: string; content: string }[];
 }
 
 // ==================== PLANS & SUBSCRIPTIONS ====================

@@ -6,6 +6,7 @@ import {
   decimal,
   timestamp,
   index,
+  unique,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 
@@ -85,4 +86,17 @@ export const reports = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [index("idx_reports_status").on(table.status)]
+);
+
+// Plan Feature Flags — toggle features per plan via admin dashboard
+export const planFeatureFlags = pgTable(
+  "plan_feature_flags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    featureKey: text("feature_key").notNull(),
+    plan: text("plan").notNull(), // 'free' | 'pro' | 'ultra'
+    enabled: boolean("enabled").default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [unique("unique_feature_plan").on(table.featureKey, table.plan)]
 );

@@ -6,18 +6,27 @@ import {
   media,
   reviews,
   lists,
+  planFeatureFlags,
+  clubs,
   eq,
   desc,
   count,
+  ilike,
+  or,
   sql,
 } from "../db";
-import { betterAuthPlugin } from "../lib/auth";
+import { auth, type User } from "../auth";
+import { invalidateFlagsCache } from "../lib/feature-gate";
 
 export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
-  .use(betterAuthPlugin)
-  .onBeforeHandle((ctx: any) => {
-    const { user: authUser, set } = ctx;
-
+  .resolve(async ({ request: { headers } }) => {
+    const session = await auth.api.getSession({ headers });
+    return {
+      user: (session?.user ?? null) as User | null,
+      session: session?.session ?? null,
+    };
+  })
+  .onBeforeHandle(({ user: authUser, set }: any) => {
     if (!authUser) {
       set.status = 401;
       return { error: "Unauthorized", message: "Authentication required" };
@@ -60,7 +69,6 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
         },
       };
     },
-    { requireAuth: true },
   )
 
   // Manage Users
@@ -82,7 +90,6 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       return { data: results, total, page, limit };
     },
     {
-      requireAuth: true,
       query: t.Object({
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
@@ -111,7 +118,6 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       return { data: updated };
     },
     {
-      requireAuth: true,
       params: t.Object({ id: t.String() }),
       body: t.Object({
         status: t.Union([
@@ -138,11 +144,84 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       return { data: results };
     },
     {
-      requireAuth: true,
       query: t.Object({ status: t.Optional(t.String()) }),
     },
   )
 
+  // ─── All Clubs (admin view, includes private) ─────────────────────
+  .get(
+    "/clubs",
+    async ({ query }: any) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 30, 100);
+      const offset = (page - 1) * limit;
+
+      const conditions: any[] = [];
+      if (query.search) {
+        conditions.push(
+          or(ilike(clubs.name, `%${query.search}%`), ilike(clubs.description, `%${query.search}%`))
+        );
+      }
+
+      const rows = await db
+        .select()
+        .from(clubs)
+        .where(conditions.length ? conditions[0] : undefined)
+        .orderBy(desc(clubs.memberCount))
+        .limit(limit)
+        .offset(offset);
+
+      const [{ total }] = await db.select({ total: count() }).from(clubs);
+
+      return { data: rows, total, page, limit };
+    },
+    {
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+        search: t.Optional(t.String()),
+      }),
+    },
+  )
+
+  // ─── Feature Flags ────────────────────────────────────────────────
+  .get(
+    "/feature-flags",
+    async () => {
+      const flags = await db.select().from(planFeatureFlags);
+      return { data: flags };
+    },
+    { requireAuth: true }
+  )
+
+  .patch(
+    "/feature-flags",
+    async ({ body }: any) => {
+      const { featureKey, plan, enabled } = body;
+
+      const [updated] = await db
+        .insert(planFeatureFlags)
+        .values({ featureKey, plan, enabled })
+        .onConflictDoUpdate({
+          target: [planFeatureFlags.featureKey, planFeatureFlags.plan],
+          set: { enabled, updatedAt: new Date() },
+        })
+        .returning();
+
+      await invalidateFlagsCache();
+
+      return { data: updated };
+    },
+    {
+      body: t.Object({
+        featureKey: t.String(),
+        plan: t.Union([t.Literal("free"), t.Literal("pro"), t.Literal("ultra")]),
+        enabled: t.Boolean(),
+      }),
+    }
+  )
+
+  // ─── Reports ──────────────────────────────────────────────────────
   .patch(
     "/reports/:id/resolve",
     async (ctx: any) => {
@@ -166,7 +245,6 @@ export const adminRoutes = new Elysia({ prefix: "/admin", tags: ["Admin"] })
       return { data: updated };
     },
     {
-      requireAuth: true,
       params: t.Object({ id: t.String() }),
       body: t.Object({
         status: t.Union([t.Literal("resolved"), t.Literal("dismissed")]),

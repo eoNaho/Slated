@@ -45,6 +45,7 @@ import type {
   Activity,
   CurrentActivity,
   Scrobble,
+  UserIdentity,
 } from "@/types";
 
 interface ProfileTabsProps {
@@ -56,6 +57,7 @@ interface ProfileTabsProps {
   reviews: Review[];
   lists: ListType[];
   stories?: Story[];
+  identity?: UserIdentity | null;
   // These are empty for public viewing, populated for own profile
   diary?: DiaryEntry[];
   watchlist?: WatchlistItem[];
@@ -96,6 +98,7 @@ export function ProfileTabs({
   likes = [],
   activity = [],
   stories = [],
+  identity = null,
   watchingNow = null,
   scrobbles = [],
 }: ProfileTabsProps) {
@@ -126,6 +129,7 @@ export function ProfileTabs({
         isOwnProfile={isOwnProfile}
         watchingNow={watchingNow}
         stories={stories}
+        identity={identity}
       />
 
       {/* Tabs Navigation */}

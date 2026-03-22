@@ -37,12 +37,15 @@ import { storiesRoutes } from "./routes/stories";
 import { discoverRoutes } from "./routes/discover";
 import { seriesRoutes } from "./routes/series";
 import { likesRoutes } from "./routes/likes";
+import { identityRoutes } from "./routes/identity";
+import { mediaCoversRoutes } from "./routes/media-covers";
 
 // Explicit list of allowed origins (never use `true` which allows all origins)
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL || "https://pixelreel.com",
+  process.env.DASHBOARD_URL || "https://dashboard.pixelreel.com",
   ...(process.env.NODE_ENV !== "production"
-    ? ["http://localhost:3000", "http://localhost:5173"]
+    ? ["http://localhost:3000", "http://localhost:3005", "http://localhost:5173"]
     : []),
 ];
 
@@ -171,7 +174,9 @@ const app = new Elysia()
       .use(storiesRoutes)
       .use(discoverRoutes)
       .use(seriesRoutes)
-      .use(likesRoutes),
+      .use(likesRoutes)
+      .use(identityRoutes)
+      .use(mediaCoversRoutes),
   )
 
   .listen(process.env.PORT || 3001);

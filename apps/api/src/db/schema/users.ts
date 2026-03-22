@@ -14,6 +14,10 @@ export const userSettings = pgTable("user_settings", {
   notifications: text("notifications").default(
     '{"email": true, "push": true, "followers": true, "comments": true}'
   ),
+  accentColor: text("accent_color"),
+  profileTheme: text("profile_theme"),
+  layoutConfig: text("layout_config"), // JSON string with section order
+  showcasedBadges: text("showcased_badges"), // JSON string array of achievement IDs
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 

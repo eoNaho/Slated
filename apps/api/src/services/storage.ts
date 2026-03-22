@@ -305,6 +305,32 @@ export class StorageService {
   }
 
   /**
+   * Upload a GIF avatar (Ultra only — skips Sharp, preserves animation)
+   */
+  async uploadGifAvatar(
+    buffer: ArrayBuffer,
+    folder: string,
+  ): Promise<{ path: string }> {
+    const input = Buffer.from(buffer);
+    const path = `${folder}/avatar.gif`;
+    await this.upload(input, path, "image/gif");
+    return { path };
+  }
+
+  /**
+   * Upload a GIF cover/banner (Ultra only — skips Sharp, preserves animation)
+   */
+  async uploadGifCover(
+    buffer: ArrayBuffer,
+    folder: string,
+  ): Promise<{ path: string }> {
+    const input = Buffer.from(buffer);
+    const path = `${folder}/cover.gif`;
+    await this.upload(input, path, "image/gif");
+    return { path };
+  }
+
+  /**
    * Check if a file exists in B2
    */
   async exists(key: string): Promise<boolean> {

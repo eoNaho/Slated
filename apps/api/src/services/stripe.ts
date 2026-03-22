@@ -10,7 +10,8 @@ export class StripeService {
   static async createCheckoutSession(
     userId: string,
     priceId: string,
-    customerEmail: string
+    customerEmail: string,
+    plan?: string,
   ): Promise<{ url: string | null; sessionId: string }> {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -26,6 +27,7 @@ export class StripeService {
       cancel_url: `${process.env.FRONTEND_URL}/settings/subscription?canceled=true`,
       metadata: {
         userId,
+        ...(plan ? { plan } : {}),
       },
     });
 

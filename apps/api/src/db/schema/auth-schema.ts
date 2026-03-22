@@ -33,7 +33,10 @@ export const user = pgTable("user", {
   displayUsername: text("display_username"),
   // PixelReel custom fields (additionalFields)
   bio: text("bio"),
+  bioExtended: text("bio_extended"), // JSON string for rich bio data
   coverUrl: text("cover_url"),
+  coverPosition: text("cover_position").default("50% 50%"), // CSS object-position
+  coverZoom: text("cover_zoom").default("100"), // percentage, 50–200
   location: text("location"),
   website: text("website"),
   isPremium: boolean("is_premium").default(false),

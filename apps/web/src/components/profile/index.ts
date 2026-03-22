@@ -1,5 +1,8 @@
 // Components
 export { ProfileHeader } from "./profile-header";
+export { FramedAvatar } from "./framed-avatar";
+export { TitleBadge } from "./title-badge";
+export { SupporterBadge, VerifiedBadge } from "./identity-badges";
 export { FavoriteFilms } from "./favorite-films";
 export { FavoriteGenres } from "./favorite-genres";
 export { RecentWatches } from "./recent-watches";

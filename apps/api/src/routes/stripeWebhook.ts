@@ -1,7 +1,9 @@
 import { Elysia, t } from "elysia";
 import { db, user as userTable, subscriptions, eq, and } from "../db";
+import { profileTitles, userTitles } from "../db/schema/identity";
 import { StripeService, stripe } from "../services/stripe";
 import { betterAuthPlugin } from "../lib/auth";
+import { inArray } from "drizzle-orm";
 
 export const stripeRoutes = new Elysia({
   prefix: "/stripe",
@@ -29,6 +31,7 @@ export const stripeRoutes = new Elysia({
           user.id,
           body.priceId,
           userData.email,
+          body.plan,
         );
         return { url, sessionId };
       } catch (e: any) {
@@ -41,7 +44,10 @@ export const stripeRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({ priceId: t.String() }),
+      body: t.Object({
+        priceId: t.String(),
+        plan: t.Optional(t.Union([t.Literal("pro"), t.Literal("ultra")])),
+      }),
     },
   )
 
@@ -96,6 +102,7 @@ export const stripeRoutes = new Elysia({
       case "checkout.session.completed": {
         const session = event.data.object as any;
         const userId = session.metadata?.userId;
+        const plan = session.metadata?.plan as "pro" | "ultra" | undefined;
         const customerId = session.customer as string;
 
         if (userId) {
@@ -126,6 +133,29 @@ export const stripeRoutes = new Elysia({
                 status: "active",
               })
               .where(eq(subscriptions.userId, userId));
+          }
+
+          // Auto-unlock plan-gated titles for the purchased tier
+          if (plan) {
+            const plansToUnlock = plan === "ultra" ? ["pro", "ultra"] : ["pro"];
+            const planTitles = await db
+              .select({ id: profileTitles.id })
+              .from(profileTitles)
+              .where(
+                and(
+                  eq(profileTitles.source, "plan"),
+                  inArray(profileTitles.minPlan, plansToUnlock),
+                ),
+              );
+
+            if (planTitles.length > 0) {
+              await db
+                .insert(userTitles)
+                .values(
+                  planTitles.map((t) => ({ userId, titleId: t.id })),
+                )
+                .onConflictDoNothing();
+            }
           }
         }
         break;

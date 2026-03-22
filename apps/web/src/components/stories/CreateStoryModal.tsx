@@ -166,6 +166,34 @@ export function CreateStoryModal({ onClose, onSuccess }: CreateStoryModalProps) 
             />
           </div>
         );
+      case "list":
+        return (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Share a list</label>
+            <Input
+              placeholder="List name"
+              className="bg-white/5 border-white/10 text-white font-semibold"
+              onChange={(e) =>
+                setContent((prev: any) => ({ ...prev, list_name: e.target.value }))
+              }
+            />
+            <Input
+              placeholder="Number of items"
+              type="number"
+              min={1}
+              className="bg-white/5 border-white/10 text-white"
+              onChange={(e) =>
+                setContent((prev: any) => ({
+                  ...prev,
+                  item_count: parseInt(e.target.value, 10) || 0,
+                }))
+              }
+            />
+            <p className="text-xs text-zinc-600">
+              Tip: paste poster image URLs below to show a preview grid
+            </p>
+          </div>
+        );
       default:
         return <div className="text-white/40 text-center py-8">Template under construction...</div>;
     }

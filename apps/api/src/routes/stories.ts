@@ -17,6 +17,7 @@ import {
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
+import { handleStoryCreated, handleStoryReactionMilestone } from "../services/gamification";
 
 // ── Content validation helpers ────────────────────────────────────────────────
 
@@ -111,6 +112,9 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
           expiresAt: expiresAt,
         })
         .returning();
+
+      // Grant +5 XP for creating a story (fire-and-forget)
+      handleStoryCreated(user.id).catch(() => null);
 
       return { data: newStory };
     },
@@ -475,6 +479,22 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
             },
           })
           .returning();
+
+        // Check reaction milestone for XP (fire-and-forget)
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(storyReactions)
+          .where(eq(storyReactions.storyId, params.id));
+
+        const [storyOwner] = await db
+          .select({ userId: stories.userId })
+          .from(stories)
+          .where(eq(stories.id, params.id))
+          .limit(1);
+
+        if (storyOwner && Number(total) >= 10) {
+          handleStoryReactionMilestone(storyOwner.userId, Number(total)).catch(() => null);
+        }
 
         return { data: reaction };
       } catch (e: any) {

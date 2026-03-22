@@ -44,6 +44,15 @@ export function startCronJobs(): void {
     logger.info("Subscription check — Stripe webhooks handle real-time; this is a safety net");
   });
 
+  // Daily Rewind — create rewind story drafts at 23:00 UTC
+  registerJob("daily-rewind", 60 * 60 * 1000, async () => {
+    const now = new Date();
+    // Only run when close to 23:00 UTC (within the hour window)
+    if (now.getUTCHours() !== 23) return;
+
+    await createDailyRewindStories();
+  });
+
   // Stories expiration — mark expired stories every hour
   registerJob("expire-stories", 60 * 60 * 1000, async () => {
     const { sql: rawSql } = await import("drizzle-orm");
@@ -95,6 +104,86 @@ export function stopCronJobs(): void {
     if (job.timer) clearInterval(job.timer);
   }
   logger.info("Stopped all cron jobs");
+}
+
+// ─── Daily Rewind ─────────────────────────────────────────────────────────────
+
+/**
+ * Create a 'rewind' story for each user who logged at least one diary entry today.
+ * Story content: { entries: [{ title, rating, mediaId, posterPath }] }
+ * Expires after 24h. Idempotent — skips users who already have a rewind story today.
+ */
+async function createDailyRewindStories(): Promise<void> {
+  logger.info("daily-rewind: starting");
+
+  const { diary } = await import("../db/schema/content");
+  const { stories } = await import("../db/schema/stories");
+  const { gte, eq, and } = await import("drizzle-orm");
+
+  const todayStr = new Date().toISOString().split("T")[0]; // 'YYYY-MM-DD'
+
+  // Find distinct users who watched something today (watchedAt is a date string 'YYYY-MM-DD')
+  const todayEntries = await db
+    .select({
+      userId: diary.userId,
+      mediaId: diary.mediaId,
+      rating: diary.rating,
+      watchedAt: diary.watchedAt,
+    })
+    .from(diary)
+    .where(eq(diary.watchedAt, todayStr));
+
+  if (todayEntries.length === 0) {
+    logger.info("daily-rewind: no diary entries today, skipping");
+    return;
+  }
+
+  // Group by userId
+  const byUser = new Map<string, typeof todayEntries>();
+  for (const entry of todayEntries) {
+    if (!byUser.has(entry.userId)) byUser.set(entry.userId, []);
+    byUser.get(entry.userId)!.push(entry);
+  }
+
+  let created = 0;
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  for (const [userId, entries] of byUser) {
+    // Skip if user already has a rewind story created today
+    const existing = await db
+      .select({ id: stories.id })
+      .from(stories)
+      .where(
+        and(
+          eq(stories.userId, userId),
+          eq(stories.type, "rewind"),
+          gte(stories.createdAt, todayStart),
+        ),
+      )
+      .limit(1);
+
+    if (existing.length > 0) continue;
+
+    await db.insert(stories).values({
+      userId,
+      type: "rewind",
+      content: {
+        date: todayStr,
+        entries: entries.map((e) => ({
+          mediaId: e.mediaId,
+          rating: e.rating,
+          watchedAt: e.watchedAt,
+        })),
+        totalWatched: entries.length,
+      },
+      expiresAt,
+    });
+    created++;
+  }
+
+  logger.info({ created, users: byUser.size }, "daily-rewind: done");
 }
 
 // ─── Sync jobs ────────────────────────────────────────────────────────────────

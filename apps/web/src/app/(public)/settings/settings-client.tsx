@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import {
   Mail,
   KeyRound,
   UserX,
+  X,
   BookOpen,
   Clock,
   Heart,
@@ -35,7 +36,11 @@ import {
   Instagram,
   Clapperboard,
   Film,
+  Palette,
+  Crown,
 } from "lucide-react";
+import { identityApi } from "@/lib/api";
+import type { ProfileFrame, ProfileTitle, UserIdentity } from "@/types";
 import { useSession, authClient } from "@/lib/auth-client";
 import { resolveImage } from "@/lib/utils";
 
@@ -46,7 +51,8 @@ type Section =
   | "account"
   | "privacy"
   | "notifications"
-  | "extension";
+  | "extension"
+  | "identity";
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
@@ -243,6 +249,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
 const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
+  { id: "identity", label: "Identidade", icon: Crown },
   { id: "account", label: "Account", icon: Lock },
   { id: "privacy", label: "Privacy", icon: Eye },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -254,6 +261,9 @@ export function SettingsClient() {
   const router = useRouter();
   const [section, setSection] = useState<Section>("profile");
 
+  // ── Fetched profile (source of truth for avatarUrl/coverUrl)
+  const [profile, setProfile] = useState<any>(null);
+
   // ── Profile state
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -263,6 +273,10 @@ export function SettingsClient() {
   const [instagram, setInstagram] = useState("");
   const [letterboxd, setLetterboxd] = useState("");
   const [imdb, setImdb] = useState("");
+  const [bioHeadline, setBioHeadline] = useState("");
+  const [bioQuote, setBioQuote] = useState("");
+  const [bioQuoteAuthor, setBioQuoteAuthor] = useState("");
+  const [bioMoods, setBioMoods] = useState<string[]>([]);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -287,7 +301,20 @@ export function SettingsClient() {
   // ── Image upload state
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [coverLoading, setCoverLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<number>(0);
+  const [repositionMode, setRepositionMode] = useState(false);
+  const [coverPosition, setCoverPosition] = useState("50% 50%");
+  const [coverZoom, setCoverZoom] = useState(100);
+  const [repositionSaving, setRepositionSaving] = useState(false);
+  const dragState = useRef<{ startY: number; startPct: number } | null>(null);
+
+
+  // ── Identity state
+  const [identityData, setIdentityData] = useState<UserIdentity | null>(null);
+  const [frames, setFrames] = useState<ProfileFrame[]>([]);
+  const [titles, setTitles] = useState<ProfileTitle[]>([]);
+  const [identityLoading, setIdentityLoading] = useState(false);
+  const [accentColor, setAccentColor] = useState<string>("");
+  const [profileTheme, setProfileTheme] = useState<string>("");
 
   // ── Extension / API Tokens state
   const [tokens, setTokens] = useState<any[]>([]);
@@ -307,29 +334,57 @@ export function SettingsClient() {
         })
         .finally(() => setTokensLoading(false));
     }
+    if (section === "identity" && !identityData) {
+      setIdentityLoading(true);
+      Promise.all([
+        identityApi.getMe(),
+        identityApi.getFrames(),
+        identityApi.getTitles(),
+      ])
+        .then(([id, fr, ti]) => {
+          setIdentityData(id.data);
+          setFrames(fr.data);
+          setTitles(ti.data);
+          setAccentColor(id.data.accentColor ?? "");
+          setProfileTheme(id.data.profileTheme ?? "");
+        })
+        .catch(() => {})
+        .finally(() => setIdentityLoading(false));
+    }
   }, [section]);
 
-  // Fetch full profile (including social links)
-  useEffect(() => {
-    if (session?.user) {
-      fetch(`${API}/users/me`, { credentials: "include" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.data) {
-            const u = data.data;
-            setDisplayName(u.displayName || u.name || "");
-            setBio(u.bio || "");
-            setLocation(u.location || "");
-            setWebsite(u.website || "");
-            if (u.socialLinks) {
-              setTwitter(u.socialLinks.twitter || "");
-              setInstagram(u.socialLinks.instagram || "");
-              setLetterboxd(u.socialLinks.letterboxd || "");
-              setImdb(u.socialLinks.imdb || "");
-            }
+  // Fetch full profile (including social links, cover, bioExtended)
+  const fetchProfile = () => {
+    fetch(`${API}/users/me`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.data) {
+          const u = data.data;
+          setProfile(u);
+          setCoverPosition(u.coverPosition || "50% 50%");
+          setCoverZoom(Number(u.coverZoom) || 100);
+          setDisplayName(u.displayName || u.name || "");
+          setBio(u.bio || "");
+          setLocation(u.location || "");
+          setWebsite(u.website || "");
+          if (u.socialLinks) {
+            setTwitter(u.socialLinks.twitter || "");
+            setInstagram(u.socialLinks.instagram || "");
+            setLetterboxd(u.socialLinks.letterboxd || "");
+            setImdb(u.socialLinks.imdb || "");
           }
-        });
-    }
+          if (u.bioExtended) {
+            setBioHeadline(u.bioExtended.headline || "");
+            setBioQuote(u.bioExtended.quote?.text || "");
+            setBioQuoteAuthor(u.bioExtended.quote?.author || "");
+            setBioMoods(u.bioExtended.moods || []);
+          }
+        }
+      });
+  };
+
+  useEffect(() => {
+    if (session?.user) fetchProfile();
   }, [session]);
 
   // Redirect if not logged in
@@ -352,6 +407,46 @@ export function SettingsClient() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
+  const handleRepositionSave = async () => {
+    setRepositionSaving(true);
+    try {
+      const res = await fetch(`${API}/users/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ coverPosition, coverZoom: String(coverZoom) }),
+      });
+      if (!res.ok) throw new Error();
+      setRepositionMode(false);
+      toast.success("Cover position saved");
+      fetchProfile();
+    } catch {
+      toast.error("Failed to save position");
+    } finally {
+      setRepositionSaving(false);
+    }
+  };
+
+  const handleCoverDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!repositionMode) return;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const pct = parseFloat(coverPosition.split(" ")[1]) || 50;
+    dragState.current = { startY: clientY, startPct: pct };
+  };
+
+  const handleCoverDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!dragState.current || !repositionMode) return;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const delta = clientY - dragState.current.startY;
+    // 160px container height — each px of drag maps to ~0.6% shift
+    const newPct = Math.min(100, Math.max(0, dragState.current.startPct + (delta / 160) * 100));
+    setCoverPosition(`50% ${newPct.toFixed(1)}%`);
+  };
+
+  const handleCoverDragEnd = () => {
+    dragState.current = null;
+  };
+
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileLoading(true);
@@ -361,7 +456,17 @@ export function SettingsClient() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ displayName, bio, location, website }),
+          body: JSON.stringify({
+            displayName,
+            bio,
+            location,
+            website,
+            bioExtended: {
+              headline: bioHeadline || undefined,
+              quote: bioQuote ? { text: bioQuote, author: bioQuoteAuthor || undefined } : undefined,
+              moods: bioMoods.length > 0 ? bioMoods : undefined,
+            },
+          }),
         }),
         fetch(`${API}/users/me/social-links`, {
           method: "PATCH",
@@ -396,11 +501,13 @@ export function SettingsClient() {
         credentials: "include",
       });
 
-      if (!res.ok) throw new Error(`Failed to upload ${type}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || `Failed to upload ${type}`);
+      }
 
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} updated`);
-      await authClient.getSession(); // Refresh session to get new URL
-      setLastUpdated(Date.now()); // Force refresh images
+      fetchProfile(); // Refresh profile to get new URLs
     } catch (err: any) {
       toast.error(err.message || `Failed to upload ${type}`);
     } finally {
@@ -422,8 +529,7 @@ export function SettingsClient() {
       if (!res.ok) throw new Error(`Failed to remove ${type}`);
 
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} removed`);
-      await authClient.getSession();
-      setLastUpdated(Date.now());
+      fetchProfile();
     } catch (err: any) {
       toast.error(err.message || `Failed to remove ${type}`);
     } finally {
@@ -551,10 +657,10 @@ export function SettingsClient() {
             {/* Avatar block */}
             <div className="flex items-center gap-3 mb-8 px-1">
               <img
-                src={`${
-                  resolveImage(u.image || u.avatarUrl) ||
+                src={
+                  resolveImage(profile?.avatarUrl || u.image || u.avatarUrl) ||
                   `https://ui-avatars.com/api/?name=${username}&size=80&background=7c3aed&color=fff`
-                }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                }
                 alt={username}
                 className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10"
               />
@@ -615,41 +721,92 @@ export function SettingsClient() {
                       <Sparkles className="h-3 w-3" />
                       Profile Banner
                     </label>
-                    <div className="relative h-40 w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 group shadow-2xl">
+                    <div
+                      className={`relative h-40 w-full rounded-2xl overflow-hidden bg-zinc-900 border shadow-2xl transition-all ${
+                        repositionMode
+                          ? "border-purple-500/60 cursor-ns-resize select-none"
+                          : "border-zinc-800 group"
+                      }`}
+                      onMouseDown={handleCoverDragStart}
+                      onMouseMove={handleCoverDragMove}
+                      onMouseUp={handleCoverDragEnd}
+                      onMouseLeave={handleCoverDragEnd}
+                      onTouchStart={handleCoverDragStart}
+                      onTouchMove={handleCoverDragMove}
+                      onTouchEnd={handleCoverDragEnd}
+                    >
                       <img
-                        src={`${
-                          resolveImage(u.coverUrl) ||
+                        src={
+                          resolveImage(profile?.coverUrl || u.coverUrl) ||
                           "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200"
-                        }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                        }
                         alt="Banner Preview"
-                        className={`w-full h-full object-cover transition-all duration-500 ${coverLoading ? "opacity-40 blur-sm" : "group-hover:scale-105"}`}
+                        draggable={false}
+                        className={`w-full h-full object-cover transition-[opacity,filter] duration-500 ${coverLoading ? "opacity-40 blur-sm" : ""}`}
+                        style={{
+                          objectPosition: coverPosition,
+                          transform: `scale(${coverZoom / 100})`,
+                          transformOrigin: coverPosition,
+                        }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 gap-3">
-                        <label className="cursor-pointer h-10 px-4 rounded-xl bg-white text-zinc-950 text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-xl">
-                          <Camera className="h-3.5 w-3.5" />
-                          Change Banner
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageUpload(file, "cover");
-                            }}
-                          />
-                        </label>
-                        {u.coverUrl && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage("cover")}
-                            className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center hover:bg-red-500/30 transition-all backdrop-blur-md"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+                      {/* Reposition mode hint */}
+                      {repositionMode && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
+                          <div className="flex flex-col items-center gap-1 text-white/80">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="w-px h-4 bg-white/60" />
+                              <div className="w-2 h-2 border-t-2 border-l-2 border-white/60 rotate-45 -mt-1" />
+                            </div>
+                            <span className="text-xs font-semibold bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
+                              Drag to reposition
+                            </span>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="w-2 h-2 border-b-2 border-r-2 border-white/60 rotate-45 -mb-1" />
+                              <div className="w-px h-4 bg-white/60" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Normal hover controls */}
+                      {!repositionMode && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 gap-3">
+                          <label className="cursor-pointer h-10 px-4 rounded-xl bg-white text-zinc-950 text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all shadow-xl">
+                            <Camera className="h-3.5 w-3.5" />
+                            Change Banner
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageUpload(file, "cover");
+                              }}
+                            />
+                          </label>
+                          {(profile?.coverUrl || u.coverUrl) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setRepositionMode(true)}
+                                className="h-10 px-4 rounded-xl bg-black/60 text-white border border-white/20 text-xs font-bold flex items-center gap-2 hover:bg-black/80 transition-all backdrop-blur-md shadow-xl"
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                Reposition
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage("cover")}
+                                className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center hover:bg-red-500/30 transition-all backdrop-blur-md"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
 
                       {coverLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -657,9 +814,60 @@ export function SettingsClient() {
                         </div>
                       )}
                     </div>
-                    <p className="text-[10px] text-zinc-600">
-                      Recommended size: 1920x480px. Max 10MB.
-                    </p>
+
+                    {/* Reposition action bar */}
+                    {repositionMode && (
+                      <div className="space-y-2">
+                        {/* Zoom slider */}
+                        <div className="flex items-center gap-3 px-1">
+                          <span className="text-[10px] text-zinc-500 w-8 shrink-0">−</span>
+                          <input
+                            type="range"
+                            min={50}
+                            max={200}
+                            step={5}
+                            value={coverZoom}
+                            onChange={(e) => setCoverZoom(Number(e.target.value))}
+                            className="flex-1 accent-purple-500 h-1"
+                          />
+                          <span className="text-[10px] text-zinc-500 w-6 shrink-0">+</span>
+                          <span className="text-[10px] text-zinc-500 tabular-nums w-10 text-right">{coverZoom}%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleRepositionSave}
+                            disabled={repositionSaving}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-50"
+                            style={{ background: "linear-gradient(135deg, #9918f5 0%, #8600e5 100%)" }}
+                          >
+                            {repositionSaving ? (
+                              <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCoverPosition(profile?.coverPosition || "50% 50%");
+                              setCoverZoom(Number(profile?.coverZoom) || 100);
+                              setRepositionMode(false);
+                            }}
+                            className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!repositionMode && (
+                      <p className="text-[10px] text-zinc-600">
+                        Recommended size: 1920x480px. Max 10MB. Hover to reposition.
+                      </p>
+                    )}
                   </div>
 
                   {/* Avatar & Info Row */}
@@ -667,10 +875,10 @@ export function SettingsClient() {
                     <div className="relative group">
                       <div className="w-24 h-24 rounded-2xl overflow-hidden ring-2 ring-purple-500/20 bg-zinc-900 shadow-2xl relative">
                         <img
-                          src={`${
-                            resolveImage(u.image || u.avatarUrl) ||
+                          src={
+                            resolveImage(profile?.avatarUrl || u.image || u.avatarUrl) ||
                             `https://ui-avatars.com/api/?name=${username}&size=120&background=7c3aed&color=fff`
-                          }${lastUpdated ? `?v=${lastUpdated}` : ""}`}
+                          }
                           alt={username}
                           className={`w-full h-full object-cover transition-all duration-500 ${avatarLoading ? "opacity-30 blur-sm" : "group-hover:scale-110"}`}
                         />
@@ -697,7 +905,7 @@ export function SettingsClient() {
                       </div>
 
                       {/* Floating Delete Badge */}
-                      {u.avatarUrl && !avatarLoading && (
+                      {(profile?.avatarUrl || u.avatarUrl) && !avatarLoading && (
                         <button
                           type="button"
                           onClick={() => handleRemoveImage("avatar")}
@@ -715,7 +923,7 @@ export function SettingsClient() {
                       </h3>
                       <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
                         Click the image to upload a new avatar. Square images
-                        work best. Max 5MB.
+                        work best. Max 5 MB. Usuários Ultra podem usar GIFs animados.
                       </p>
                     </div>
                   </div>
@@ -747,6 +955,88 @@ export function SettingsClient() {
                       rows={3}
                       maxLength={200}
                     />
+
+                    {/* Bio Avançada - Pro+ */}
+                    <div className="border-t border-zinc-800/60 pt-4 space-y-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3" />
+                          Bio Avançada
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/20 border border-purple-500/30 text-purple-400">PRO</span>
+                        </p>
+                        <p className="text-[11px] text-zinc-600 mt-1">Headline, citação, links e seções personalizadas.</p>
+                      </div>
+
+                      {/* Headline */}
+                      <Field
+                        label="Headline"
+                        icon={FileText}
+                        placeholder="Ex: Cinéfilo apaixonado por ficção científica"
+                        value={bioHeadline}
+                        onChange={(e) => setBioHeadline(e.target.value)}
+                        maxLength={80}
+                      />
+
+                      {/* Quote */}
+                      <div className="space-y-2">
+                        <Field
+                          label="Citação"
+                          icon={MessageSquare}
+                          placeholder="Texto da citação"
+                          value={bioQuote}
+                          onChange={(e) => setBioQuote(e.target.value)}
+                          maxLength={200}
+                        />
+                        <Field
+                          label="Autor da citação"
+                          icon={User}
+                          placeholder="Ex: Stanley Kubrick"
+                          value={bioQuoteAuthor}
+                          onChange={(e) => setBioQuoteAuthor(e.target.value)}
+                          maxLength={60}
+                        />
+                      </div>
+
+                      {/* Moods */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-zinc-500">Moods (até 5)</p>
+                        <div className="flex flex-wrap gap-2">
+                          {bioMoods.map((mood, i) => (
+                            <span
+                              key={i}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-zinc-800 border border-zinc-700 text-zinc-300"
+                            >
+                              {mood}
+                              <button
+                                type="button"
+                                onClick={() => setBioMoods((m) => m.filter((_, j) => j !== i))}
+                                className="text-zinc-500 hover:text-red-400"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                          {bioMoods.length < 5 && (
+                            <input
+                              type="text"
+                              placeholder="+ mood"
+                              maxLength={20}
+                              className="px-2.5 py-1 rounded-full text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/60 w-24"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  const val = e.currentTarget.value.trim();
+                                  if (val && !bioMoods.includes(val)) {
+                                    setBioMoods((m) => [...m, val]);
+                                    e.currentTarget.value = "";
+                                  }
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
                     <Field
                       label="Location"
@@ -820,6 +1110,201 @@ export function SettingsClient() {
                   </div>
                 </form>
               </>
+            )}
+
+            {/* ── IDENTITY ───────────────────────────────────────────── */}
+            {section === "identity" && (
+              <div className="space-y-8">
+                <SectionHeader
+                  title="Identidade"
+                  description="Personalize como você aparece no PixelReel."
+                />
+
+                {identityLoading ? (
+                  <div className="flex justify-center py-16">
+                    <RefreshCw className="h-5 w-5 animate-spin text-zinc-600" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Molduras */}
+                    <div className="space-y-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3" />
+                        Moldura do Avatar
+                      </p>
+                      <div className="grid grid-cols-4 gap-3">
+                        {/* Sem moldura */}
+                        <button
+                          onClick={async () => {
+                            await identityApi.setFrame(null);
+                            setIdentityData((prev) =>
+                              prev ? { ...prev, perks: prev.perks ? { ...prev.perks, frameId: null, frame: null } : null } : prev
+                            );
+                            toast.success("Moldura removida");
+                          }}
+                          className={`aspect-square rounded-xl border-2 flex items-center justify-center text-xs text-zinc-500 transition-all ${
+                            !identityData?.perks?.frameId
+                              ? "border-purple-500 bg-purple-500/10"
+                              : "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
+                          }`}
+                        >
+                          Nenhuma
+                        </button>
+                        {frames.map((frame) => (
+                          <button
+                            key={frame.id}
+                            disabled={!frame.isUnlocked}
+                            onClick={async () => {
+                              if (!frame.isUnlocked) return;
+                              await identityApi.setFrame(frame.id);
+                              setIdentityData((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      perks: prev.perks
+                                        ? { ...prev.perks, frameId: frame.id, frame }
+                                        : { userId: "", frameId: frame.id, activeTitleId: null, badgeEnabled: false, verified: false, frame, title: null },
+                                    }
+                                  : prev
+                              );
+                              toast.success(`Moldura ${frame.name} ativada`);
+                            }}
+                            title={frame.isUnlocked ? frame.name : `${frame.name} — requer ${frame.minPlan}`}
+                            className={`aspect-square rounded-xl border-2 flex items-center justify-center transition-all relative ${
+                              identityData?.perks?.frameId === frame.id
+                                ? "border-purple-500 bg-purple-500/10 scale-105"
+                                : frame.isUnlocked
+                                ? "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
+                                : "border-zinc-800/50 bg-zinc-900/50 opacity-40 cursor-not-allowed"
+                            }`}
+                          >
+                            <div
+                              className="w-10 h-10 rounded-full border-4"
+                              style={{ borderColor: frame.color }}
+                            />
+                            {!frame.isUnlocked && (
+                              <span className="absolute top-1 right-1 text-[8px] font-bold text-zinc-500 uppercase bg-zinc-800 rounded px-1">
+                                {frame.minPlan}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-zinc-800/60" />
+
+                    {/* Títulos */}
+                    <div className="space-y-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                        <Crown className="h-3 w-3" />
+                        Título do Perfil
+                      </p>
+                      <div className="space-y-2">
+                        {/* Sem título */}
+                        <button
+                          onClick={async () => {
+                            await identityApi.setTitle(null);
+                            setIdentityData((prev) =>
+                              prev ? { ...prev, perks: prev.perks ? { ...prev.perks, activeTitleId: null, title: null } : null } : prev
+                            );
+                            toast.success("Título removido");
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-all ${
+                            !identityData?.perks?.activeTitleId
+                              ? "border-purple-500 bg-purple-500/10 text-purple-300"
+                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
+                          }`}
+                        >
+                          Nenhum título
+                        </button>
+                        {titles.map((title) => (
+                          <button
+                            key={title.id}
+                            disabled={!title.isUnlocked}
+                            onClick={async () => {
+                              if (!title.isUnlocked) return;
+                              try {
+                                await identityApi.unlockTitle(title.id);
+                              } catch {}
+                              await identityApi.setTitle(title.id);
+                              setIdentityData((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      perks: prev.perks
+                                        ? { ...prev.perks, activeTitleId: title.id, title }
+                                        : { userId: "", frameId: null, activeTitleId: title.id, badgeEnabled: false, verified: false, frame: null, title },
+                                    }
+                                  : prev
+                              );
+                              toast.success(`Título "${title.name}" ativado`);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm border flex items-center justify-between transition-all ${
+                              identityData?.perks?.activeTitleId === title.id
+                                ? "border-purple-500 bg-purple-500/10"
+                                : title.isUnlocked
+                                ? "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
+                                : "border-zinc-800/50 bg-zinc-900/50 opacity-40 cursor-not-allowed"
+                            }`}
+                          >
+                            <span
+                              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+                              style={{ backgroundColor: title.bgColor, color: title.textColor }}
+                            >
+                              {title.name}
+                            </span>
+                            {!title.isUnlocked && (
+                              <span className="text-xs text-zinc-600">
+                                {title.source === "xp"
+                                  ? `${title.xpRequired} XP`
+                                  : title.minPlan
+                                  ? `Plano ${title.minPlan}`
+                                  : "Achievement"}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-zinc-800/60" />
+
+                    {/* Cor de destaque */}
+                    <div className="space-y-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                        <Palette className="h-3 w-3" />
+                        Cor de Destaque
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={accentColor || "#7c3aed"}
+                          onChange={(e) => setAccentColor(e.target.value)}
+                          className="w-10 h-10 rounded-lg border border-zinc-700 bg-zinc-900 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={accentColor}
+                          onChange={(e) => setAccentColor(e.target.value)}
+                          placeholder="#7c3aed"
+                          className="flex-1 px-3.5 py-2.5 rounded-xl text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-purple-500/60"
+                        />
+                        <button
+                          onClick={async () => {
+                            await identityApi.updateAppearance({ accentColor: accentColor || null });
+                            toast.success("Cor salva");
+                          }}
+                          className="px-4 py-2.5 rounded-xl text-sm font-bold text-white"
+                          style={{ background: "linear-gradient(135deg, #9918f5 0%, #8600e5 100%)" }}
+                        >
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             {/* ── ACCOUNT ────────────────────────────────────────────── */}

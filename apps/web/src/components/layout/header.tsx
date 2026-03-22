@@ -36,8 +36,18 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+    fetch(`${API_URL}/notifications/unread-count`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => { if (json?.data?.count) setUnreadCount(json.data.count); })
+      .catch(() => null);
+  }, [user]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -129,13 +139,17 @@ export function Header() {
           </form>
 
           {user && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hidden sm:inline-flex"
+            <Link
+              href="/notifications"
+              className="relative inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors hidden sm:inline-flex"
             >
               <Bell size={18} />
-            </Button>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-purple-500 text-[9px] font-bold text-white px-1 leading-none">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
           )}
 
           {isPending ? (

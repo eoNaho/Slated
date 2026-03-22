@@ -2,28 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Film, 
-  Settings, 
-  MessageSquare, 
+import {
+  LayoutDashboard,
+  Users,
+  Film,
+  Settings,
+  MessageSquare,
   Zap,
   ShieldCheck,
-  Command
+  Command,
+  Shield,
 } from "lucide-react";
 
+interface AdminUser {
+  displayName?: string;
+  username?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
 const NAV_ITEMS = [
-  { label: "Overview", icon: LayoutDashboard, href: "/" },
+  { label: "Overview", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Community", icon: Users, href: "/community" },
   { label: "Clubs", icon: Zap, href: "/clubs" },
   { label: "Content", icon: Film, href: "/content" },
   { label: "Discussions", icon: MessageSquare, href: "/discussions" },
+  { label: "Premium", icon: Shield, href: "/premium" },
   { label: "Infrastructure", icon: ShieldCheck, href: "/system" },
 ];
 
-export function Sidebar() {
+export function Sidebar({ admin }: { admin?: AdminUser }) {
   const pathname = usePathname();
+
+  const displayName = admin?.displayName || admin?.username || admin?.email || "Admin";
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-20 lg:w-64 flex flex-col z-50 transition-all duration-500 border-r border-white/5 bg-zinc-950/40 backdrop-blur-xl">
@@ -48,14 +59,14 @@ export function Sidebar() {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-          
+
           return (
             <Link
               key={item.label}
               href={item.href}
               className={`flex items-center gap-4 p-3 rounded-lg transition-colors duration-200 group relative ${
-                isActive 
-                  ? "bg-white/5 text-accent" 
+                isActive
+                  ? "bg-white/5 text-accent"
                   : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
               }`}
             >
@@ -71,18 +82,25 @@ export function Sidebar() {
 
       {/* Management Profile */}
       <div className="relative p-6 border-t border-white/5 space-y-4">
-        <Link 
+        <Link
           href="/settings"
           className="flex items-center gap-4 p-3 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors"
         >
           <Settings className="w-5 h-5" />
           <span className="hidden lg:block text-sm font-medium">Settings</span>
         </Link>
-        
+
         <div className="hidden lg:flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" />
+          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center">
+            {admin?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={admin.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold text-zinc-400">{displayName.charAt(0).toUpperCase()}</span>
+            )}
+          </div>
           <div className="flex-1 min-w-0">
-             <p className="text-sm font-semibold text-white truncate">Admin</p>
+             <p className="text-sm font-semibold text-white truncate">{displayName}</p>
              <p className="text-xs text-zinc-500 truncate">System Access</p>
           </div>
         </div>

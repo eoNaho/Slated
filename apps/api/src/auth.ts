@@ -99,6 +99,9 @@ export const auth = betterAuth({
       coverUrl: { type: "string", nullable: true },
       location: { type: "string", nullable: true },
       website: { type: "string", nullable: true },
+      bioExtended: { type: "string", nullable: true },
+      username: { type: "string", nullable: true },
+      displayUsername: { type: "string", nullable: true },
       isPremium: { type: "boolean", defaultValue: false },
       role: { type: "string", defaultValue: "user" },
       status: { type: "string", defaultValue: "active" },
@@ -140,8 +143,10 @@ export const auth = betterAuth({
   // ── Trusted origins (CSRF protection) ────────────────────
   trustedOrigins: [
     process.env.FRONTEND_URL || "https://pixelreel.com",
+    process.env.DASHBOARD_URL || "https://dashboard.pixelreel.com",
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3005",
   ],
 });
 
