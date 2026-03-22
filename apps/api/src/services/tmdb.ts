@@ -1,11 +1,16 @@
 import { db, media, genres, mediaGenres, people, mediaCredits, streamingServices, mediaStreaming } from "../db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { storageService } from "./storage";
 import { logger } from "../utils/logger";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
+
+// When false, TMDB images are stored as `tmdb:` paths and served directly
+// from the TMDB CDN instead of being uploaded to B2.
+// Set TMDB_UPLOAD_TO_STORAGE=true to re-enable uploads.
+const UPLOAD_TMDB_IMAGES = process.env.TMDB_UPLOAD_TO_STORAGE === "true";
 
 if (!TMDB_API_KEY) {
   logger.warn("TMDB_API_KEY is not set. Media sync will fail.");
@@ -149,6 +154,37 @@ function getTmdbImageUrl(
 // ============================================================================
 // TMDB Service
 // ============================================================================
+
+/**
+ * Background helper: upload profile photos for a list of TMDB people to B2.
+ * Skips people that already have a B2 path (not starting with "tmdb:").
+ */
+async function uploadPeoplePhotos(allPeople: TMDBCredit[]) {
+  const toUpload = allPeople.filter((p) => p.profile_path);
+  for (const p of toUpload) {
+    try {
+      const [existing] = await db
+        .select({ id: people.id, profilePath: people.profilePath })
+        .from(people)
+        .where(eq(people.tmdbId, p.id))
+        .limit(1);
+
+      if (!existing || !existing.profilePath?.startsWith("tmdb:")) continue;
+
+      const tmdbPath = existing.profilePath.replace("tmdb:", "");
+      const url = `${TMDB_IMAGE_BASE}/w185${tmdbPath}`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+
+      const folder = `people/${generateSlug(p.name)}-${p.id}`;
+      const { path } = await storageService.uploadProfilePhoto(await res.arrayBuffer(), folder);
+
+      await db.update(people).set({ profilePath: path }).where(eq(people.id, existing.id));
+    } catch {
+      // Non-fatal: photo stays as tmdb: path
+    }
+  }
+}
 
 export class TMDBService {
   /**
@@ -408,7 +444,7 @@ export class TMDBService {
       let posterPath: string | null = null;
       let backdropPath: string | null = null;
 
-      if (storageService.isConfigured()) {
+      if (UPLOAD_TMDB_IMAGES && storageService.isConfigured()) {
         try {
           // Upload poster
           if (data.poster_path) {
@@ -564,47 +600,53 @@ export class TMDBService {
         "Syncing cast & crew"
       );
 
-      for (const p of allPeople) {
-        // For now, use TMDB URLs for profile photos to avoid timeout
-        // TODO: Implement async background job for uploading to B2
-        const profilePath = p.profile_path ? `tmdb:${p.profile_path}` : null;
+      if (allPeople.length > 0) {
+        const castIds = new Set(data.credits.cast.map((c) => c.id));
 
-        const [insertedPerson] = await tx
+        // Batch upsert all people in one query
+        const insertedPeople = await tx
           .insert(people)
-          .values({
-            tmdbId: p.id,
-            name: p.name,
-            slug: `${generateSlug(p.name)}-${p.id}`,
-            profilePath,
-            gender:
-              p.gender === 1 ? "female" : p.gender === 2 ? "male" : "unknown",
-            knownForDepartment: p.known_for_department,
-            popularity: p.popularity || 0,
-          })
+          .values(
+            allPeople.map((p) => ({
+              tmdbId: p.id,
+              name: p.name,
+              slug: `${generateSlug(p.name)}-${p.id}`,
+              profilePath: p.profile_path ? `tmdb:${p.profile_path}` : null,
+              gender: (p.gender === 1 ? "female" : p.gender === 2 ? "male" : "unknown") as "male" | "female" | "unknown",
+              knownForDepartment: p.known_for_department,
+              popularity: p.popularity || 0,
+            }))
+          )
           .onConflictDoUpdate({
             target: people.tmdbId,
             set: {
-              popularity: p.popularity || 0,
-              name: p.name,
-              profilePath,
+              popularity: sql`excluded.popularity`,
+              name: sql`excluded.name`,
+              profilePath: sql`excluded.profile_path`,
             },
           })
-          .returning();
+          .returning({ id: people.id, tmdbId: people.tmdbId });
 
-        await tx
-          .insert(mediaCredits)
-          .values({
-            mediaId: insertedMedia.id,
-            personId: insertedPerson.id,
-            creditType: data.credits.cast.some((c) => c.id === p.id)
-              ? "cast"
-              : "crew",
-            character: p.character,
-            department: p.department,
-            job: p.job,
-            castOrder: p.order,
-          })
-          .onConflictDoNothing();
+        // Batch insert all credits in one query
+        const tmdbIdToPersonId = new Map(insertedPeople.map((p) => [p.tmdbId, p.id]));
+        const creditValues = allPeople
+          .flatMap((p) => {
+            const personId = tmdbIdToPersonId.get(p.id);
+            if (!personId) return [];
+            return [{
+              mediaId: insertedMedia.id,
+              personId,
+              creditType: (castIds.has(p.id) ? "cast" : "crew") as "cast" | "crew",
+              character: p.character,
+              department: p.department,
+              job: p.job,
+              castOrder: p.order,
+            }];
+          });
+
+        if (creditValues.length > 0) {
+          await tx.insert(mediaCredits).values(creditValues).onConflictDoNothing();
+        }
       }
 
       // Sync Watch Providers
@@ -634,52 +676,55 @@ export class TMDBService {
         if (allProviders.size > 0) {
           logger.info({ tmdbId, providersCount: allProviders.size }, "Syncing watch providers");
 
-          // Insert or update streaming services
-          for (const [providerId, provider] of allProviders.entries()) {
-            await tx
-              .insert(streamingServices)
-              .values({
-                tmdbId: providerId,
-                name: provider.name,
-                slug: generateSlug(provider.name),
-                logoPath: provider.logoPath,
-              })
-              .onConflictDoUpdate({
-                target: streamingServices.tmdbId,
-                set: {
-                  name: provider.name,
-                  logoPath: provider.logoPath,
-                }
-              });
-          }
+          // Batch upsert all streaming services (conflict on slug to merge regional duplicates)
+          // Deduplicate by slug first — same provider can appear with different tmdbIds across regions,
+          // and PostgreSQL will error if the same slug appears twice in a single batch upsert.
+          const providerRowsAll = Array.from(allProviders.entries()).map(([providerId, provider]) => ({
+            tmdbId: providerId,
+            name: provider.name,
+            slug: generateSlug(provider.name),
+            logoPath: provider.logoPath,
+          }));
+          const seenSlugs = new Set<string>();
+          const providerRows = providerRowsAll.filter((r) => {
+            if (seenSlugs.has(r.slug)) return false;
+            seenSlugs.add(r.slug);
+            return true;
+          });
 
-          // Get the local DB IDs for the synced services
-          const dbServices = await tx
-            .select()
-            .from(streamingServices)
-            .where(inArray(streamingServices.tmdbId, Array.from(allProviders.keys())));
-
-          const tmdbIdToLocalId = new Map(dbServices.map(s => [s.tmdbId, s.id]));
-
-          // Clear existing mappings for this media to avoid stale data
           await tx
-            .delete(mediaStreaming)
-            .where(eq(mediaStreaming.mediaId, insertedMedia.id));
+            .insert(streamingServices)
+            .values(providerRows)
+            .onConflictDoUpdate({
+              target: streamingServices.slug,
+              set: {
+                tmdbId: sql`excluded.tmdb_id`,
+                name: sql`excluded.name`,
+                logoPath: sql`excluded.logo_path`,
+              },
+            });
 
-          // Insert new country-provider mappings
-          for (const link of countryProviderLinks) {
-            const localServiceId = tmdbIdToLocalId.get(link.providerId);
-            if (localServiceId) {
-              await tx
-                .insert(mediaStreaming)
-                .values({
-                  mediaId: insertedMedia.id,
-                  serviceId: localServiceId,
-                  country: link.country.toUpperCase(),
-                  url: link.url,
-                })
-                .onConflictDoNothing();
-            }
+          // Lookup local IDs by slug
+          const allSlugs = providerRows.map((r) => r.slug);
+          const dbServices = await tx
+            .select({ id: streamingServices.id, slug: streamingServices.slug })
+            .from(streamingServices)
+            .where(inArray(streamingServices.slug, allSlugs));
+
+          const slugToLocalId = new Map(dbServices.map((s) => [s.slug, s.id]));
+
+          // Clear existing mappings then batch insert new ones
+          await tx.delete(mediaStreaming).where(eq(mediaStreaming.mediaId, insertedMedia.id));
+
+          const streamingValues = countryProviderLinks.flatMap((link) => {
+            const slug = generateSlug(allProviders.get(link.providerId)?.name ?? "");
+            const serviceId = slugToLocalId.get(slug);
+            if (!serviceId) return [];
+            return [{ mediaId: insertedMedia.id, serviceId, country: link.country.toUpperCase(), url: link.url }];
+          });
+
+          if (streamingValues.length > 0) {
+            await tx.insert(mediaStreaming).values(streamingValues).onConflictDoNothing();
           }
         }
       }
@@ -689,8 +734,8 @@ export class TMDBService {
         "Media synced successfully"
       );
 
-      return insertedMedia;
-    }).then((insertedMedia) => {
+      return { insertedMedia, allPeople };
+    }).then(({ insertedMedia, allPeople }) => {
       // Fire-and-forget deep sync for series (seasons + episodes)
       if (type === "series") {
         import("./tmdb-series").then(({ deepSyncSeries }) => {
@@ -699,6 +744,14 @@ export class TMDBService {
           );
         });
       }
+
+      // Fire-and-forget: upload people profile photos to B2 if enabled
+      if (UPLOAD_TMDB_IMAGES && storageService.isConfigured()) {
+        uploadPeoplePhotos(allPeople).catch((err) =>
+          logger.warn({ err }, "Background people photo upload failed")
+        );
+      }
+
       return insertedMedia;
     });
   }
@@ -706,6 +759,8 @@ export class TMDBService {
   // ==========================================================================
   // Discover & Trending
   // ==========================================================================
+
+
 
   /**
    * Get trending media

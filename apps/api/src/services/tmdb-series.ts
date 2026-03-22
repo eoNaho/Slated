@@ -21,6 +21,11 @@ const TMDB_API_KEY  = process.env.TMDB_API_KEY!;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMG_BASE = "https://image.tmdb.org/t/p";
 
+// When false, TMDB images are stored as `tmdb:` paths and served directly
+// from the TMDB CDN instead of being uploaded to B2.
+// Set TMDB_UPLOAD_TO_STORAGE=true to re-enable uploads.
+const UPLOAD_TMDB_IMAGES = process.env.TMDB_UPLOAD_TO_STORAGE === "true";
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
@@ -84,7 +89,7 @@ export async function syncSeriesSeasons(
     let posterPath: string | null = null;
 
     // Upload season poster to B2
-    if (storageService.isConfigured() && s.poster_path) {
+    if (UPLOAD_TMDB_IMAGES && storageService.isConfigured() && s.poster_path) {
       try {
         const url = tmdbImageUrl(s.poster_path, "original")!;
         const res = await fetch(url);
@@ -206,7 +211,7 @@ export async function uploadSeasonStills(
   mediaSlug: string,
   seasonNumber: number
 ): Promise<{ uploaded: number; skipped: number }> {
-  if (!storageService.isConfigured()) {
+  if (!UPLOAD_TMDB_IMAGES || !storageService.isConfigured()) {
     return { uploaded: 0, skipped: 0 };
   }
 

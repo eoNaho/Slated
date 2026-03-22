@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Heart, Share2, Eye, Camera } from "lucide-react";
+import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
 import { toast } from "sonner";
@@ -25,7 +25,6 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const queryClient = useQueryClient();
   const { data: mediaState } = useMediaState(movie.id);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Derive display values from server state; local overrides for optimistic UI
   const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
@@ -89,34 +88,6 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const year = movie.releaseDate
     ? new Date(movie.releaseDate).getFullYear()
     : undefined;
-
-  const handleCustomCover = async (file: File) => {
-    setUploadingCover(true);
-    try {
-      const formData = new FormData();
-      formData.append("cover", file);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"}/media/${movie.id}/custom-cover`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        if (err.error?.includes("Pro") || err.error?.includes("Ultra")) {
-          toast.error("Capas customizadas requerem plano Pro ou Ultra");
-        } else {
-          toast.error("Erro ao enviar capa");
-        }
-      } else {
-        toast.success("Capa personalizada salva!");
-        invalidateState();
-      }
-    } catch {
-      toast.error("Erro ao enviar capa");
-    } finally {
-      setUploadingCover(false);
-    }
-  };
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -222,25 +193,6 @@ export function MovieActions({ movie }: MovieActionsProps) {
           className="flex-1 justify-center h-9 rounded-xl bg-zinc-800/60 border border-white/10 hover:bg-zinc-700 transition-all text-zinc-400 hover:text-white text-xs font-medium"
           label="Story"
         />
-        <label
-          title="Trocar capa personalizada"
-          className={`cursor-pointer h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-800/60 border border-white/10 hover:bg-zinc-700 transition-all text-zinc-400 hover:text-white ${uploadingCover ? "opacity-50 pointer-events-none" : ""}`}
-        >
-          {uploadingCover ? (
-            <div className="h-4 w-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
-          ) : (
-            <Camera className="h-4 w-4" />
-          )}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleCustomCover(file);
-            }}
-          />
-        </label>
       </div>
 
       {/* Log Modal */}

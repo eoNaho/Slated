@@ -16,6 +16,7 @@ import {
 import { formatRuntime } from "@/lib/utils";
 import { getMovie, getPopularReviews, getSimilarFilms, getPopularLists } from "@/lib/queries/media";
 import { MovieActions } from "@/components/movies/movie-actions";
+import { MediaCoverButton } from "@/components/media/media-cover-button";
 import { MoviePoster } from "@/components/movies/movie-poster";
 import { CastCarousel } from "@/components/movies/cast-carousel";
 import { SimilarFilmsCarousel } from "@/components/movies/similar-films-carousel";
@@ -177,6 +178,7 @@ export default async function MoviePage({ params }: PageProps) {
                   title={movie.title}
                   defaultPosterPath={movie.posterPath}
                 />
+                <MediaCoverButton mediaId={movie.id} />
               </div>
             </div>
 
@@ -202,55 +204,37 @@ export default async function MoviePage({ params }: PageProps) {
             {movie.streaming && movie.streaming.length > 0 && (
               <div className="mt-8">
                 <SectionLabel>Where to Watch</SectionLabel>
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {Object.values(
                     movie.streaming.reduce((acc, curr) => {
-                      if (!acc[curr.serviceId]) {
-                        acc[curr.serviceId] = { ...curr, countries: [curr.country] };
-                      } else {
-                        acc[curr.serviceId].countries.push(curr.country);
-                      }
+                      if (!acc[curr.serviceId]) acc[curr.serviceId] = { ...curr };
                       return acc;
-                    }, {} as Record<string, typeof movie.streaming[0] & { countries: string[] }>)
+                    }, {} as Record<string, typeof movie.streaming[0]>)
                   ).map((mapping) => (
                     <a
                       key={mapping.serviceId}
                       href={mapping.url || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center justify-between px-4 py-3 rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer"
+                      title={mapping.service.name}
+                      className="group relative w-11 h-11 rounded-xl bg-zinc-800 border border-white/5 overflow-hidden hover:border-white/20 hover:scale-105 transition-all"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center border border-white/5 overflow-hidden shrink-0">
-                          {mapping.service.logoPath ? (
-                            <Image 
-                              src={mapping.service.logoPath} 
-                              alt={mapping.service.name}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                              fill
-                            />
-                          ) : (
-                            <Play className="h-4 w-4 text-amber-400 fill-amber-400/20" />
-                          )}
+                      {mapping.service.logoPath ? (
+                        <Image
+                          src={mapping.service.logoPath}
+                          alt={mapping.service.name}
+                          width={44}
+                          height={44}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Play className="h-4 w-4 text-amber-400 fill-amber-400/20" />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">{mapping.service.name}</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {mapping.countries.slice(0, 5).map(country => (
-                              <span key={country} className="text-[9px] px-1 py-0.5 rounded bg-white/[0.03] text-zinc-500 border border-white/[0.05]">
-                                {country}
-                              </span>
-                            ))}
-                            {mapping.countries.length > 5 && (
-                              <span className="text-[9px] px-1 py-0.5 rounded bg-white/[0.03] text-zinc-500 border border-white/[0.05]">
-                                +{mapping.countries.length - 5}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest bg-zinc-900/50 px-2 py-1 rounded leading-none group-hover:text-amber-500/80 group-hover:bg-amber-500/5 transition-all border border-white/[0.02]">
-                        Watch
+                      )}
+                      {/* Name tooltip on hover */}
+                      <div className="absolute inset-x-0 bottom-0 bg-black/80 text-white text-[9px] font-medium text-center py-0.5 translate-y-full group-hover:translate-y-0 transition-transform leading-tight truncate px-0.5">
+                        {mapping.service.name}
                       </div>
                     </a>
                   ))}

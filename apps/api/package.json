@@ -12,7 +12,9 @@
     "db:generate": "bun x drizzle-kit generate",
     "db:migrate": "bun x drizzle-kit migrate",
     "db:push": "bun x drizzle-kit push",
-    "db:studio": "bun x drizzle-kit studio"
+    "db:studio": "bun x drizzle-kit studio",
+    "migrate:tmdb-cdn": "bun run scripts/migrate-to-tmdb-cdn.ts",
+    "migrate:tmdb-cdn:execute": "bun run scripts/migrate-to-tmdb-cdn.ts --execute"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.962.0",
@@ -23,11 +25,13 @@
     "@upstash/ratelimit": "^2.0.7",
     "@upstash/redis": "^1.36.0",
     "better-auth": "^1.5.5",
+    "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "elysia": "^1.2.9",
     "jose": "^6.1.3",
     "nodemailer": "^7.0.12",
     "otpauth": "^9.4.1",
+    "path": "^0.12.7",
     "pino": "^10.1.0",
     "postgres": "^3.4.5",
     "qrcode": "^1.5.4",

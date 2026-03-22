@@ -25,6 +25,7 @@ import {
   getSeriesSeasons,
 } from "@/lib/queries/media";
 import { SeriesActions } from "@/components/series/series-actions";
+import { MediaCoverButton } from "@/components/media/media-cover-button";
 import { MovieReviewCard } from "@/components/movies/movie-review-card";
 import { MoviePoster } from "@/components/movies/movie-poster";
 import { SeasonsPanel } from "@/components/series/seasons-panel";
@@ -178,6 +179,7 @@ export default async function SeriesPage({ params }: PageProps) {
                   defaultPosterPath={posterSrc}
                   sizes="(max-width: 1024px) 160px, 240px"
                 />
+                <MediaCoverButton mediaId={series.id} />
               </div>
             </div>
 
@@ -215,24 +217,14 @@ export default async function SeriesPage({ params }: PageProps) {
             {series.streaming && series.streaming.length > 0 && (
               <div className="mt-6">
                 <SectionLabel>Where to Watch</SectionLabel>
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {Object.values(
                     series.streaming.reduce(
                       (acc, curr) => {
-                        if (!acc[curr.serviceId]) {
-                          acc[curr.serviceId] = {
-                            ...curr,
-                            countries: [curr.country],
-                          };
-                        } else {
-                          acc[curr.serviceId].countries.push(curr.country);
-                        }
+                        if (!acc[curr.serviceId]) acc[curr.serviceId] = { ...curr };
                         return acc;
                       },
-                      {} as Record<
-                        string,
-                        (typeof series.streaming)[0] & { countries: string[] }
-                      >,
+                      {} as Record<string, (typeof series.streaming)[0]>,
                     ),
                   ).map((mapping) => (
                     <a
@@ -240,28 +232,25 @@ export default async function SeriesPage({ params }: PageProps) {
                       href={mapping.url || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center justify-between px-4 py-3 rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all"
+                      title={mapping.service.name}
+                      className="group relative w-11 h-11 rounded-xl bg-zinc-800 border border-white/5 overflow-hidden hover:border-white/20 hover:scale-105 transition-all"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden border border-white/5">
-                          {mapping.service.logoPath ? (
-                            <Image
-                              src={mapping.service.logoPath}
-                              alt={mapping.service.name}
-                              className="w-full h-full object-cover"
-                              fill
-                            />
-                          ) : (
-                            <Play className="h-3.5 w-3.5 text-indigo-400 fill-indigo-400/20" />
-                          )}
+                      {mapping.service.logoPath ? (
+                        <Image
+                          src={mapping.service.logoPath}
+                          alt={mapping.service.name}
+                          width={44}
+                          height={44}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Play className="h-3.5 w-3.5 text-indigo-400 fill-indigo-400/20" />
                         </div>
-                        <span className="text-sm font-medium text-zinc-200">
-                          {mapping.service.name}
-                        </span>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 bg-black/80 text-white text-[9px] font-medium text-center py-0.5 translate-y-full group-hover:translate-y-0 transition-transform leading-tight truncate px-0.5">
+                        {mapping.service.name}
                       </div>
-                      <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
-                        Watch
-                      </span>
                     </a>
                   ))}
                 </div>
