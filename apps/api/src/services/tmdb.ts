@@ -394,48 +394,24 @@ export class TMDBService {
         (type === "movie" ? data.original_title : data.original_name) ||
         englishTitle;
 
-      // Generate smart slug - only add year if there's a conflict
+      // Generate slug — always include year to avoid same-name conflicts (e.g. "illusion-2009")
       const year = (
         type === "movie" ? data.release_date : data.first_air_date
       )?.split("-")[0];
       const baseSlug = generateSlug(title);
 
-      // Check if base slug is available
-      let slug = baseSlug;
-      const [existingWithBaseSlug] = await tx
+      // Preferred slug: title-year (or just title if no year)
+      let slug = year ? `${baseSlug}-${year}` : baseSlug;
+
+      // If slug already belongs to a different tmdbId, fall back to title-tmdbId (guaranteed unique)
+      const [existingWithSlug] = await tx
         .select({ id: media.id, tmdbId: media.tmdbId })
         .from(media)
-        .where(eq(media.slug, baseSlug))
+        .where(eq(media.slug, slug))
         .limit(1);
 
-      if (existingWithBaseSlug && existingWithBaseSlug.tmdbId !== data.id) {
-        // Slug exists for different media, add year
-        slug = year ? `${baseSlug}-${year}` : `${baseSlug}-${data.id}`;
-
-        // Check if slug with year also exists
-        const [existingWithYear] = await tx
-          .select({ id: media.id })
-          .from(media)
-          .where(eq(media.slug, slug))
-          .limit(1);
-
-        if (existingWithYear) {
-          // Both exist, add counter
-          let counter = 2;
-          while (true) {
-            const testSlug = `${baseSlug}-${year || data.id}-${counter}`;
-            const [exists] = await tx
-              .select({ id: media.id })
-              .from(media)
-              .where(eq(media.slug, testSlug))
-              .limit(1);
-            if (!exists) {
-              slug = testSlug;
-              break;
-            }
-            counter++;
-          }
-        }
+      if (existingWithSlug && existingWithSlug.tmdbId !== data.id) {
+        slug = `${baseSlug}-${data.id}`;
       }
 
       const mediaFolder = `${type}s/${slug}`;
@@ -497,53 +473,70 @@ export class TMDBService {
         (v) => v.site === "YouTube" && v.type === "Trailer"
       );
 
-      // Upsert media
-      const [insertedMedia] = await tx
+      // Upsert media — with slug fallback on race condition (23505 on slug column)
+      const mediaValues = {
+        tmdbId: data.id,
+        imdbId: data.imdb_id,
+        slug,
+        type,
+        title,
+        originalTitle,
+        tagline: data.tagline,
+        overview: data.overview,
+        posterPath,
+        backdropPath,
+        releaseDate:
+          (type === "movie" ? data.release_date : data.first_air_date) ||
+          null,
+        runtime:
+          type === "movie" ? data.runtime : data.episode_run_time?.[0] || 0,
+        budget: typeof data.budget === "number" ? data.budget : null,
+        revenue: typeof data.revenue === "number" ? data.revenue : null,
+        popularity: data.popularity,
+        voteAverage: data.vote_average,
+        voteCount: data.vote_count,
+        status: this.normalizeStatus(data.status),
+        originalLanguage: data.original_language,
+        seasonsCount: data.number_of_seasons,
+        episodesCount: data.number_of_episodes,
+        homepage: data.homepage,
+        trailerUrl: trailer
+          ? `https://youtube.com/watch?v=${trailer.key}`
+          : null,
+      };
+      const conflictSet = {
+        title,
+        originalTitle,
+        posterPath,
+        backdropPath,
+        popularity: data.popularity,
+        voteAverage: data.vote_average,
+        voteCount: data.vote_count,
+        updatedAt: new Date(),
+      };
+
+      let insertedMediaResult = await tx
         .insert(media)
-        .values({
-          tmdbId: data.id,
-          imdbId: data.imdb_id,
-          slug,
-          type,
-          title,
-          originalTitle,
-          tagline: data.tagline,
-          overview: data.overview,
-          posterPath,
-          backdropPath,
-          releaseDate:
-            (type === "movie" ? data.release_date : data.first_air_date) ||
-            null,
-          runtime:
-            type === "movie" ? data.runtime : data.episode_run_time?.[0] || 0,
-          budget: typeof data.budget === "number" ? data.budget : null,
-          revenue: typeof data.revenue === "number" ? data.revenue : null,
-          popularity: data.popularity,
-          voteAverage: data.vote_average,
-          voteCount: data.vote_count,
-          status: this.normalizeStatus(data.status),
-          originalLanguage: data.original_language,
-          seasonsCount: data.number_of_seasons,
-          episodesCount: data.number_of_episodes,
-          homepage: data.homepage,
-          trailerUrl: trailer
-            ? `https://youtube.com/watch?v=${trailer.key}`
-            : null,
-        })
-        .onConflictDoUpdate({
-          target: media.tmdbId,
-          set: {
-            title, // Update title in case it was wrong
-            originalTitle,
-            posterPath,
-            backdropPath,
-            popularity: data.popularity,
-            voteAverage: data.vote_average,
-            voteCount: data.vote_count,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
+        .values(mediaValues)
+        .onConflictDoUpdate({ target: media.tmdbId, set: conflictSet })
+        .returning()
+        .catch(async (err: unknown) => {
+          // Race condition: another request inserted the same slug between our
+          // check and our insert. Retry with tmdbId as ultimate unique fallback.
+          const isSlugConflict =
+            err instanceof Error &&
+            err.message.includes("23505") &&
+            err.message.includes("slug");
+          if (!isSlugConflict) throw err;
+          const fallbackSlug = `${baseSlug}-${data.id}`;
+          return tx
+            .insert(media)
+            .values({ ...mediaValues, slug: fallbackSlug })
+            .onConflictDoUpdate({ target: media.tmdbId, set: conflictSet })
+            .returning();
+        });
+
+      const [insertedMedia] = insertedMediaResult;
 
       // Sync genres
       if (data.genres?.length > 0) {
@@ -603,11 +596,19 @@ export class TMDBService {
       if (allPeople.length > 0) {
         const castIds = new Set(data.credits.cast.map((c) => c.id));
 
+        // Deduplicate by tmdbId — same person can appear as cast AND crew
+        const seenPeopleIds = new Set<number>();
+        const uniquePeople = allPeople.filter((p) => {
+          if (seenPeopleIds.has(p.id)) return false;
+          seenPeopleIds.add(p.id);
+          return true;
+        });
+
         // Batch upsert all people in one query
         const insertedPeople = await tx
           .insert(people)
           .values(
-            allPeople.map((p) => ({
+            uniquePeople.map((p) => ({
               tmdbId: p.id,
               name: p.name,
               slug: `${generateSlug(p.name)}-${p.id}`,

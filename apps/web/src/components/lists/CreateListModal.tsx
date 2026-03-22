@@ -110,14 +110,14 @@ export function CreateListModal({ initialData, onClose, onSuccess }: CreateListM
           <div className="space-y-4">
              <div className="flex flex-col gap-2">
                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1">Add initial media</label>
-               <MediaSearchInput 
+               <MediaSearchInput
+                variant="neutral"
                 onChange={(item) => {
                   if (item && !selectedMedia.find(m => (m.id || m.localId) === (item.id || item.localId))) {
                     setSelectedMedia([...selectedMedia, item]);
                   }
                 }}
                 placeholder="Search to add movies or series..."
-                className="bg-white/5 border-white/10"
                />
              </div>
 

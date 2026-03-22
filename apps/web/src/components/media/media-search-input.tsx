@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchAutocomplete } from "@/hooks/queries/use-search";
 import { useClickOutside } from "@/hooks/use-click-outside";
+import { cn } from "@/lib/utils";
 import type { SearchResult } from "@/types";
+
+type MediaSearchVariant = "default" | "neutral";
 
 interface MediaSearchInputProps {
   value?: Pick<
@@ -25,7 +28,26 @@ interface MediaSearchInputProps {
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
+  /** "default" = purple/dark (stories, clubs); "neutral" = zinc (modals, lists) */
+  variant?: MediaSearchVariant;
 }
+
+const variantStyles = {
+  default: {
+    input: "bg-[#1a1525]/80 border-white/10 focus-visible:ring-amber-500/50",
+    selected: "bg-[#1a1525]/80 border-white/10",
+    dropdown: "bg-[#0f0a14] border-white/10",
+    item: "hover:bg-white/5",
+    spinner: "border-amber-500",
+  },
+  neutral: {
+    input: "bg-zinc-900/60 border-white/8 focus-visible:ring-indigo-500/40",
+    selected: "bg-zinc-900/60 border-white/8",
+    dropdown: "bg-zinc-950 border-white/8",
+    item: "hover:bg-white/5",
+    spinner: "border-indigo-400",
+  },
+} satisfies Record<MediaSearchVariant, Record<string, string>>;
 
 export function MediaSearchInput({
   value,
@@ -33,6 +55,7 @@ export function MediaSearchInput({
   placeholder = "Search movies and series...",
   className = "",
   autoFocus = false,
+  variant = "default",
 }: MediaSearchInputProps) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
@@ -40,13 +63,16 @@ export function MediaSearchInput({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: autocompleteData, isPending: isLoading } =
+  // isFetching (not isPending) — isPending stays true when query is disabled (no cache yet)
+  const { data: autocompleteData, isFetching: isLoading } =
     useSearchAutocomplete(!value ? debouncedQuery : "");
   const results: SearchResult[] = autocompleteData ?? [];
 
   const isOpen = !!debouncedQuery && results.length > 0 && !manualClose;
 
   useClickOutside(dropdownRef, () => setManualClose(true));
+
+  const s = variantStyles[variant];
 
   const handleSelect = (item: SearchResult) => {
     onChange({
@@ -70,7 +96,11 @@ export function MediaSearchInput({
   if (value) {
     return (
       <div
-        className={`relative flex items-center gap-3 p-2 rounded-xl bg-[#1a1525]/80 border border-white/10 ${className}`}
+        className={cn(
+          "relative flex items-center gap-3 p-2 rounded-xl border",
+          s.selected,
+          className,
+        )}
       >
         <div className="relative h-12 w-8 shrink-0 rounded-md overflow-hidden bg-black/50">
           {value.posterPath ? (
@@ -116,7 +146,7 @@ export function MediaSearchInput({
   }
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={cn("relative", className)} ref={dropdownRef}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
         <Input
@@ -125,25 +155,25 @@ export function MediaSearchInput({
           onChange={(e) => { setQuery(e.target.value); setManualClose(false); }}
           onFocus={() => setManualClose(false)}
           placeholder={placeholder}
-          className="pl-9 bg-[#1a1525]/80 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-amber-500/50"
+          className={cn("pl-9 text-white placeholder:text-white/40", s.input)}
           autoFocus={autoFocus}
         />
         {isLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+            <div className={cn("h-4 w-4 animate-spin rounded-full border-2 border-t-transparent", s.spinner)} />
           </div>
         )}
       </div>
 
-      {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 p-1 rounded-xl bg-[#0f0a14] border border-white/10 shadow-xl z-50 overflow-hidden">
+      {isOpen && (
+        <div className={cn("absolute top-full left-0 right-0 mt-2 p-1 rounded-xl border shadow-xl z-50 overflow-hidden", s.dropdown)}>
           <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
             {results.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleSelect(item)}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors text-left group"
+                className={cn("w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left group", s.item)}
               >
                 <div className="relative h-12 w-8 shrink-0 rounded-md overflow-hidden bg-black/50">
                   {item.posterPath ? (
@@ -173,9 +203,7 @@ export function MediaSearchInput({
                     {item.releaseDate && (
                       <>
                         <span>•</span>
-                        <span>
-                          {format(new Date(item.releaseDate), "yyyy")}
-                        </span>
+                        <span>{format(new Date(item.releaseDate), "yyyy")}</span>
                       </>
                     )}
                   </div>
@@ -186,9 +214,9 @@ export function MediaSearchInput({
         </div>
       )}
 
-      {isOpen && query && !isLoading && results.length === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 p-4 rounded-xl bg-[#0f0a14] border border-white/10 shadow-xl z-50 text-center text-sm text-white/50">
-          No results found for &quot;{query}&quot;
+      {!isLoading && debouncedQuery && !isOpen && (
+        <div className={cn("absolute top-full left-0 right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 text-center text-sm text-white/50", s.dropdown)}>
+          No results found for &quot;{debouncedQuery}&quot;
         </div>
       )}
     </div>

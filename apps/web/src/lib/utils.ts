@@ -9,12 +9,18 @@ export function cn(...inputs: ClassValue[]) {
  * Resolves a potentially relative image path from the backend storage
  * into a full absolute URL using the API's image proxy.
  */
-export function resolveImage(path: string | null | undefined): string | null {
+export function resolveImage(
+  path: string | null | undefined,
+  tmdbSize: string = "w500",
+): string | null {
   if (!path) return null;
   if (path.startsWith("http")) return path;
-  
+  if (path.startsWith("tmdb:")) {
+    const tmdbPath = path.slice(5); // strip "tmdb:"
+    return `https://image.tmdb.org/t/p/${tmdbSize}${tmdbPath}`;
+  }
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
-  // Trim trailing slash from API_URL if present
   const base = API_URL.replace(/\/$/, "");
   return `${base}/images/${path}`;
 }

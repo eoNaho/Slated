@@ -2,10 +2,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { Star, LayoutGrid, Plus, Trash2 } from "lucide-react";
 import { cn, getMediaUrl, resolveImage } from "@/lib/utils";
-import { SearchResult } from "@/types";
+
+export interface MediaGridItem {
+  id: string;
+  title: string;
+  posterPath?: string | null;
+  type?: string;
+  mediaType?: string;
+  releaseDate?: string | null;
+  voteAverage?: number | null;
+  slug?: string;
+  localSlug?: string;
+}
 
 interface MediaGridProps {
-  items: any[];
+  items: MediaGridItem[];
   isLoading?: boolean;
   columns?: {
     default?: number;
@@ -14,9 +25,9 @@ interface MediaGridProps {
     lg?: number;
     xl?: number;
   };
-  renderOverlay?: (item: any) => React.ReactNode;
-  onAddToList?: (item: any) => void;
-  onRemove?: (item: any) => void;
+  renderOverlay?: (item: MediaGridItem) => React.ReactNode;
+  onAddToList?: (item: MediaGridItem) => void;
+  onRemove?: (item: MediaGridItem) => void;
 }
 
 export function MediaGrid({ items, isLoading, columns = {}, renderOverlay, onAddToList, onRemove }: MediaGridProps) {
@@ -66,18 +77,18 @@ export function MediaGrid({ items, isLoading, columns = {}, renderOverlay, onAdd
   );
 }
 
-function MediaCard({ 
-  item, 
+function MediaCard({
+  item,
   renderOverlay,
   onAddToList,
   onRemove
-}: { 
-  item: any; 
-  renderOverlay?: (item: any) => React.ReactNode;
-  onAddToList?: (item: any) => void;
-  onRemove?: (item: any) => void;
+}: {
+  item: MediaGridItem;
+  renderOverlay?: (item: MediaGridItem) => React.ReactNode;
+  onAddToList?: (item: MediaGridItem) => void;
+  onRemove?: (item: MediaGridItem) => void;
 }) {
-  const mediaType = item.type || item.mediaType || "movie";
+  const mediaType = (item.type || item.mediaType || "movie") as "movie" | "series";
   const url = getMediaUrl({ ...item, type: mediaType });
   const poster = resolveImage(item.posterPath);
 
@@ -101,7 +112,7 @@ function MediaCard({
         )}
         
         {/* Rating Badge */}
-        {item.voteAverage > 0 && (
+        {item.voteAverage != null && item.voteAverage > 0 && (
           <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1 z-10">
             <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
             <span className="text-[10px] font-bold text-white">{item.voteAverage.toFixed(1)}</span>
