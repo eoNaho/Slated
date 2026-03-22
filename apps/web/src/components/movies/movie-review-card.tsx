@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Star, Heart, MessageCircle, EyeOff, Eye } from "lucide-react";
+import { Star, Heart, MessageCircle, EyeOff, Eye, Flag } from "lucide-react";
 import { resolveImage } from "@/lib/utils";
 import type { Review } from "@/types";
 import Image from "next/image";
+import { ReportModal } from "@/components/moderation/report-modal";
 
 interface MovieReviewCardProps {
   review: Review;
@@ -37,6 +38,7 @@ function ReviewStars({ rating }: { rating: number }) {
 
 export function MovieReviewCard({ review }: MovieReviewCardProps) {
   const [spoilerRevealed, setSpoilerRevealed] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   return (
     <div
@@ -122,9 +124,24 @@ export function MovieReviewCard({ review }: MovieReviewCardProps) {
               <MessageCircle className="h-4 w-4" />
               {review.commentsCount || 0}
             </span>
+            <button
+              onClick={(e) => { e.preventDefault(); setShowReport(true); }}
+              className="ml-auto flex items-center gap-1.5 text-xs text-zinc-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+              title="Denunciar review"
+            >
+              <Flag className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </div>
+
+      {showReport && (
+        <ReportModal
+          targetType="review"
+          targetId={String(review.id)}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 }

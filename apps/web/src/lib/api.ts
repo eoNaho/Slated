@@ -1046,6 +1046,31 @@ export const api = {
       return fetcher<{ data: SearchResult[] }>(`/discover/popular?${params}`);
     }
   },
+  reports: {
+    create: (data: {
+      targetType: string;
+      targetId: string;
+      reason: string;
+      description?: string;
+    }) =>
+      fetcher<{ data: { id: string } }>("/reports", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+  blocks: {
+    block: (userId: string) =>
+      fetcher<{ success: boolean }>("/blocks", {
+        method: "POST",
+        body: JSON.stringify({ blockedId: userId }),
+      }),
+    unblock: (userId: string) =>
+      fetcher<{ success: boolean }>(`/blocks/${userId}`, { method: "DELETE" }),
+    check: (userId: string) =>
+      fetcher<{ blocked: boolean }>(`/blocks/check/${userId}`),
+    list: (page = 1) =>
+      fetcher<{ data: { id: string; username: string | null; displayName: string | null; avatarUrl: string | null }[]; total: number }>(`/blocks?page=${page}&limit=20`),
+  },
 };
 
 export { ApiError };

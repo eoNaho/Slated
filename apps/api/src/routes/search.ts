@@ -1,8 +1,10 @@
 import { Elysia, t } from "elysia";
-import { db, user, media, lists, ilike, or, desc, and, eq, inArray } from "../db";
+import { db, user, media, lists, ilike, or, desc, and, eq, inArray, notInArray } from "../db";
 import { metadataService } from "../services/metadata.service";
 import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
+import { getOptionalSession } from "../lib/auth";
+import { blockedUserIds } from "../lib/block-filter";
 
 function resolveImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
@@ -28,7 +30,8 @@ export const searchRoutes = new Elysia({ prefix: "/search", tags: ["Search"] })
    */
   .get(
     "/",
-    async ({ query: params, set }) => {
+    async (ctx: any) => {
+      const { query: params, set, request } = ctx;
       const q = params.q?.trim();
 
       if (!q) {
@@ -43,10 +46,13 @@ export const searchRoutes = new Elysia({ prefix: "/search", tags: ["Search"] })
       const wantsUsers = type === "all" || type === "users";
       const wantsLists = type === "all" || type === "lists";
 
+      const session = wantsUsers ? await getOptionalSession(request.headers) : null;
+      const authUser = session?.user ?? null;
+
       try {
         const [mediaResult, users, lists] = await Promise.all([
           wantsMedia ? fetchMedia(q, type === "movie" || type === "series" ? type : "all", page) : null,
-          wantsUsers ? fetchUsers(q) : Promise.resolve([]),
+          wantsUsers ? fetchUsers(q, authUser?.id) : Promise.resolve([]),
           wantsLists ? fetchLists(q) : Promise.resolve([]),
         ]);
 
@@ -127,11 +133,17 @@ async function fetchMedia(q: string, type: "all" | "movie" | "series", page: num
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
-async function fetchUsers(q: string) {
+async function fetchUsers(q: string, viewerId?: string) {
+  const conditions: ReturnType<typeof eq>[] = [
+    or(ilike(user.username, `%${q}%`), ilike(user.displayName, `%${q}%`)) as any,
+  ];
+  if (viewerId) {
+    conditions.push(notInArray(user.id, blockedUserIds(viewerId)) as any);
+  }
   return db
     .select({ id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, isVerified: user.isVerified })
     .from(user)
-    .where(or(ilike(user.username, `%${q}%`), ilike(user.displayName, `%${q}%`)))
+    .where(and(...conditions))
     .orderBy(desc(user.createdAt))
     .limit(5);
 }

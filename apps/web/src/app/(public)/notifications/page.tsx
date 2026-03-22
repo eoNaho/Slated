@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Check, Trophy, Heart, MessageSquare, Users, Zap, Loader2 } from "lucide-react";
+import { Bell, Check, Trophy, Heart, MessageSquare, Users, Zap, Loader2, ShieldAlert, EyeOff, Eye, UserX } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,6 +26,10 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   comment: MessageSquare,
   story_reaction: Zap,
   system: Bell,
+  moderation_warning: ShieldAlert,
+  content_hidden: EyeOff,
+  content_restored: Eye,
+  account_suspended: UserX,
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -35,6 +39,10 @@ const TYPE_COLORS: Record<string, string> = {
   comment: "text-green-400 bg-green-500/10",
   story_reaction: "text-purple-400 bg-purple-500/10",
   system: "text-zinc-400 bg-zinc-700/40",
+  moderation_warning: "text-orange-400 bg-orange-500/10",
+  content_hidden: "text-red-400 bg-red-500/10",
+  content_restored: "text-emerald-400 bg-emerald-500/10",
+  account_suspended: "text-red-500 bg-red-500/15",
 };
 
 export default function NotificationsPage() {

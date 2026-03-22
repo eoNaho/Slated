@@ -12,6 +12,7 @@ import {
   stories,
   loginHistory,
   auditLogs,
+  wordBlocklist,
   eq,
   desc,
   asc,
@@ -23,6 +24,7 @@ import {
   gte,
   isNotNull,
 } from "../db";
+import { contentFilterService } from "../services/content-filter";
 import { invalidateFlagsCache } from "../lib/feature-gate";
 import { adminGuard, staffGuard } from "../middleware/role-guard";
 import { AuditService } from "../services/audit";
@@ -679,6 +681,160 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
         action: t.Optional(t.String()),
         userId: t.Optional(t.String()),
         from: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── Blocklist ──────────────────────────────────────────────────────────────
+  .get(
+    "/blocklist",
+    async ({ query }: any) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 50, 200);
+      const offset = (page - 1) * limit;
+      const condition = query.q ? ilike(wordBlocklist.word, `%${query.q}%`) : undefined;
+
+      const [rows, [{ total }]] = await Promise.all([
+        db.select().from(wordBlocklist).where(condition).orderBy(desc(wordBlocklist.createdAt)).limit(limit).offset(offset),
+        db.select({ total: count() }).from(wordBlocklist).where(condition),
+      ]);
+
+      return { data: rows, total: Number(total), page, limit };
+    },
+    {
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+        q: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  .post(
+    "/blocklist",
+    async ({ user: authUser, body }: any) => {
+      const [created] = await db
+        .insert(wordBlocklist)
+        .values({
+          word: body.word,
+          matchType: body.matchType ?? "exact",
+          severity: body.severity ?? "medium",
+          category: body.category ?? "profanity",
+          addedBy: authUser.id,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      contentFilterService.invalidateCache();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_blocklist_add",
+        entityType: "word_blocklist",
+        metadata: { word: body.word },
+      });
+
+      return { data: created };
+    },
+    {
+      body: t.Object({
+        word: t.String({ minLength: 1 }),
+        matchType: t.Optional(t.Union([t.Literal("exact"), t.Literal("contains"), t.Literal("regex")])),
+        severity: t.Optional(t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high")])),
+        category: t.Optional(t.Union([t.Literal("profanity"), t.Literal("slur"), t.Literal("spam"), t.Literal("custom")])),
+      }),
+    }
+  )
+
+  .patch(
+    "/blocklist/:id",
+    async ({ user: authUser, params, body, set }: any) => {
+      const updates: Record<string, unknown> = {};
+      if (body.word !== undefined) updates.word = body.word;
+      if (body.matchType !== undefined) updates.matchType = body.matchType;
+      if (body.severity !== undefined) updates.severity = body.severity;
+      if (body.category !== undefined) updates.category = body.category;
+      if (body.isActive !== undefined) updates.isActive = body.isActive;
+
+      const [updated] = await db.update(wordBlocklist).set(updates).where(eq(wordBlocklist.id, params.id)).returning();
+      if (!updated) { set.status = 404; return { error: "Entry not found" }; }
+
+      contentFilterService.invalidateCache();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_blocklist_update",
+        entityType: "word_blocklist",
+        entityId: params.id,
+        metadata: updates,
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        word: t.Optional(t.String({ minLength: 1 })),
+        matchType: t.Optional(t.Union([t.Literal("exact"), t.Literal("contains"), t.Literal("regex")])),
+        severity: t.Optional(t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high")])),
+        category: t.Optional(t.Union([t.Literal("profanity"), t.Literal("slur"), t.Literal("spam"), t.Literal("custom")])),
+        isActive: t.Optional(t.Boolean()),
+      }),
+    }
+  )
+
+  .delete(
+    "/blocklist/:id",
+    async ({ user: authUser, params, set }: any) => {
+      const [deleted] = await db.delete(wordBlocklist).where(eq(wordBlocklist.id, params.id)).returning();
+      if (!deleted) { set.status = 404; return { error: "Entry not found" }; }
+
+      contentFilterService.invalidateCache();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_blocklist_delete",
+        entityType: "word_blocklist",
+        entityId: params.id,
+        metadata: { word: deleted.word },
+      });
+
+      return { data: { deleted: true } };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  .post(
+    "/blocklist/import",
+    async ({ user: authUser, body }: any) => {
+      const rows = (body.words as { word: string; matchType?: string; severity?: string; category?: string }[]).map((w) => ({
+        word: w.word,
+        matchType: w.matchType ?? "exact",
+        severity: w.severity ?? "medium",
+        category: w.category ?? "profanity",
+        addedBy: authUser.id,
+      }));
+
+      const inserted = await db.insert(wordBlocklist).values(rows).onConflictDoNothing().returning();
+      contentFilterService.invalidateCache();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_blocklist_import",
+        entityType: "word_blocklist",
+        metadata: { count: inserted.length },
+      });
+
+      return { data: { inserted: inserted.length } };
+    },
+    {
+      body: t.Object({
+        words: t.Array(t.Object({
+          word: t.String(),
+          matchType: t.Optional(t.String()),
+          severity: t.Optional(t.String()),
+          category: t.Optional(t.String()),
+        }), { minItems: 1 }),
       }),
     }
   );

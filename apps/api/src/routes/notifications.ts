@@ -1,7 +1,8 @@
 import { Elysia, t } from "elysia";
-import { db, eq, desc, and, count, sql } from "../db";
+import { db, eq, desc, and, count, sql, notInArray, isNull, or } from "../db";
 import { notifications } from "../db/schema/security";
 import { betterAuthPlugin } from "../lib/auth";
+import { blockedUserIds } from "../lib/block-filter";
 
 export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -17,9 +18,17 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
       const offset = (page - 1) * limit;
       const unreadOnly = query.unread === "true";
 
-      const where = unreadOnly
-        ? and(eq(notifications.userId, user.id), eq(notifications.isRead, false))
-        : eq(notifications.userId, user.id);
+      const blockedSub = blockedUserIds(user.id);
+      const baseConditions = [eq(notifications.userId, user.id)];
+      if (unreadOnly) baseConditions.push(eq(notifications.isRead, false));
+      // Exclude notifications from blocked users; system notifs (fromUserId=null) always pass
+      baseConditions.push(
+        or(
+          isNull(notifications.fromUserId),
+          notInArray(notifications.fromUserId, blockedSub) as any
+        ) as any
+      );
+      const where = and(...baseConditions);
 
       const [rows, [{ total }], [{ unreadCount }]] = await Promise.all([
         db
@@ -121,14 +130,16 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
 // Notification service for creating notifications from other routes
 export const createNotification = async (
   userId: string,
-  type: "follow" | "like" | "comment" | "achievement" | "story_reaction" | "story_reply" | "story_mention" | "club_invite" | "system",
+  type: "follow" | "like" | "comment" | "achievement" | "story_reaction" | "story_reply" | "story_mention" | "club_invite" | "system" | "moderation_warning" | "content_hidden" | "content_restored" | "account_suspended",
   title: string,
   message: string,
   data?: Record<string, any>,
+  fromUserId?: string,
 ) => {
   try {
     await db.insert(notifications).values({
       userId,
+      fromUserId: fromUserId ?? null,
       type,
       title,
       message,

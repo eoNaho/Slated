@@ -15,3 +15,4 @@ export * from "./activity";
 export * from "./stories";
 export * from "./identity";
 export * from "./gallery";
+export * from "./moderation";

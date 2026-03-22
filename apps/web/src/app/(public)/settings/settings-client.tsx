@@ -38,6 +38,8 @@ import {
   Film,
   Palette,
   Crown,
+  Ban,
+  Loader2,
 } from "lucide-react";
 import { identityApi } from "@/lib/api";
 import type { ProfileFrame, ProfileTitle, UserIdentity } from "@/types";
@@ -57,7 +59,8 @@ type Section =
   | "privacy"
   | "notifications"
   | "extension"
-  | "identity";
+  | "identity"
+  | "blocked";
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
@@ -357,6 +360,7 @@ const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "account", label: "Account", icon: Lock },
   { id: "privacy", label: "Privacy", icon: Eye },
   { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "blocked", label: "Bloqueados", icon: Ban },
   { id: "extension", label: "Browser Extension", icon: Puzzle },
 ];
 
@@ -1731,9 +1735,105 @@ export function SettingsClient() {
                 </div>
               </div>
             )}
+
+            {/* ── BLOCKED USERS ─────────────────────────────────────── */}
+            {section === "blocked" && (
+              <BlockedUsersSection />
+            )}
           </main>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BlockedUsersSection() {
+  const [blocked, setBlocked] = useState<{ id: string; username: string | null; displayName: string | null; avatarUrl: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.blocks.list(1)
+      .then((res) => setBlocked(res.data ?? []))
+      .catch(() => setError("Falha ao carregar usuários bloqueados."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const unblock = async (userId: string) => {
+    setUnblocking(userId);
+    try {
+      await api.blocks.unblock(userId);
+      setBlocked((prev) => prev.filter((u) => u.id !== userId));
+    } catch {
+      setError("Falha ao desbloquear usuário.");
+    } finally {
+      setUnblocking(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Usuários Bloqueados"
+        description="Usuários bloqueados não podem ver seu perfil, enviar mensagens ou interagir com você."
+      />
+
+      {error && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
+        </div>
+      ) : blocked.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-zinc-600 text-sm">
+          <Ban className="w-10 h-10 mb-3 opacity-30" />
+          <p>Nenhum usuário bloqueado.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {blocked.map((user) => (
+            <div
+              key={user.id}
+              className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5"
+            >
+              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden relative">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.displayName ?? user.username ?? ""}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-zinc-400">
+                    {(user.displayName ?? user.username)?.[0]?.toUpperCase() ?? "?"}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user.displayName || user.username || "Usuário desconhecido"}
+                </p>
+                {user.username && (
+                  <p className="text-xs text-zinc-500 truncate">@{user.username}</p>
+                )}
+              </div>
+              <button
+                onClick={() => unblock(user.id)}
+                disabled={unblocking === user.id}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {unblocking === user.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                Desbloquear
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -124,6 +124,7 @@ export function ProfileTabs({
         profile={profile}
         favorites={favorites}
         isOwnProfile={isOwnProfile}
+        currentUserId={currentUserId}
         initialIsFollowing={initialIsFollowing}
         watchingNow={watchingNow}
         stories={stories}

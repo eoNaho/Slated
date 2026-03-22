@@ -159,6 +159,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
               `${user.username} te marcou em uma story`,
               "",
               { storyType: body.type },
+              user.id,
             ).catch(() => null);
           }
         }
@@ -614,6 +615,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
             `${user.username} respondeu sua story`,
             body.text_reply.slice(0, 100),
             { storyId: params.id, senderId: user.id },
+            user.id,
           ).catch(() => null);
         }
 

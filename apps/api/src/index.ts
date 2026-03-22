@@ -42,6 +42,8 @@ import { mediaCoversRoutes } from "./routes/media-covers";
 import { closeFriendsRoutes } from "./routes/close-friends";
 import { storyHighlightsRoutes } from "./routes/story-highlights";
 import { reportsRoutes } from "./routes/reports";
+import { blocksRoutes } from "./routes/blocks";
+import { moderationRoutes } from "./routes/moderation";
 
 // Explicit list of allowed origins (never use `true` which allows all origins)
 const ALLOWED_ORIGINS = [
@@ -182,7 +184,9 @@ const app = new Elysia()
       .use(mediaCoversRoutes)
       .use(closeFriendsRoutes)
       .use(storyHighlightsRoutes)
-      .use(reportsRoutes),
+      .use(reportsRoutes)
+      .use(blocksRoutes)
+      .use(moderationRoutes),
   )
 
   .listen(process.env.PORT || 3001);

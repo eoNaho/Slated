@@ -1179,6 +1179,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
         `Convite para o club "${club.name}"`,
         `@${user.username} te convidou para entrar no club "${club.name}".`,
         { clubId: params.id, inviteId: invite.id, invitedBy: user.username },
+        user.id,
       );
 
       return { data: invite };

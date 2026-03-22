@@ -14,6 +14,8 @@ import {
   Command,
   Shield,
   Activity,
+  Flag,
+  BookX,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -31,11 +33,13 @@ const STAFF_NAV = [
   { label: "Clubs", icon: Zap, href: "/clubs" },
   { label: "Content", icon: Film, href: "/content" },
   { label: "Discussions", icon: MessageSquare, href: "/discussions" },
+  { label: "Flags", icon: Flag, href: "/discussions/flags" },
   { label: "Premium", icon: Shield, href: "/premium" },
   { label: "Infrastructure", icon: ShieldCheck, href: "/system" },
 ];
 
 const ADMIN_ONLY_NAV = [
+  { label: "Blocklist", icon: BookX, href: "/system/blocklist" },
   { label: "Audit Logs", icon: Activity, href: "/audit-logs" },
 ];
 
@@ -73,7 +77,13 @@ export function Sidebar({ admin }: { admin?: AdminUser | null }) {
       <nav className="relative flex-1 px-4 lg:px-6 mt-6 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/dashboard" &&
+              item.href !== "/discussions" &&
+              pathname.startsWith(item.href)) ||
+            (item.href === "/discussions" &&
+              (pathname === "/discussions" || (pathname.startsWith("/discussions/") && !pathname.startsWith("/discussions/flags"))));
 
           return (
             <Link

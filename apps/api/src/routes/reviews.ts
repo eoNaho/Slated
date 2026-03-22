@@ -6,13 +6,18 @@ import {
   user,
   likes,
   activities,
+  contentFlags,
   eq,
   and,
   desc,
   count,
   sql,
+  notInArray,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { blockedUserIds } from "../lib/block-filter";
+import { contentFilterService } from "../services/content-filter";
+import { checkContentVelocity } from "../lib/moderation-escalation";
 
 export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -20,18 +25,22 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
   // Get recent reviews
   .get(
     "/",
-    async ({ query }) => {
+    async (ctx: any) => {
+      const { query } = ctx;
+      const authUser = ctx.user ?? null;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
 
-      const conditions = [];
+      const conditions: ReturnType<typeof eq>[] = [];
+      conditions.push(eq(reviews.isHidden, false));
       if (query.media_id)  conditions.push(eq(reviews.mediaId, query.media_id));
       if (query.user_id)   conditions.push(eq(reviews.userId, query.user_id));
       if (query.season_id) conditions.push(eq(reviews.seasonId, query.season_id));
       if (query.episode_id) conditions.push(eq(reviews.episodeId, query.episode_id));
       if (query.source)    conditions.push(eq(reviews.source, query.source));
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      if (authUser) conditions.push(notInArray(reviews.userId, blockedUserIds(authUser.id)) as any);
+      const whereClause = and(...conditions);
 
       const results = await db
         .select({
@@ -91,7 +100,10 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
   )
 
   // Get single review
-  .get("/:id", async ({ params, set }) => {
+  .get("/:id", async (ctx: any) => {
+    const { params, set } = ctx;
+    const authUser = ctx.user ?? null;
+
     const [result] = await db
       .select({
         review: reviews,
@@ -120,6 +132,13 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
       return { error: "Review not found" };
     }
 
+    const isOwner = authUser?.id === result.review.userId;
+    const isStaff = authUser?.role === "admin" || authUser?.role === "moderator";
+    if (result.review.isHidden && !isOwner && !isStaff) {
+      set.status = 404;
+      return { error: "Review not found" };
+    }
+
     return {
       data: { ...result.review, user: result.user, media: result.media },
     };
@@ -130,6 +149,11 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
     "/",
     async (ctx: any) => {
       const { user: authUser, body } = ctx;
+
+      const [filterResult] = await Promise.all([
+        contentFilterService.check(body.content ?? ""),
+        checkContentVelocity(authUser.id, "review"),
+      ]);
 
       const [newReview] = await db
         .insert(reviews)
@@ -143,8 +167,22 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
           containsSpoilers: body.contains_spoilers ?? false,
           title: body.title,
           source: "manual",
+          isHidden: filterResult.shouldAutoHide,
+          hiddenReason: filterResult.shouldAutoHide ? "Automated: content policy violation" : null,
+          hiddenAt: filterResult.shouldAutoHide ? new Date() : null,
         })
         .returning();
+
+      if (filterResult.flagged) {
+        await db.insert(contentFlags).values({
+          targetType: "review",
+          targetId: newReview.id,
+          flagType: filterResult.matches[0]?.type ?? "profanity",
+          severity: filterResult.severity === "none" ? "low" : filterResult.severity,
+          details: JSON.stringify(filterResult.matches),
+          autoActioned: filterResult.shouldAutoHide,
+        });
+      }
 
       // Create activity
       await db.insert(activities).values({
@@ -196,15 +234,36 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         return { error: "Forbidden" };
       }
 
+      const updateValues: Record<string, unknown> = {
+        content: body.content,
+        rating: body.rating,
+        containsSpoilers: body.contains_spoilers,
+        title: body.title,
+        updatedAt: new Date(),
+      };
+
+      if (body.content) {
+        const filterResult = await contentFilterService.check(body.content);
+        if (filterResult.shouldAutoHide) {
+          updateValues.isHidden = true;
+          updateValues.hiddenReason = "Automated: content policy violation";
+          updateValues.hiddenAt = new Date();
+        }
+        if (filterResult.flagged) {
+          await db.insert(contentFlags).values({
+            targetType: "review",
+            targetId: params.id,
+            flagType: filterResult.matches[0]?.type ?? "profanity",
+            severity: filterResult.severity === "none" ? "low" : filterResult.severity,
+            details: JSON.stringify(filterResult.matches),
+            autoActioned: filterResult.shouldAutoHide,
+          });
+        }
+      }
+
       const [updated] = await db
         .update(reviews)
-        .set({
-          content: body.content,
-          rating: body.rating,
-          containsSpoilers: body.contains_spoilers,
-          title: body.title,
-          updatedAt: new Date(),
-        })
+        .set(updateValues as any)
         .where(eq(reviews.id, params.id))
         .returning();
 

@@ -59,6 +59,7 @@ export const notifications = pgTable(
     userId: uuid("user_id")
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
+    fromUserId: uuid("from_user_id").references(() => user.id, { onDelete: "set null" }),
     type: text("type").notNull(), // 'follow', 'like', 'comment', 'achievement', 'system'
     title: text("title").notNull(),
     message: text("message"),

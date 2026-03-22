@@ -82,6 +82,7 @@ export const reports = pgTable(
     assignedTo: uuid("assigned_to").references(() => user.id),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     resolvedBy: uuid("resolved_by").references(() => user.id),
+    resolutionNote: text("resolution_note"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },

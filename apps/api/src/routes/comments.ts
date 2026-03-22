@@ -6,6 +6,7 @@ import {
   reviews,
   lists,
   likes,
+  contentFlags,
   eq,
   and,
   desc,
@@ -13,8 +14,12 @@ import {
   sql,
   isNull,
   inArray,
+  notInArray,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { blockedUserIds } from "../lib/block-filter";
+import { contentFilterService } from "../services/content-filter";
+import { checkContentVelocity } from "../lib/moderation-escalation";
 
 export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -22,12 +27,22 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
   // Get comments for a target (review or list)
   .get(
     "/",
-    async ({ query }) => {
+    async (ctx: any) => {
+      const { query } = ctx;
+      const authUser = ctx.user ?? null;
       const targetType = query.target_type as "review" | "list";
       const targetId = query.target_id;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
+
+      const conditions: ReturnType<typeof eq>[] = [
+        eq(comments.targetType, targetType),
+        eq(comments.targetId, targetId),
+        isNull(comments.parentId),
+        eq(comments.isHidden, false),
+      ];
+      if (authUser) conditions.push(notInArray(comments.userId, blockedUserIds(authUser.id)) as any);
 
       const results = await db
         .select({
@@ -41,13 +56,7 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         })
         .from(comments)
         .innerJoin(userTable, eq(comments.userId, userTable.id))
-        .where(
-          and(
-            eq(comments.targetType, targetType),
-            eq(comments.targetId, targetId),
-            isNull(comments.parentId) // Top-level only
-          )
-        )
+        .where(and(...conditions))
         .orderBy(desc(comments.createdAt))
         .limit(limit)
         .offset(offset);
@@ -73,13 +82,7 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
       const [{ total }] = await db
         .select({ total: count() })
         .from(comments)
-        .where(
-          and(
-            eq(comments.targetType, targetType),
-            eq(comments.targetId, targetId),
-            isNull(comments.parentId)
-          )
-        );
+        .where(and(...conditions));
 
       return {
         data: commentsWithReplies,
@@ -138,6 +141,11 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
     async (ctx: any) => {
       const { user: authUser, body } = ctx;
 
+      const [filterResult] = await Promise.all([
+        contentFilterService.check(body.content),
+        checkContentVelocity(authUser.id, "comment"),
+      ]);
+
       const [newComment] = await db
         .insert(comments)
         .values({
@@ -146,8 +154,22 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
           targetId: body.target_id,
           parentId: body.parent_id || null,
           content: body.content,
+          isHidden: filterResult.shouldAutoHide,
+          hiddenReason: filterResult.shouldAutoHide ? "Automated: content policy violation" : null,
+          hiddenAt: filterResult.shouldAutoHide ? new Date() : null,
         })
         .returning();
+
+      if (filterResult.flagged) {
+        await db.insert(contentFlags).values({
+          targetType: "comment",
+          targetId: newComment.id,
+          flagType: filterResult.matches[0]?.type ?? "profanity",
+          severity: filterResult.severity === "none" ? "low" : filterResult.severity,
+          details: JSON.stringify(filterResult.matches),
+          autoActioned: filterResult.shouldAutoHide,
+        });
+      }
 
       // Update comment count on target
       if (body.target_type === "review") {

@@ -10,8 +10,10 @@ import {
   desc,
   inArray,
   and,
+  notInArray,
 } from "../db";
-import { betterAuthPlugin } from "../lib/auth";
+import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { blockedUserIds } from "../lib/block-filter";
 
 export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -32,7 +34,7 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
         .from(follows)
         .where(eq(follows.followerId, authUser.id));
 
-      // Get activities from followed users
+      // Get activities from followed users (excluding blocked)
       const results = await db
         .select({
           activity: activities,
@@ -45,7 +47,12 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
         })
         .from(activities)
         .innerJoin(userTable, eq(activities.userId, userTable.id))
-        .where(inArray(activities.userId, followedSubquery))
+        .where(
+          and(
+            inArray(activities.userId, followedSubquery),
+            notInArray(activities.userId, blockedUserIds(authUser.id)) as any
+          )
+        )
         .orderBy(desc(activities.createdAt))
         .limit(limit)
         .offset(offset);
@@ -70,10 +77,18 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
   // Get global/trending feed
   .get(
     "/global",
-    async ({ query }) => {
+    async (ctx: any) => {
+      const { query, request } = ctx;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
+
+      const session = await getOptionalSession(request.headers);
+      const authUser = session?.user ?? null;
+
+      const whereClause = authUser
+        ? (notInArray(activities.userId, blockedUserIds(authUser.id)) as any)
+        : undefined;
 
       const results = await db
         .select({
@@ -87,6 +102,7 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
         })
         .from(activities)
         .innerJoin(userTable, eq(activities.userId, userTable.id))
+        .where(whereClause)
         .orderBy(desc(activities.createdAt))
         .limit(limit)
         .offset(offset);

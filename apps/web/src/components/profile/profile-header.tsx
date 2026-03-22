@@ -14,6 +14,8 @@ import {
   Instagram,
   Clapperboard,
   Film,
+  Flag,
+  Ban,
 } from "lucide-react";
 import type { UserProfile, FavoriteFilm, UserIdentity } from "@/types";
 import { resolveImage, cn } from "@/lib/utils";
@@ -28,11 +30,13 @@ import { StoryViewer } from "@/components/stories/StoryViewer";
 import { HighlightsRow } from "@/components/stories/HighlightsRow";
 import { Portal } from "@/components/ui/portal";
 import type { StoryHighlight } from "@/lib/api";
+import { ReportModal } from "@/components/moderation/report-modal";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
   favorites: FavoriteFilm[];
   isOwnProfile?: boolean;
+  currentUserId?: string;
   initialIsFollowing?: boolean;
   watchingNow?: any;
   stories?: Story[];
@@ -44,6 +48,7 @@ export function ProfileHeader({
   profile,
   favorites,
   isOwnProfile,
+  currentUserId,
   initialIsFollowing = false,
   watchingNow = null,
   stories = [],
@@ -56,6 +61,10 @@ export function ProfileHeader({
   const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(
     null,
   );
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
 
   const { activeStories, hasUnseen } = useMemo(() => {
     const active = stories
@@ -203,12 +212,65 @@ export function ProfileHeader({
                     {isFollowing ? "Unfollow" : "Follow"}
                   </button>
                 )}
-                <button className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all">
-                  <Share2 className="h-4 w-4" />
-                </button>
-                <button className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all">
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMoreMenu((v) => !v)}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                  {showMoreMenu && (
+                    <div
+                      className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl py-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {!isOwnProfile && currentUserId && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setShowMoreMenu(false);
+                              setShowReport(true);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                          >
+                            <Flag className="w-4 h-4 text-red-400" /> Denunciar usuário
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setShowMoreMenu(false);
+                              setBlockLoading(true);
+                              try {
+                                if (isBlocked) {
+                                  await api.blocks.unblock(profile.id);
+                                  setIsBlocked(false);
+                                } else {
+                                  await api.blocks.block(profile.id);
+                                  setIsBlocked(true);
+                                }
+                              } catch { /* silent */ } finally {
+                                setBlockLoading(false);
+                              }
+                            }}
+                            disabled={blockLoading}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors disabled:opacity-50"
+                          >
+                            <Ban className="w-4 h-4 text-orange-400" />
+                            {isBlocked ? "Desbloquear" : "Bloquear"} usuário
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          navigator.clipboard.writeText(window.location.href).catch(() => {});
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                      >
+                        <Share2 className="w-4 h-4 text-zinc-400" /> Copiar link do perfil
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -450,6 +512,22 @@ export function ProfileHeader({
             onClose={() => setFollowDialog(null)}
           />
         </Portal>
+      )}
+
+      {/* Report Modal */}
+      {showReport && (
+        <Portal>
+          <ReportModal
+            targetType="user"
+            targetId={profile.id}
+            onClose={() => setShowReport(false)}
+          />
+        </Portal>
+      )}
+
+      {/* Close more menu on outside click */}
+      {showMoreMenu && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
       )}
     </div>
   );

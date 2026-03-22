@@ -4,6 +4,7 @@ import {
   lists,
   listItems,
   media,
+  mediaCustomCovers,
   user as userTable,
   activities,
   eq,
@@ -13,6 +14,7 @@ import {
   sql,
   inArray,
 } from "../db";
+import { storageService } from "../services/storage";
 import { betterAuthPlugin } from "../lib/auth";
 
 export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
@@ -54,19 +56,38 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
       const listIds = results.map((r) => r.list.id);
       const coverImageRows = listIds.length > 0
         ? await db
-            .select({ listId: listItems.listId, posterPath: media.posterPath, position: listItems.position })
+            .select({ listId: listItems.listId, mediaId: listItems.mediaId, posterPath: media.posterPath, position: listItems.position })
             .from(listItems)
             .innerJoin(media, eq(listItems.mediaId, media.id))
             .where(inArray(listItems.listId, listIds))
             .orderBy(listItems.position)
         : [];
 
-      // Group cover images by listId (keep top 5 per list)
+      // Fetch custom covers for all list owners
+      const listOwnerMap = new Map<string, string>(); // listId → userId
+      for (const r of results) listOwnerMap.set(r.list.id, r.list.userId);
+      const allOwnerIds = [...new Set(results.map((r) => r.list.userId))];
+      const customCoverRows = allOwnerIds.length > 0
+        ? await db
+            .select({ userId: mediaCustomCovers.userId, mediaId: mediaCustomCovers.mediaId, imagePath: mediaCustomCovers.imagePath })
+            .from(mediaCustomCovers)
+            .where(inArray(mediaCustomCovers.userId, allOwnerIds))
+        : [];
+      const customCoverMap = new Map<string, string>(); // `${userId}:${mediaId}` → url
+      for (const c of customCoverRows) {
+        customCoverMap.set(`${c.userId}:${c.mediaId}`, storageService.getImageUrl(c.imagePath));
+      }
+
+      // Group cover images by listId (keep top 5 per list), preferring custom covers
       const coversByListId = new Map<string, string[]>();
       for (const row of coverImageRows) {
-        if (!row.listId || !row.posterPath) continue;
+        if (!row.listId || !row.mediaId) continue;
         const arr = coversByListId.get(row.listId) ?? [];
-        if (arr.length < 5) arr.push(row.posterPath);
+        if (arr.length < 5) {
+          const ownerId = listOwnerMap.get(row.listId);
+          const cover = (ownerId && customCoverMap.get(`${ownerId}:${row.mediaId}`)) || row.posterPath;
+          if (cover) arr.push(cover);
+        }
         coversByListId.set(row.listId, arr);
       }
 
