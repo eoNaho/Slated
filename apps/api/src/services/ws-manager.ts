@@ -11,6 +11,17 @@ type WsSocket = any;
 
 const connections = new Map<string, Set<WsSocket>>();
 
+/** Anonymous (unauthenticated) connections — receive broadcasts but cannot send. */
+const anonymousConnections = new Set<WsSocket>();
+
+export function addAnonymousConnection(ws: WsSocket): void {
+  anonymousConnections.add(ws);
+}
+
+export function removeAnonymousConnection(ws: WsSocket): void {
+  anonymousConnections.delete(ws);
+}
+
 export function addConnection(userId: string, ws: WsSocket): void {
   if (!connections.has(userId)) connections.set(userId, new Set());
   connections.get(userId)!.add(ws);
@@ -39,6 +50,22 @@ export function sendToUser(userId: string, event: object): void {
     } catch {
       // socket may have closed between check and send — ignore
     }
+  }
+}
+
+/** Broadcast an event to every connected user (authenticated + anonymous), optionally excluding one. */
+export function broadcastToAll(event: object, excludeUserId?: string): void {
+  const payload = JSON.stringify(event);
+
+  for (const [uid, sockets] of connections) {
+    if (uid === excludeUserId) continue;
+    for (const ws of sockets) {
+      try { ws.send(payload); } catch { /* closed */ }
+    }
+  }
+
+  for (const ws of anonymousConnections) {
+    try { ws.send(payload); } catch { /* closed */ }
   }
 }
 

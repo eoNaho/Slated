@@ -1,7 +1,12 @@
 import { Header, Footer } from "@/components/layout";
 import { WebSocketProvider } from "@/providers/websocket-provider";
+import { AnnouncementBanner } from "@/components/ui/announcement-banner";
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <WebSocketProvider>
       <div className="relative min-h-screen bg-zinc-950 text-zinc-100 selection:bg-purple-500/30 selection:text-purple-200">
@@ -13,6 +18,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
         <Header />
         <main className="relative z-10 pt-14">
+          <AnnouncementBanner />
           {children}
           <Footer />
         </main>

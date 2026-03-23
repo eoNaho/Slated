@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Zap, Users, Globe, Lock, Loader2, RefreshCw, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { resolveImage } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import Image from "next/image";
@@ -95,7 +96,7 @@ export function ClubsGrid() {
             <div key={club.id} className="glass-card rounded-2xl overflow-hidden">
               <div className="h-20 bg-zinc-800 relative overflow-hidden">
                 {club.coverUrl
-                  ? <Image src={club.coverUrl} fill alt="" className="w-full h-full object-cover" />
+                  ? <Image src={resolveImage(club.coverUrl) ?? ""} fill alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center opacity-10"><Zap className="w-10 h-10" /></div>
                 }
                 <div className="absolute top-2 right-2">

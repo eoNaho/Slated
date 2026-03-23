@@ -14,6 +14,7 @@ import {
   loginHistory,
   auditLogs,
   wordBlocklist,
+  platformAnnouncements,
   eq,
   desc,
   asc,
@@ -241,12 +242,19 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       }
     } catch { /* */ }
 
+    const { getStorageStats } = await import("../lib/storage");
+    const storage = await getStorageStats().catch(() => ({ objectCount: 0, totalSizeBytes: 0, formattedSize: "N/A" }));
+
     return {
       data: {
         api: "ok" as const,
         db: dbStatus,
         redis: redisStatus,
-        storage: { used: 0, total: 0, unit: "GB" },
+        storage: {
+          objectCount: storage.objectCount,
+          totalSizeBytes: storage.totalSizeBytes,
+          formattedSize: storage.formattedSize,
+        },
       },
     };
   })
@@ -997,6 +1005,102 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
       }),
     }
   );
+
+// ── Announcements CRUD ──────────────────────────────────────────────────────────
+
+adminOnlyRoutes
+  .get("/announcements", async ({ query }: any) => {
+    const page = Number(query.page) || 1;
+    const limit = Math.min(Number(query.limit) || 20, 50);
+    const offset = (page - 1) * limit;
+
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(platformAnnouncements).orderBy(desc(platformAnnouncements.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(platformAnnouncements),
+    ]);
+
+    return { data: rows, total: Number(total), page, limit };
+  })
+
+  .post("/announcements", async ({ body, set }: any) => {
+    const [row] = await db.insert(platformAnnouncements).values({
+      title: body.title,
+      message: body.message,
+      type: body.type ?? "info",
+      imageUrl: body.imageUrl ?? null,
+      actionLabel: body.actionLabel ?? null,
+      actionUrl: body.actionUrl ?? null,
+      isActive: body.isActive ?? true,
+      dismissible: body.dismissible ?? true,
+      targetAudience: body.targetAudience ?? "all",
+      startAt: body.startAt ? new Date(body.startAt) : new Date(),
+      endAt: body.endAt ? new Date(body.endAt) : null,
+    }).returning();
+    set.status = 201;
+    return { data: row };
+  }, {
+    body: t.Object({
+      title: t.String({ minLength: 1 }),
+      message: t.String({ minLength: 1 }),
+      type: t.Optional(t.String()),
+      imageUrl: t.Optional(t.Nullable(t.String())),
+      actionLabel: t.Optional(t.Nullable(t.String())),
+      actionUrl: t.Optional(t.Nullable(t.String())),
+      isActive: t.Optional(t.Boolean()),
+      dismissible: t.Optional(t.Boolean()),
+      targetAudience: t.Optional(t.String()),
+      startAt: t.Optional(t.Nullable(t.String())),
+      endAt: t.Optional(t.Nullable(t.String())),
+    }),
+  })
+
+  .patch("/announcements/:id", async ({ params, body, set }: any) => {
+    const updates: Record<string, unknown> = {};
+    if (body.title !== undefined) updates.title = body.title;
+    if (body.message !== undefined) updates.message = body.message;
+    if (body.type !== undefined) updates.type = body.type;
+    if (body.imageUrl !== undefined) updates.imageUrl = body.imageUrl;
+    if (body.actionLabel !== undefined) updates.actionLabel = body.actionLabel;
+    if (body.actionUrl !== undefined) updates.actionUrl = body.actionUrl;
+    if (body.isActive !== undefined) updates.isActive = body.isActive;
+    if (body.dismissible !== undefined) updates.dismissible = body.dismissible;
+    if (body.targetAudience !== undefined) updates.targetAudience = body.targetAudience;
+    if (body.startAt !== undefined) updates.startAt = body.startAt ? new Date(body.startAt) : null;
+    if (body.endAt !== undefined) updates.endAt = body.endAt ? new Date(body.endAt) : null;
+    updates.updatedAt = new Date();
+
+    const [row] = await db.update(platformAnnouncements).set(updates).where(eq(platformAnnouncements.id, params.id)).returning();
+    if (!row) { set.status = 404; return { error: "Not found" }; }
+    return { data: row };
+  }, {
+    body: t.Object({
+      title: t.Optional(t.String()),
+      message: t.Optional(t.String()),
+      type: t.Optional(t.String()),
+      imageUrl: t.Optional(t.Nullable(t.String())),
+      actionLabel: t.Optional(t.Nullable(t.String())),
+      actionUrl: t.Optional(t.Nullable(t.String())),
+      isActive: t.Optional(t.Boolean()),
+      dismissible: t.Optional(t.Boolean()),
+      targetAudience: t.Optional(t.String()),
+      startAt: t.Optional(t.Nullable(t.String())),
+      endAt: t.Optional(t.Nullable(t.String())),
+    }),
+  })
+
+  .delete("/announcements/:id", async ({ params, set }: any) => {
+    const [row] = await db.delete(platformAnnouncements).where(eq(platformAnnouncements.id, params.id)).returning({ id: platformAnnouncements.id });
+    if (!row) { set.status = 404; return { error: "Not found" }; }
+    return { success: true };
+  })
+
+  .post("/announcements/:id/push", async ({ params, set }: any) => {
+    const [row] = await db.select().from(platformAnnouncements).where(eq(platformAnnouncements.id, params.id)).limit(1);
+    if (!row) { set.status = 404; return { error: "Not found" }; }
+    const { broadcastToAll } = await import("../services/ws-manager");
+    broadcastToAll({ type: "announcement", data: row });
+    return { success: true };
+  });
 
 // ── Compose ────────────────────────────────────────────────────────────────────
 

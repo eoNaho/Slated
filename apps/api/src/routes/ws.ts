@@ -10,6 +10,8 @@ import {
 import {
   addConnection,
   removeConnection,
+  addAnonymousConnection,
+  removeAnonymousConnection,
   broadcastToConversation,
 } from "../services/ws-manager";
 
@@ -45,14 +47,15 @@ export const wsRoutes = new Elysia().ws("/ws", {
     });
 
     if (!session) {
-      ws.close(4001, "Unauthorized");
+      // Allow unauthenticated connections — they can receive broadcasts (e.g. announcements)
+      // but cannot send authenticated events (messages, typing, etc.)
+      (ws.data as Record<string, unknown>).userId = null;
+      addAnonymousConnection(ws);
       return;
     }
 
     const userId = session.user.id;
-    // Store userId on the ws data context so we can access it in close/message
     (ws.data as Record<string, unknown>).userId = userId;
-
     addConnection(userId, ws);
   },
 
@@ -112,7 +115,8 @@ export const wsRoutes = new Elysia().ws("/ws", {
   },
 
   close(ws) {
-    const userId = (ws.data as Record<string, unknown>).userId as string | undefined;
+    const userId = (ws.data as Record<string, unknown>).userId as string | null | undefined;
     if (userId) removeConnection(userId, ws);
+    else removeAnonymousConnection(ws);
   },
 });

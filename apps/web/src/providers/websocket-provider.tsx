@@ -19,6 +19,19 @@ type TypingHandler = (
   isTyping: boolean
 ) => void;
 
+export interface AnnouncementData {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  imageUrl: string | null;
+  actionLabel: string | null;
+  actionUrl: string | null;
+  dismissible: boolean;
+}
+
+type AnnouncementHandler = (data: AnnouncementData) => void;
+
 type ServerEvent =
   | { type: "new_message"; conversationId: string; message: Message }
   | {
@@ -27,6 +40,7 @@ type ServerEvent =
       userId: string;
       isTyping: boolean;
     }
+  | { type: "announcement"; data: AnnouncementData }
   | { type: "pong" };
 
 interface WebSocketContextValue {
@@ -37,6 +51,8 @@ interface WebSocketContextValue {
    * Returns an unsubscribe function.
    */
   subscribeTyping: (handler: TypingHandler) => () => void;
+  /** Subscribe to incoming announcement push events. Returns unsubscribe fn. */
+  subscribeAnnouncement: (handler: AnnouncementHandler) => () => void;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -44,6 +60,7 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue>({
   send: () => {},
   subscribeTyping: () => () => {},
+  subscribeAnnouncement: () => () => {},
 });
 
 export function useWsContext(): WebSocketContextValue {
@@ -71,7 +88,10 @@ export function WebSocketProvider({
 }) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const enabled = !!session?.user;
+  // Connect even when not authenticated — needed to receive public broadcasts (announcements).
+  // Authenticated features (messages, typing) still require session.user.
+  const enabled = true;
+  const isAuthenticated = !!session?.user;
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -80,10 +100,16 @@ export function WebSocketProvider({
   const reconnectDelayRef = useRef(1000);
   const isMountedRef = useRef(true);
   const typingHandlersRef = useRef(new Set<TypingHandler>());
+  const announcementHandlersRef = useRef(new Set<AnnouncementHandler>());
 
   const subscribeTyping = useCallback((handler: TypingHandler) => {
     typingHandlersRef.current.add(handler);
     return () => typingHandlersRef.current.delete(handler);
+  }, []);
+
+  const subscribeAnnouncement = useCallback((handler: AnnouncementHandler) => {
+    announcementHandlersRef.current.add(handler);
+    return () => announcementHandlersRef.current.delete(handler);
   }, []);
 
   const connect = useCallback(() => {
@@ -171,11 +197,15 @@ export function WebSocketProvider({
           h(data.conversationId, data.userId, data.isTyping)
         );
       }
+
+      if (data.type === "announcement") {
+        announcementHandlersRef.current.forEach((h) => h(data.data));
+      }
     };
 
     ws.onclose = (event) => {
       wsRef.current = null;
-      if (event.code === 4001 || !isMountedRef.current || !enabled) return;
+      if (!isMountedRef.current || !enabled) return;
 
       const delay = Math.min(reconnectDelayRef.current, 30000);
       reconnectDelayRef.current = delay * 2;
@@ -206,7 +236,7 @@ export function WebSocketProvider({
   }, []);
 
   return (
-    <WebSocketContext.Provider value={{ send, subscribeTyping }}>
+    <WebSocketContext.Provider value={{ send, subscribeTyping, subscribeAnnouncement }}>
       {children}
     </WebSocketContext.Provider>
   );

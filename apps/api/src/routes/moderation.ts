@@ -31,31 +31,21 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       const limit = Math.min(Number(query.limit) || 30, 100);
       const offset = (page - 1) * limit;
 
-      const conditions = [inArray(reports.status, ["pending", "investigating"])];
+      // Build conditions — respect the status filter sent by the frontend
+      const statusCondition = query.status
+        ? eq(reports.status, query.status)
+        : inArray(reports.status, ["pending", "investigating"]);
+
+      const conditions: any[] = [statusCondition];
       if (query.targetType) conditions.push(eq(reports.targetType, query.targetType));
       if (query.priority) conditions.push(eq(reports.priority, query.priority));
       if (query.assignedTo) conditions.push(eq(reports.assignedTo, query.assignedTo));
-
-      const reporter = db
-        .select({
-          id: user.id,
-          username: user.username,
-          displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
-        })
-        .from(user)
-        .where(eq(user.id, reports.reporterId))
-        .as("reporter_sub");
 
       const rows = await db
         .select()
         .from(reports)
         .where(and(...conditions))
-        .orderBy(
-          // critical first, then by oldest
-          desc(reports.priority),
-          reports.createdAt
-        )
+        .orderBy(desc(reports.priority), reports.createdAt)
         .limit(limit)
         .offset(offset);
 
@@ -75,17 +65,37 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
         for (const r of reporters) reporterMap.set(r.id, r);
       }
 
-      const [{ total }] = await db
-        .select({ total: count() })
-        .from(reports)
-        .where(and(...conditions));
+      // Calculate reportCount per (targetType, targetId) — how many reports exist for the same target
+      const reportCountMap = new Map<string, number>();
+      if (rows.length > 0) {
+        const targets = [...new Set(rows.map((r) => `${r.targetType}:${r.targetId}`))];
+        for (const target of targets) {
+          const [tt, tid] = target.split(":") as [string, string];
+          const [{ c }] = await db
+            .select({ c: count() })
+            .from(reports)
+            .where(and(eq(reports.targetType, tt), eq(reports.targetId, tid)));
+          reportCountMap.set(target, Number(c));
+        }
+      }
+
+      // Always fetch pending & investigating counts for the tab badges
+      const [[{ pending }], [{ investigating }]] = await Promise.all([
+        db.select({ pending: count() }).from(reports).where(eq(reports.status, "pending")),
+        db.select({ investigating: count() }).from(reports).where(eq(reports.status, "investigating")),
+      ]);
 
       return {
-        data: rows.map((r) => ({
-          report: r,
-          reporter: r.reporterId ? reporterMap.get(r.reporterId) ?? null : null,
-        })),
-        total: Number(total),
+        data: {
+          pending: Number(pending),
+          investigating: Number(investigating),
+          reports: rows.map((r) => ({
+            report: r,
+            reporter: r.reporterId ? reporterMap.get(r.reporterId) ?? null : null,
+            reportCount: reportCountMap.get(`${r.targetType}:${r.targetId}`) ?? 1,
+          })),
+        },
+        total: rows.length,
         page,
         limit,
       };
@@ -94,6 +104,7 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       query: t.Object({
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
+        status: t.Optional(t.String()),
         targetType: t.Optional(t.String()),
         priority: t.Optional(t.String()),
         assignedTo: t.Optional(t.String()),
