@@ -673,6 +673,71 @@ export interface MediaGalleryData {
   posters: MediaImage[];
 }
 
+// ==================== MESSAGING ====================
+
+export interface ConversationParticipant {
+  userId: string;
+  role: "admin" | "member";
+  nickname?: string | null;
+  isMuted: boolean;
+  lastReadAt?: string | null;
+  joinedAt: string;
+  username: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  type: "dm" | "group";
+  name?: string | null;
+  avatarUrl?: string | null;
+  createdBy?: string | null;
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
+  messageCount: number;
+  isEncrypted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  // Augmented fields
+  unreadCount?: number;
+  participants?: ConversationParticipant[];
+}
+
+export interface MessageMetadata {
+  storyId?: string;
+  storyType?: string;
+  storyContent?: Record<string, unknown>;
+  storyImageUrl?: string | null;
+  storyIsExpired?: boolean;
+  mediaUrl?: string | null;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  type: "text" | "story_reply" | "image" | "system";
+  content: string | null; // null when deleted
+  metadata?: MessageMetadata | null;
+  replyToId?: string | null;
+  isEdited: boolean;
+  editedAt?: string | null;
+  isDeleted: boolean;
+  createdAt: string;
+  // Augmented fields from join
+  senderUsername?: string | null;
+  senderDisplayName?: string | null;
+  senderAvatarUrl?: string | null;
+}
+
+export interface DmSettings {
+  userId: string;
+  allowDmsFrom: "everyone" | "followers" | "following" | "mutual" | "nobody";
+  showReadReceipts: boolean;
+  showTypingIndicator: boolean;
+}
+
 // ==================== API ERROR ====================
 
 export interface ApiError {

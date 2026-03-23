@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Bell,
+  MessageSquare,
   Film,
   LogOut,
   User,
@@ -21,6 +22,7 @@ import { resolveImage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useClickOutside } from "@/hooks/use-click-outside";
 import { useUnreadCount } from "@/hooks/queries/use-notifications";
+import { useUnreadDmCount } from "@/hooks/queries/use-messages";
 
 const navLinks = [
   { href: "/movies", label: "Filmes" },
@@ -42,6 +44,7 @@ export function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: unreadCount = 0 } = useUnreadCount(user?.id);
+  const { data: unreadDmCount = 0 } = useUnreadDmCount(user?.id);
 
   useClickOutside(menuRef, useCallback(() => setIsMenuOpen(false), []));
   useClickOutside(userMenuRef, useCallback(() => setIsUserMenuOpen(false), []));
@@ -118,6 +121,20 @@ export function Header() {
               className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-32 xl:w-48 font-body transition-all"
             />
           </form>
+
+          {user && (
+            <Link
+              href="/messages"
+              className="relative inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors hidden sm:inline-flex"
+            >
+              <MessageSquare size={18} />
+              {unreadDmCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white px-1 leading-none">
+                  {unreadDmCount > 99 ? "99+" : unreadDmCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           {user && (
             <Link

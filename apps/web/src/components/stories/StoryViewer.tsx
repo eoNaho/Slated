@@ -166,7 +166,10 @@ export function StoryViewer({ stories, initialIndex = 0, onClose, readOnly = fal
     if (!message.trim() || isSending) return;
     setIsSending(true);
     try {
-      await api.stories.react(currentStory.id, "reply", message.trim());
+      await api.messages.storyReply({
+        storyId: currentStory.id,
+        content: message.trim(),
+      });
       setMessage("");
       toast.success("Mensagem enviada");
     } catch {

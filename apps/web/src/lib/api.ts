@@ -1071,6 +1071,51 @@ export const api = {
     list: (page = 1) =>
       fetcher<{ data: { id: string; username: string | null; displayName: string | null; avatarUrl: string | null }[]; total: number }>(`/blocks?page=${page}&limit=20`),
   },
+  messages: {
+    listConversations: (page = 1, limit = 20) =>
+      fetcher<{ data: import("@/types").Conversation[]; total: number; page: number; limit: number; hasNext: boolean; hasPrev: boolean }>(
+        `/messages/conversations?page=${page}&limit=${limit}`
+      ),
+    getConversation: (id: string) =>
+      fetcher<import("@/types").Conversation>(`/messages/conversations/${id}`),
+    createConversation: (data: { type: "dm" | "group"; participantIds: string[]; name?: string }) =>
+      fetcher<import("@/types").Conversation>("/messages/conversations", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    getMessages: (conversationId: string, params?: { limit?: number; before?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.limit) qs.set("limit", String(params.limit));
+      if (params?.before) qs.set("before", params.before);
+      return fetcher<{ data: import("@/types").Message[]; hasMore: boolean; nextCursor: string | null }>(
+        `/messages/conversations/${conversationId}/messages?${qs}`
+      );
+    },
+    sendMessage: (
+      conversationId: string,
+      data: { content: string; type?: "text" | "story_reply" | "image"; metadata?: Record<string, unknown>; replyToId?: string }
+    ) =>
+      fetcher<import("@/types").Message>(`/messages/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    markRead: (conversationId: string) =>
+      fetcher<{ success: boolean }>(`/messages/conversations/${conversationId}/read`, { method: "POST" }),
+    getUnreadCount: () =>
+      fetcher<{ count: number }>("/messages/unread-count"),
+    storyReply: (data: { storyId: string; content: string }) =>
+      fetcher<{ conversationId: string; message: import("@/types").Message }>("/messages/story-reply", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    getSettings: () =>
+      fetcher<import("@/types").DmSettings>("/messages/settings"),
+    updateSettings: (data: Partial<import("@/types").DmSettings>) =>
+      fetcher<import("@/types").DmSettings>("/messages/settings", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+  },
 };
 
 export { ApiError };

@@ -13,6 +13,6 @@ export function blockedUserIds(userId: string) {
       db
         .select({ id: userBlocks.blockerId })
         .from(userBlocks)
-        .where(eq(userBlocks.blockedId, userId))
+        .where(eq(userBlocks.blockedId, userId)),
     );
 }
