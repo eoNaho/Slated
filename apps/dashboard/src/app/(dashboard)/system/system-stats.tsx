@@ -125,7 +125,7 @@ export function SystemStats() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-zinc-500 font-medium">{card.label}</p>
-                      <p className="text-2xl font-bold text-white tracking-tight mt-0.5">{card.value.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-white tracking-tight mt-0.5">{(card.value ?? 0).toLocaleString()}</p>
                     </div>
                     <TrendingUp className={`w-4 h-4 ${"danger" in card && card.danger ? "text-red-400" : "text-emerald-400"}`} />
                   </div>
