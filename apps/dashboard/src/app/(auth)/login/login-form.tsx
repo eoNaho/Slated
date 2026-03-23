@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command, Lock, Mail, Loader2, AlertCircle } from "lucide-react";
 
-const AUTH_URL = "http://localhost:3001";
-
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -18,7 +16,7 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${AUTH_URL}/api/auth/sign-in/email`, {
+      const res = await fetch("/api/auth/sign-in/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -29,13 +27,14 @@ export function LoginForm() {
         setError("Credenciais inválidas ou acesso não autorizado.");
         return;
       }
-      const sessionRes = await fetch(`${AUTH_URL}/api/auth/get-session`, {
+      const sessionRes = await fetch("/api/auth/get-session", {
         credentials: "include",
       });
       const session = await sessionRes.json();
-      if (session?.user?.role !== "admin") {
-        setError("Acesso negado. Apenas administradores podem entrar.");
-        await fetch(`${AUTH_URL}/api/auth/sign-out`, {
+      const role = session?.user?.role;
+      if (role !== "admin" && role !== "moderator") {
+        setError("Acesso negado. Apenas administradores e moderadores podem entrar.");
+        await fetch("/api/auth/sign-out", {
           method: "POST",
           credentials: "include",
         });
@@ -60,7 +59,7 @@ export function LoginForm() {
             PixelReel Command
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
-            Acesso restrito a administradores
+            Acesso restrito a administradores e moderadores
           </p>
         </div>
 

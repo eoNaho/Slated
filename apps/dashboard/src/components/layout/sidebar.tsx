@@ -16,6 +16,7 @@ import {
   Activity,
   Flag,
   BookX,
+  BarChart3,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -39,6 +40,7 @@ const STAFF_NAV = [
 ];
 
 const ADMIN_ONLY_NAV = [
+  { label: "Analytics", icon: BarChart3, href: "/analytics" },
   { label: "Blocklist", icon: BookX, href: "/system/blocklist" },
   { label: "Audit Logs", icon: Activity, href: "/audit-logs" },
 ];

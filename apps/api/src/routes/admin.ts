@@ -9,6 +9,7 @@ import {
   planFeatureFlags,
   clubs,
   comments,
+  diary,
   stories,
   loginHistory,
   auditLogs,
@@ -22,6 +23,7 @@ import {
   and,
   sql,
   gte,
+  lte,
   isNotNull,
 } from "../db";
 import { contentFilterService } from "../services/content-filter";
@@ -88,6 +90,163 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
         },
         newUsers: { today: newToday, week: newThisWeek, month: newThisMonth },
         activeUsers: { last24h: active24h, last7d: active7d },
+      },
+    };
+  })
+
+  // ── Stats: user growth time-series ────────────────────────────────────────
+  .get(
+    "/stats/user-growth",
+    async ({ query }: any) => {
+      const period = query.period || "30d";
+      const days = period === "12m" ? 365 : period === "90d" ? 90 : 30;
+      const groupBy = period === "12m" ? "week" : "day";
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const rows = await db
+        .select({
+          date: sql<string>`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})::date`,
+          count: count(),
+        })
+        .from(user)
+        .where(gte(user.createdAt, since))
+        .groupBy(sql`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})`)
+        .orderBy(sql`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})`);
+
+      return { data: rows };
+    },
+    {
+      query: t.Object({
+        period: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── Stats: content activity time-series ───────────────────────────────────
+  .get(
+    "/stats/content-activity",
+    async ({ query }: any) => {
+      const days = Number(query.days) || 30;
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const [reviewRows, commentRows, listRows, diaryRows] = await Promise.all([
+        db
+          .select({
+            date: sql<string>`date_trunc('day', ${reviews.createdAt})::date`,
+            count: count(),
+          })
+          .from(reviews)
+          .where(gte(reviews.createdAt, since))
+          .groupBy(sql`date_trunc('day', ${reviews.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${reviews.createdAt})`),
+        db
+          .select({
+            date: sql<string>`date_trunc('day', ${comments.createdAt})::date`,
+            count: count(),
+          })
+          .from(comments)
+          .where(gte(comments.createdAt, since))
+          .groupBy(sql`date_trunc('day', ${comments.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${comments.createdAt})`),
+        db
+          .select({
+            date: sql<string>`date_trunc('day', ${lists.createdAt})::date`,
+            count: count(),
+          })
+          .from(lists)
+          .where(gte(lists.createdAt, since))
+          .groupBy(sql`date_trunc('day', ${lists.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${lists.createdAt})`),
+        db
+          .select({
+            date: sql<string>`date_trunc('day', ${diary.watchedAt})::date`,
+            count: count(),
+          })
+          .from(diary)
+          .where(gte(diary.watchedAt, since.toISOString().split("T")[0]))
+          .groupBy(sql`date_trunc('day', ${diary.watchedAt})`)
+          .orderBy(sql`date_trunc('day', ${diary.watchedAt})`),
+      ]);
+
+      // Merge into a map keyed by date
+      const dateMap: Record<string, { reviews: number; comments: number; lists: number; diary: number }> = {};
+      const addRows = (arr: { date: string; count: number }[], key: keyof typeof dateMap[string]) => {
+        arr.forEach(({ date, count: c }) => {
+          if (!dateMap[date]) dateMap[date] = { reviews: 0, comments: 0, lists: 0, diary: 0 };
+          (dateMap[date] as Record<string, number>)[key] = Number(c);
+        });
+      };
+      addRows(reviewRows, "reviews");
+      addRows(commentRows, "comments");
+      addRows(listRows, "lists");
+      addRows(diaryRows, "diary");
+
+      const merged = Object.entries(dateMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, counts]) => ({ date, ...counts }));
+
+      return { data: merged };
+    },
+    {
+      query: t.Object({
+        days: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── Stats: reports analytics ───────────────────────────────────────────────
+  .get("/stats/reports-analytics", async () => {
+    const [byReason, byStatus, avgResolution] = await Promise.all([
+      db
+        .select({ reason: reports.reason, count: count() })
+        .from(reports)
+        .groupBy(reports.reason)
+        .orderBy(desc(count())),
+      db
+        .select({ status: reports.status, count: count() })
+        .from(reports)
+        .groupBy(reports.status),
+      db
+        .select({
+          avg: sql<string>`COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (${reports.resolvedAt} - ${reports.createdAt})) / 3600)::numeric, 1), 0)`,
+        })
+        .from(reports)
+        .where(sql`${reports.resolvedAt} IS NOT NULL`),
+    ]);
+
+    return {
+      data: {
+        byReason: byReason.map((r) => ({ reason: r.reason, count: Number(r.count) })),
+        byStatus: byStatus.map((r) => ({ status: r.status, count: Number(r.count) })),
+        avgResolutionHours: Number(avgResolution[0]?.avg ?? 0),
+      },
+    };
+  })
+
+  // ── Health check ───────────────────────────────────────────────────────────
+  .get("/health", async ({ set }: any) => {
+    let dbStatus: "ok" | "error" = "error";
+    let redisStatus: "ok" | "error" = "error";
+
+    try {
+      await db.execute(sql`SELECT 1`);
+      dbStatus = "ok";
+    } catch { /* */ }
+
+    try {
+      const { redis } = await import("../lib/redis").catch(() => ({ redis: null }));
+      if (redis) {
+        await (redis as any).ping();
+        redisStatus = "ok";
+      }
+    } catch { /* */ }
+
+    return {
+      data: {
+        api: "ok" as const,
+        db: dbStatus,
+        redis: redisStatus,
+        storage: { used: 0, total: 0, unit: "GB" },
       },
     };
   })
