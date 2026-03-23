@@ -72,7 +72,7 @@ export function StoriesBar() {
 
   return (
     <>
-      <div className="flex gap-5 p-4 py-8 overflow-x-auto no-scrollbar border-b border-white/5 bg-black/20 backdrop-blur-md">
+      <div className="flex gap-5 p-4 overflow-x-auto no-scrollbar border-b border-white/5 bg-black/20 backdrop-blur-md">
         {/* Your Story Button */}
         {session?.user && (
           <div className="flex flex-col items-center gap-2">

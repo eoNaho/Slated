@@ -18,9 +18,11 @@ import {
   inArray,
   gte,
 } from "../db";
-import { betterAuthPlugin } from "../lib/auth";
+import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 import { cached, TTL } from "../lib/cache";
+import { metadataService } from "../services/metadata.service";
+import { scrobbles, diary } from "../db/schema";
 
 // Helper to resolve image URLs
 function resolveImageUrl(path: string | null): string | null {
@@ -443,4 +445,96 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         limit: t.Optional(t.String()),
       }),
     }
+  )
+
+  // ==========================================================================
+  // Recommended — based on user's recent highly rated or scrobbled items
+  // ==========================================================================
+
+  .get(
+    "/recommended",
+    async (ctx: any) => {
+      const { user, query } = ctx;
+      const type = query.type as "movie" | "series" | "all" | undefined;
+      const limit = Math.min(Number(query.limit) || 15, 20);
+
+      const cacheKey = `recommended:${user.id}:${type ?? "all"}:${limit}`;
+      return cached(cacheKey, TTL.VOLATILE, async () => {
+        // Find most recent scrobble with tmdbId
+        const [recentScrobble] = await db
+          .select({ tmdbId: scrobbles.tmdbId, mediaType: scrobbles.mediaType })
+          .from(scrobbles)
+          .where(
+            and(
+              eq(scrobbles.userId, user.id),
+              sql`${scrobbles.tmdbId} IS NOT NULL`
+            )
+          )
+          .orderBy(desc(scrobbles.watchedAt))
+          .limit(1);
+
+        // Find most recent highly rated diary entry (rating >= 3.5 or 7/10)
+        // Wait, diary might not have tmdbId if not joined with media. Let's just use scrobbles to guarantee tmdbId,
+        // or join diary with media to get tmdbId.
+        const [recentDiary] = await db
+          .select({ tmdbId: media.tmdbId, mediaType: media.type })
+          .from(diary)
+          .innerJoin(media, eq(diary.mediaId, media.id))
+          .where(
+            and(
+              eq(diary.userId, user.id),
+              sql`${diary.rating} >= 3.5`,
+              sql`${media.tmdbId} IS NOT NULL`
+            )
+          )
+          .orderBy(desc(diary.watchedAt))
+          .limit(1);
+
+        const target = recentDiary || recentScrobble;
+
+        if (!target?.tmdbId) {
+          return { data: [] }; // No baseline to recommend from
+        }
+
+        try {
+          const targetMediaType = target.mediaType === "series" ? "series" : "movie";
+          const recsRes = await metadataService.getRecommendations(
+            target.tmdbId,
+            targetMediaType,
+            1
+          );
+
+          // We only need the top N
+          const mapped = recsRes.results.slice(0, limit).map((t) => ({
+            id: String(t.tmdbId), // Mock an ID for the UI if not in our DB
+            tmdbId: t.tmdbId,
+            type: t.mediaType,
+            title: t.title,
+            posterPath: t.posterPath,
+            backdropPath: t.backdropPath,
+            releaseDate: t.releaseDate,
+            voteAverage: t.voteAverage,
+            overview: t.overview,
+          }));
+
+          return {
+            data: mapped,
+            basedOn: {
+              tmdbId: target.tmdbId,
+              mediaType: targetMediaType,
+            },
+          };
+        } catch (e) {
+          return { data: [] }; // Fail gracefully
+        }
+      });
+    },
+    {
+      requireAuth: true,
+      query: t.Object({
+        type: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+    }
   );
+

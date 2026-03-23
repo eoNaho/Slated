@@ -42,6 +42,7 @@ async function fetchJson<T>(
 
 interface PageProps {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({
@@ -122,8 +123,10 @@ async function fetchJsonAuth<T>(
   }
 }
 
-export default async function ProfilePage({ params }: PageProps) {
+export default async function ProfilePage({ params, searchParams }: PageProps) {
   const { username } = await params;
+  const resolvedSearchParams = await searchParams;
+  const initialTab = typeof resolvedSearchParams.tab === "string" ? resolvedSearchParams.tab : undefined;
 
   // Phase 1: session first, then user+stats in parallel with auth cookies
   const sessionInfo = await getSessionInfo();
@@ -242,6 +245,15 @@ export default async function ProfilePage({ params }: PageProps) {
     },
   })) as LikeItem[];
 
+  const favoritesData = likes.slice(0, 4).map((like) => ({
+    id: like.media.id,
+    title: like.media.title,
+    posterPath: like.media.posterPath || "",
+    year: like.media.year || 0,
+    slug: like.media.slug,
+    mediaType: like.media.type,
+  }));
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
       <div className="fixed inset-0 bg-gradient-to-br from-black via-purple-900/20 to-black -z-10" />
@@ -251,7 +263,7 @@ export default async function ProfilePage({ params }: PageProps) {
         isOwnProfile={isOwnProfile}
         currentUserId={sessionUserId ?? undefined}
         initialIsFollowing={initialIsFollowing}
-        favorites={[]}
+        favorites={favoritesData}
         likes={likes}
         reviews={reviews}
         lists={lists}
@@ -263,6 +275,7 @@ export default async function ProfilePage({ params }: PageProps) {
         watchingNow={activityNowRes?.data}
         scrobbles={scrobblesRes?.data || []}
         activity={activity}
+        initialTab={initialTab}
       />
     </div>
   );

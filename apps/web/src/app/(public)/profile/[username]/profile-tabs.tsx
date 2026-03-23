@@ -71,6 +71,7 @@ interface ProfileTabsProps {
   activity?: Activity[];
   watchingNow?: CurrentActivity | null;
   scrobbles?: Scrobble[];
+  initialTab?: string;
 }
 
 const tabs = [
@@ -106,8 +107,9 @@ export function ProfileTabs({
   identity = null,
   watchingNow = null,
   scrobbles = [],
+  initialTab,
 }: ProfileTabsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const [showCreateList, setShowCreateList] = useState(false);
   const [showCreateScrobble, setShowCreateScrobble] = useState(false);
 
@@ -116,6 +118,15 @@ export function ProfileTabs({
   const clubsLoaded = !clubsPending;
 
   const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    window.history.pushState(
+      null,
+      "",
+      value === "overview" ? window.location.pathname : `?tab=${value}`
+    );
+  };
 
   return (
     <>
@@ -139,7 +150,7 @@ export function ProfileTabs({
             {tabs.map((tab) => (
               <button
                 key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
+                onClick={() => handleTabChange(tab.value)}
                 className={`flex items-center gap-2 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all ${
                   activeTab === tab.value
                     ? "border-purple-500 text-white"
@@ -182,7 +193,7 @@ export function ProfileTabs({
             {activeTab === "overview" && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-8 space-y-12">
-                  <FavoriteFilms films={favorites} isEditable={isOwnProfile} />
+                  <FavoriteFilms films={favorites} isEditable={isOwnProfile} customCovers={customCovers} />
                   <ReviewsList reviews={reviews} limit={3} currentUserId={currentUserId} customCovers={customCovers} />
                 </div>
                 <div className="lg:col-span-4 space-y-10">

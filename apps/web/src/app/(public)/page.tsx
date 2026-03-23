@@ -1,11 +1,40 @@
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { Star } from "lucide-react";
-import { HeroSection, WatchlistRow, FriendsActivity, CTABanner } from "@/components/home";
+import {
+  HeroSection,
+  WatchlistRow,
+  FriendsActivity,
+  CTABanner,
+  DashboardGreeting,
+} from "@/components/home";
 import { Carousel, SectionHeader } from "@/components/common";
 import { MediaCard, ReviewCard } from "@/components/media";
-import { getTrending, transformTrendingToMedia, generateReviews } from "@/lib/queries/home";
+import {
+  getTrending,
+  transformTrendingToMedia,
+  generateReviews,
+  getRecommendations,
+} from "@/lib/queries/home";
 import { StoriesBar } from "@/components/stories/StoriesBar";
+
+const AUTH_BASE =
+  process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
+  "http://localhost:3001";
+
+async function getSession(cookieHeader: string) {
+  try {
+    const res = await fetch(`${AUTH_BASE}/api/auth/get-session`, {
+      headers: { cookie: cookieHeader },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
 
 export const metadata: Metadata = {
   title: "PixelReel — Track Movies & Series",
@@ -14,11 +43,22 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [trendingAll, trendingMovies, trendingTV] = await Promise.all([
-    getTrending("all"),
-    getTrending("movie"),
-    getTrending("series"),
-  ]);
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
+  const session = await getSession(cookieHeader);
+  const isLoggedIn = !!session?.user;
+
+  const recommendationsReq = isLoggedIn
+    ? getRecommendations(cookieHeader)
+    : Promise.resolve({ data: [] });
+
+  const [trendingAll, trendingMovies, trendingTV, recommendedRes] =
+    await Promise.all([
+      getTrending("all"),
+      getTrending("movie"),
+      getTrending("series"),
+      recommendationsReq,
+    ]);
 
   const heroMedia = transformTrendingToMedia(trendingAll.slice(0, 5));
   const trendingMedia = transformTrendingToMedia(trendingAll);
@@ -28,14 +68,41 @@ export default async function HomePage() {
   ]);
   const reviews = generateReviews(trendingAll.slice(5, 9));
   const trendingSidebar = transformTrendingToMedia(trendingMovies.slice(0, 8));
+  const hasRecommendations =
+    recommendedRes.data && recommendedRes.data.length > 0;
 
   return (
     <div className="relative min-h-screen">
       {/* Stories Feed */}
       <StoriesBar />
 
+      {/* Personalized Dashboard */}
+      {isLoggedIn && (
+        <div className="container mx-auto">
+          <DashboardGreeting
+            user={session.user}
+            featuredRecommendation={
+              hasRecommendations ? recommendedRes.data[0] : null
+            }
+          />
+        </div>
+      )}
+
       {/* Hero Section — Editorial Layout */}
       <HeroSection initialMedia={heroMedia} />
+
+      {/* Recommendations Carousel */}
+      {isLoggedIn && hasRecommendations && (
+        <div className="container mx-auto">
+          <Carousel title="Recommended for You" href="#">
+            {recommendedRes.data.map((media) => (
+              <div key={media.id} className="snap-start flex-shrink-0">
+                <MediaCard media={media} />
+              </div>
+            ))}
+          </Carousel>
+        </div>
+      )}
 
       {/* [Logged-in] Watchlist — what to watch next */}
       <WatchlistRow />
@@ -76,7 +143,10 @@ export default async function HomePage() {
               <SectionHeader title="Trending This Week" href="/search" />
               <div className="flex flex-col divide-y divide-white/5">
                 {trendingSidebar.map((media, i) => (
-                  <div key={media.id} className="flex items-center gap-4 py-3 group">
+                  <div
+                    key={media.id}
+                    className="flex items-center gap-4 py-3 group"
+                  >
                     <span className="text-zinc-700 text-sm font-mono w-5 text-right flex-shrink-0">
                       {i + 1}
                     </span>

@@ -40,6 +40,30 @@ export async function getTrending(
   }
 }
 
+export async function getRecommendations(
+  cookieStr?: string
+): Promise<{ data: Media[]; basedOn?: { tmdbId: number; mediaType: string } }> {
+  try {
+    const headers: Record<string, string> = {};
+    if (cookieStr) headers["Cookie"] = cookieStr;
+
+    const res = await fetch(`${API_URL}/discover/recommended?limit=15`, {
+      headers,
+      next: { revalidate: 3600 },
+    });
+    
+    if (!res.ok) return { data: [] };
+    const data = await res.json();
+    
+    return {
+      data: data.data || [],
+      basedOn: data.basedOn,
+    };
+  } catch {
+    return { data: [] };
+  }
+}
+
 export function transformTrendingToMedia(items: SearchResult[]): Media[] {
   return items.map((t) => ({
     id: String(t.tmdbId),

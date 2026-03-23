@@ -144,9 +144,9 @@ export function ProfileHeader({
 
       {/* Profile Content */}
       <div className="container mx-auto px-6 relative z-10 -mt-24 lg:-mt-28">
-        <div className="flex flex-col md:flex-row gap-5 items-start md:items-end">
+        <div className="flex flex-col md:flex-row gap-5 items-start">
           {/* Avatar with frame, story ring and premium badge */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 mt-auto">
             <FramedAvatar
               avatarUrl={profile.avatarUrl}
               username={profile.username}
@@ -172,151 +172,71 @@ export function ProfileHeader({
             )}
           </div>
 
-          {/* User Info */}
-          <div className="flex-1 min-w-0 pb-2">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-4xl lg:text-5xl font-bold text-white truncate">
-                    {profile.displayName || profile.username}
-                  </h1>
-                  {identity?.perks?.verified && <VerifiedBadge />}
-                  {profile.isPremium && identity?.perks?.badgeEnabled && (
-                    <SupporterBadge />
-                  )}
-                </div>
-                {identity?.perks?.title && (
-                  <div className="mb-1">
-                    <TitleBadge title={identity.perks.title} />
-                  </div>
-                )}
-                <div className="flex items-center gap-3 text-sm text-zinc-400">
-                  <span>@{profile.username}</span>
-                  {profile.location && (
-                    <>
-                      <span className="w-1 h-1 rounded-full bg-zinc-600" />
-                      <span className="flex items-center gap-1 text-zinc-500">
-                        <MapPin className="h-3 w-3" />
-                        {profile.location}
-                      </span>
-                    </>
-                  )}
-                </div>
+          {/* User Info — text content only, no action buttons */}
+          <div className="flex-1 min-w-0 pb-2 pt-10 md:pt-12">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
+              <h1 className="text-3xl lg:text-4xl font-bold text-white truncate">
+                {profile.displayName || profile.username}
+              </h1>
+              {identity?.perks?.verified && <VerifiedBadge />}
+              {profile.isPremium && identity?.perks?.badgeEnabled && (
+                <SupporterBadge />
+              )}
+            </div>
+            {identity?.perks?.title && (
+              <div className="mb-1">
+                <TitleBadge title={identity.perks.title} />
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                {isOwnProfile ? (
-                  <Link
-                    href="/settings"
-                    className="h-10 px-4 rounded-xl font-semibold text-sm bg-zinc-800 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all flex items-center gap-2"
-                  >
-                    <Settings className="h-4 w-4" />
-                    Edit Profile
-                  </Link>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        startTransition(async () => {
-                          try {
-                            if (isFollowing) {
-                              await api.users.unfollow(profile.id);
-                            } else {
-                              await api.users.follow(profile.id);
-                            }
-                            setIsFollowing(!isFollowing);
-                          } catch {
-                            // silently ignore — UI stays unchanged
-                          }
-                        });
-                      }}
-                      disabled={isPending}
-                      className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 ${
-                        isFollowing
-                          ? "bg-zinc-800 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 border border-white/10"
-                          : "bg-white text-zinc-950 hover:bg-zinc-200"
-                      }`}
-                    >
-                      {isFollowing ? "Unfollow" : "Follow"}
-                    </button>
-                    {sessionUserId && (
-                      <button
-                        onClick={async () => {
-                          setIsDmLoading(true);
-                          try {
-                            const conv = await api.messages.createConversation({
-                              type: "dm",
-                              participantIds: [profile.id],
-                            });
-                            router.push(`/messages/${conv.id}`);
-                          } catch {
-                            // silently ignore
-                          } finally {
-                            setIsDmLoading(false);
-                          }
-                        }}
-                        disabled={isDmLoading}
-                        title="Enviar mensagem"
-                        className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 hover:text-white transition-all disabled:opacity-60"
-                      >
-                        {isDmLoading ? (
-                          <div className="w-4 h-4 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin" />
-                        ) : (
-                          <MessageSquare className="h-4 w-4" />
-                        )}
-                      </button>
-                    )}
-                  </>
-                )}
-                <div className="relative">
-                  <button
-                    ref={moreButtonRef}
-                    onClick={openMoreMenu}
-                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+            )}
+            <div className="flex items-center gap-3 text-sm text-zinc-400">
+              <span>@{profile.username}</span>
+              {profile.location && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-zinc-600" />
+                  <span className="flex items-center gap-1 text-zinc-500">
+                    <MapPin className="h-3 w-3" />
+                    {profile.location}
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Bio */}
             {profile.bio && (
-              <p className="text-zinc-400 text-sm leading-relaxed mt-3 max-w-xl line-clamp-2">
+              <p className="text-zinc-400 text-sm leading-relaxed mt-2 max-w-lg line-clamp-2">
                 {profile.bio}
               </p>
             )}
 
-            {/* Bio Extended */}
+            {/* Bio Extended — compact layout */}
             {profile.bioExtended && (
-              <div className="mt-2 space-y-1.5 max-w-xl">
+              <div className="mt-1.5 space-y-1 max-w-lg">
                 {profile.bioExtended.headline && (
-                  <p className="text-sm font-semibold text-zinc-200">
+                  <p className="text-sm font-semibold text-zinc-200 truncate">
                     {profile.bioExtended.headline}
                   </p>
                 )}
                 {(profile.bioExtended.moods?.length ?? 0) > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {profile.bioExtended.moods!.map(
-                      (mood: string, i: number) => (
+                  <div className="flex flex-wrap gap-1">
+                    {profile.bioExtended
+                      .moods!.slice(0, 5)
+                      .map((mood: string, i: number) => (
                         <span
                           key={i}
                           className="px-2 py-0.5 rounded-full text-[11px] bg-zinc-800/80 border border-white/8 text-zinc-400"
                         >
                           {mood}
                         </span>
-                      ),
-                    )}
+                      ))}
                   </div>
                 )}
                 {profile.bioExtended.quote?.text && (
-                  <blockquote className="border-l-2 border-purple-500/40 pl-3 mt-1">
-                    <p className="text-xs italic text-zinc-500 line-clamp-2">
+                  <blockquote className="border-l-2 border-purple-500/40 pl-2.5">
+                    <p className="text-xs italic text-zinc-500 line-clamp-1">
                       &ldquo;{profile.bioExtended.quote.text}&rdquo;
                     </p>
                     {profile.bioExtended.quote.author && (
-                      <p className="text-[10px] text-zinc-600 mt-0.5">
+                      <p className="text-[10px] text-zinc-600">
                         &mdash; {profile.bioExtended.quote.author}
                       </p>
                     )}
@@ -411,7 +331,83 @@ export function ProfileHeader({
             </div>
           </div>
 
-          <div className="mt-8 md:mt-0 md:ml-auto shrink-0">
+          {/* Right Column — action buttons always on top, WatchingNow below */}
+          <div className="shrink-0 flex flex-col items-end gap-3 self-start pt-10 md:pt-12">
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2.5">
+              {isOwnProfile ? (
+                <Link
+                  href="/settings"
+                  className="h-10 px-4 rounded-xl font-semibold text-sm bg-zinc-800 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Edit Profile
+                </Link>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      startTransition(async () => {
+                        try {
+                          if (isFollowing) {
+                            await api.users.unfollow(profile.id);
+                          } else {
+                            await api.users.follow(profile.id);
+                          }
+                          setIsFollowing(!isFollowing);
+                        } catch {
+                          // silently ignore — UI stays unchanged
+                        }
+                      });
+                    }}
+                    disabled={isPending}
+                    className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 ${
+                      isFollowing
+                        ? "bg-zinc-800 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 border border-white/10"
+                        : "bg-white text-zinc-950 hover:bg-zinc-200"
+                    }`}
+                  >
+                    {isFollowing ? "Unfollow" : "Follow"}
+                  </button>
+                  {sessionUserId && (
+                    <button
+                      onClick={async () => {
+                        setIsDmLoading(true);
+                        try {
+                          const conv = await api.messages.createConversation({
+                            type: "dm",
+                            participantIds: [profile.id],
+                          });
+                          router.push(`/messages/${conv.id}`);
+                        } catch {
+                          // silently ignore
+                        } finally {
+                          setIsDmLoading(false);
+                        }
+                      }}
+                      disabled={isDmLoading}
+                      title="Enviar mensagem"
+                      className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 hover:text-white transition-all disabled:opacity-60"
+                    >
+                      {isDmLoading ? (
+                        <div className="w-4 h-4 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+                </>
+              )}
+              <button
+                ref={moreButtonRef}
+                onClick={openMoreMenu}
+                className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* WatchingNow — lives below the buttons, same column */}
             {watchingNow && watchingNow.status !== "finished" && (
               <WatchingNow
                 item={{
