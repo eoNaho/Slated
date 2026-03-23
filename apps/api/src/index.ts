@@ -45,6 +45,7 @@ import { reportsRoutes } from "./routes/reports";
 import { blocksRoutes } from "./routes/blocks";
 import { moderationRoutes } from "./routes/moderation";
 import { messagesRoutes } from "./routes/messages";
+import { wsRoutes } from "./routes/ws";
 
 // Explicit list of allowed origins (never use `true` which allows all origins)
 const ALLOWED_ORIGINS = [
@@ -56,6 +57,9 @@ const ALLOWED_ORIGINS = [
 ];
 
 const app = new Elysia()
+  // WebSocket — mounted before HTTP middleware (no CORS/auth middleware needed for WS upgrade)
+  .use(wsRoutes)
+
   // Security middleware (applied to all routes)
   .use(securityHeaders())
   .use(requestLogger())

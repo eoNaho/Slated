@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { useConversation, useMessages } from "@/hooks/queries/use-messages";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { ConversationHeader } from "./conversation-header";
 import { MessageBubble } from "./message-bubble";
 import { MessageInput } from "./message-input";
@@ -29,12 +30,61 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     isFetchingNextPage,
   } = useMessages(conversationId);
 
+  // typingUsers: map of userId → display name of who is currently typing
+  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
+  const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+
+  const handleTyping = useCallback(
+    (convId: string, userId: string, isTyping: boolean) => {
+      if (convId !== conversationId || userId === currentUserId) return;
+
+      setTypingUsers((prev) => {
+        const next = new Map(prev);
+        if (isTyping) {
+          // Get display name from conversation participants
+          const participant = conversation?.participants?.find(
+            (p) => p.userId === userId
+          );
+          next.set(userId, participant?.displayName ?? participant?.username ?? "...");
+        } else {
+          next.delete(userId);
+        }
+        return next;
+      });
+
+      // Auto-clear after 4s of no update (safety net if stop_typing is missed)
+      const existing = typingTimeoutsRef.current.get(userId);
+      if (existing) clearTimeout(existing);
+
+      if (isTyping) {
+        const t = setTimeout(() => {
+          setTypingUsers((prev) => {
+            const next = new Map(prev);
+            next.delete(userId);
+            return next;
+          });
+          typingTimeoutsRef.current.delete(userId);
+        }, 4000);
+        typingTimeoutsRef.current.set(userId, t);
+      } else {
+        typingTimeoutsRef.current.delete(userId);
+      }
+    },
+    [conversationId, currentUserId, conversation?.participants]
+  );
+
+  const { send: wsSend } = useWebSocket({
+    enabled: !!session?.user,
+    onTyping: handleTyping,
+  });
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
 
   // Flatten pages into a single chronological array
-  // Pages are loaded newest-first (cursor-based), so we reverse them
   const allMessages: Message[] = messagesData
     ? [...messagesData.pages].reverse().flatMap((p) => p.data)
     : [];
@@ -54,6 +104,14 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       bottomRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [allMessages.length]);
+
+  // Clean up typing timeouts on unmount
+  useEffect(() => {
+    const timeouts = typingTimeoutsRef.current;
+    return () => {
+      for (const t of timeouts.values()) clearTimeout(t);
+    };
+  }, []);
 
   // Load older messages when scrolled to top
   const handleScroll = useCallback(() => {
@@ -79,6 +137,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       </div>
     );
   }
+
+  const typingNames = [...typingUsers.values()];
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -111,7 +171,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         {allMessages.map((message, index) => {
           const isMine = message.senderId === currentUserId;
           const prevMsg = allMessages[index - 1];
-          // Show avatar when sender changes or it's the first message
           const showAvatar =
             !isMine &&
             (index === 0 || prevMsg?.senderId !== message.senderId);
@@ -132,12 +191,31 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           </div>
         )}
 
+        {/* Typing indicator */}
+        {typingNames.length > 0 && (
+          <div className="flex items-center gap-2 px-1 py-1">
+            <div className="flex items-center gap-1 bg-zinc-800/80 rounded-2xl px-3 py-2">
+              {/* Animated dots */}
+              <span className="flex gap-1 items-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0ms]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:300ms]" />
+              </span>
+              <span className="text-xs text-zinc-400 ml-1">
+                {typingNames.length === 1
+                  ? `${typingNames[0]} está digitando`
+                  : `${typingNames.length} pessoas estão digitando`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Scroll anchor */}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <MessageInput conversationId={conversationId} />
+      <MessageInput conversationId={conversationId} wsSend={wsSend} />
     </div>
   );
 }

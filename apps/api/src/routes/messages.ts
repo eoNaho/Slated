@@ -20,6 +20,7 @@ import {
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
+import { broadcastToConversation, isOnline } from "../services/ws-manager";
 import { encrypt, decrypt } from "../services/crypto";
 import { createNotification } from "./notifications";
 
@@ -629,19 +630,32 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
         })
         .where(eq(conversations.id, params.id));
 
-      // Notify offline participants
       const participantIds = await getParticipantIds(params.id);
       const otherParticipants = participantIds.filter((id) => id !== user.id);
 
+      // Broadcast to online participants via WebSocket
+      broadcastToConversation(
+        participantIds,
+        {
+          type: "new_message",
+          conversationId: params.id,
+          message: { ...msg, content: body.content },
+        },
+        user.id // exclude sender — they already have the message optimistically
+      );
+
+      // Notify only participants who are offline (no active WS connection)
       for (const recipientId of otherParticipants) {
-        await createNotification(
-          recipientId,
-          "dm",
-          user.displayName ?? user.username,
-          body.content.slice(0, 100),
-          { conversationId: params.id, messageId: msg.id },
-          user.id
-        );
+        if (!isOnline(recipientId)) {
+          await createNotification(
+            recipientId,
+            "dm",
+            user.displayName ?? user.username,
+            body.content.slice(0, 100),
+            { conversationId: params.id, messageId: msg.id },
+            user.id
+          );
+        }
       }
 
       return { ...msg, content: body.content };
@@ -783,14 +797,27 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
         })
         .where(eq(conversations.id, conversationId));
 
-      await createNotification(
-        storyOwner,
-        "story_reply",
-        user.displayName ?? user.username,
-        body.content.slice(0, 100),
-        { conversationId, messageId: msg.id, storyId: body.storyId },
+      // Broadcast to story owner via WS if online
+      broadcastToConversation(
+        [user.id, storyOwner],
+        {
+          type: "new_message",
+          conversationId,
+          message: { ...msg, content: body.content },
+        },
         user.id
       );
+
+      if (!isOnline(storyOwner)) {
+        await createNotification(
+          storyOwner,
+          "story_reply",
+          user.displayName ?? user.username,
+          body.content.slice(0, 100),
+          { conversationId, messageId: msg.id, storyId: body.storyId },
+          user.id
+        );
+      }
 
       return {
         conversationId,

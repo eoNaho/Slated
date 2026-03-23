@@ -9,17 +9,31 @@ import { useAppendMessage } from "@/hooks/queries/use-messages";
 
 interface MessageInputProps {
   conversationId: string;
+  wsSend: (event: object) => void;
   onSent?: () => void;
 }
 
-export function MessageInput({ conversationId, onSent }: MessageInputProps) {
+export function MessageInput({ conversationId, wsSend, onSent }: MessageInputProps) {
   const { data: session } = useSession();
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const appendMessage = useAppendMessage();
+  const isTypingRef = useRef(false);
+  const stopTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isEmpty = content.trim().length === 0;
+
+  const sendStopTyping = useCallback(() => {
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      wsSend({ type: "stop_typing", conversationId });
+    }
+    if (stopTypingTimerRef.current) {
+      clearTimeout(stopTypingTimerRef.current);
+      stopTypingTimerRef.current = null;
+    }
+  }, [conversationId, wsSend]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -32,12 +46,21 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
     adjustHeight();
+
+    // Emit typing event on first keystroke; reset 3s stop-typing timer
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      wsSend({ type: "typing", conversationId });
+    }
+    if (stopTypingTimerRef.current) clearTimeout(stopTypingTimerRef.current);
+    stopTypingTimerRef.current = setTimeout(sendStopTyping, 3000);
   };
 
   const sendMessage = useCallback(async () => {
     const trimmed = content.trim();
     if (!trimmed || isSending) return;
 
+    sendStopTyping();
     setIsSending(true);
     setContent("");
     // Reset textarea height
@@ -53,7 +76,7 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
 
       appendMessage(conversationId, message);
       onSent?.();
-    } catch (err) {
+    } catch {
       toast.error("Não foi possível enviar a mensagem. Tente novamente.");
       // Restore content on failure
       setContent(trimmed);
@@ -61,7 +84,7 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
       setIsSending(false);
       textareaRef.current?.focus();
     }
-  }, [content, isSending, conversationId, appendMessage, onSent]);
+  }, [content, isSending, conversationId, appendMessage, onSent, sendStopTyping]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
