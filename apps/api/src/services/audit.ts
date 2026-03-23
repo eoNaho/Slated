@@ -27,7 +27,11 @@ export type AuditAction =
   | "admin_user_role_change"
   | "admin_content_delete"
   | "admin_report_resolve"
-  | "admin_feature_flag_update";
+  | "admin_feature_flag_update"
+  | "admin_blocklist_add"
+  | "admin_blocklist_update"
+  | "admin_blocklist_delete"
+  | "admin_blocklist_import";
 
 interface AuditLogEntry {
   userId: string;
