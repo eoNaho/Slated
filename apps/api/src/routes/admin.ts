@@ -247,9 +247,9 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
           currentPeriodEnd: subscriptions.currentPeriodEnd,
           updatedAt: subscriptions.updatedAt,
           user: {
-            name: user.name,
+            displayName: user.displayName,
             email: user.email,
-            image: user.image,
+            avatarUrl: user.avatarUrl,
           },
         })
         .from(subscriptions)

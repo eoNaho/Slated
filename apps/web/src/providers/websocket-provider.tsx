@@ -173,8 +173,8 @@ export function WebSocketProvider({
                     // Bump unread count if the message is from someone else.
                     // The actual sender side already used optimistic update so their
                     // unreadCount stays at 0; the receiver increments here.
-                    unreadCount: (conv as { unreadCount?: number }).unreadCount
-                      ? (conv as { unreadCount: number }).unreadCount + 1
+                    unreadCount: typeof (conv as Record<string, unknown>)["unreadCount"] === "number"
+                      ? ((conv as Record<string, unknown>)["unreadCount"] as number) + 1
                       : 1,
                   }
                 : conv

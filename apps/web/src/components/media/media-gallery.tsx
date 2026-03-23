@@ -106,11 +106,13 @@ export function MediaGallery({ mediaId }: MediaGalleryProps) {
 
   if (videos.length + backdrops.length + posters.length === 0) return null;
 
-  const tabs: { id: Tab; label: string; count: number; icon: React.ReactNode }[] = [
-    { id: "videos",   label: "Videos",   count: videos.length,   icon: <Film className="w-3.5 h-3.5" /> },
-    { id: "backdrops", label: "Backdrops", count: backdrops.length, icon: <ImageIcon className="w-3.5 h-3.5" /> },
-    { id: "posters",  label: "Posters",  count: posters.length,  icon: <ImageIcon className="w-3.5 h-3.5" /> },
-  ].filter((t) => t.count > 0);
+  const tabs = (
+    [
+      { id: "videos" as Tab,    label: "Videos",   count: videos.length,   icon: <Film className="w-3.5 h-3.5" /> },
+      { id: "backdrops" as Tab, label: "Backdrops", count: backdrops.length, icon: <ImageIcon className="w-3.5 h-3.5" /> },
+      { id: "posters" as Tab,   label: "Posters",  count: posters.length,  icon: <ImageIcon className="w-3.5 h-3.5" /> },
+    ] as { id: Tab; label: string; count: number; icon: React.ReactNode }[]
+  ).filter((t) => t.count > 0);
 
   const safeTab = tabs.find((t) => t.id === activeTab) ? activeTab : (tabs[0]?.id ?? "videos");
 

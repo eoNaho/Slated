@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { useAppendMessage } from "@/hooks/queries/use-messages";
 import type { EmojiClickData } from "emoji-picker-react";
+import { Theme } from "emoji-picker-react";
 
 // Lazy-load the picker — it's heavy (~300kb) and not needed on every page
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
@@ -150,7 +151,7 @@ export function MessageInput({ conversationId, wsSend, onSent }: MessageInputPro
         >
           <EmojiPicker
             onEmojiClick={handleEmojiClick}
-            theme={"dark" as const}
+            theme={Theme.DARK}
             skinTonesDisabled
             searchPlaceHolder="Buscar emoji..."
             width={320}

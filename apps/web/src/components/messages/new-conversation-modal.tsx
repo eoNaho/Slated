@@ -46,7 +46,12 @@ export function NewConversationModal({
     const timer = setTimeout(async () => {
       try {
         const res = await api.users.search(q);
-        setResults(res.data ?? []);
+        setResults((res.data ?? []).map((u: any) => ({
+          id: u.id,
+          username: u.username ?? null,
+          displayName: u.displayName ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+        })));
       } catch {
         setResults([]);
       } finally {
