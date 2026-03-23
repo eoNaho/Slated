@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { useConversation, useMessages } from "@/hooks/queries/use-messages";
-import { useWebSocket } from "@/hooks/use-websocket";
+import { useWsContext } from "@/providers/websocket-provider";
 import { ConversationHeader } from "./conversation-header";
 import { MessageBubble } from "./message-bubble";
 import { MessageInput } from "./message-input";
@@ -13,9 +13,11 @@ import type { Message } from "@/types";
 
 interface ConversationViewProps {
   conversationId: string;
+  /** Hide the built-in ConversationHeader (e.g. when embedded in the mini panel). */
+  hideHeader?: boolean;
 }
 
-export function ConversationView({ conversationId }: ConversationViewProps) {
+export function ConversationView({ conversationId, hideHeader = false }: ConversationViewProps) {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
 
@@ -75,10 +77,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     [conversationId, currentUserId, conversation?.participants]
   );
 
-  const { send: wsSend } = useWebSocket({
-    enabled: !!session?.user,
-    onTyping: handleTyping,
-  });
+  const { send: wsSend, subscribeTyping } = useWsContext();
+
+  useEffect(() => {
+    return subscribeTyping(handleTyping);
+  }, [subscribeTyping, handleTyping]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -143,7 +146,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <ConversationHeader conversation={conversation} />
+      {!hideHeader && <ConversationHeader conversation={conversation} />}
 
       {/* Message list */}
       <div

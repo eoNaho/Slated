@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useClickOutside } from "@/hooks/use-click-outside";
 import { useUnreadCount } from "@/hooks/queries/use-notifications";
 import { useUnreadDmCount } from "@/hooks/queries/use-messages";
+import { MiniDmPanel } from "@/components/messages/mini-dm-panel";
 
 const navLinks = [
   { href: "/movies", label: "Filmes" },
@@ -39,15 +40,18 @@ export function Header() {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isDmPanelOpen, setIsDmPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const dmPanelRef = useRef<HTMLDivElement>(null);
 
   const { data: unreadCount = 0 } = useUnreadCount(user?.id);
   const { data: unreadDmCount = 0 } = useUnreadDmCount(user?.id);
 
   useClickOutside(menuRef, useCallback(() => setIsMenuOpen(false), []));
   useClickOutside(userMenuRef, useCallback(() => setIsUserMenuOpen(false), []));
+  useClickOutside(dmPanelRef, useCallback(() => setIsDmPanelOpen(false), []));
 
   async function handleSignOut() {
     await signOut();
@@ -123,17 +127,29 @@ export function Header() {
           </form>
 
           {user && (
-            <Link
-              href="/messages"
-              className="relative inline-flex items-center justify-center h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors hidden sm:inline-flex"
-            >
-              <MessageSquare size={18} />
-              {unreadDmCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white px-1 leading-none">
-                  {unreadDmCount > 99 ? "99+" : unreadDmCount}
-                </span>
-              )}
-            </Link>
+            <div ref={dmPanelRef} className="relative hidden sm:block">
+              <button
+                onClick={() => setIsDmPanelOpen((v) => !v)}
+                className={cn(
+                  "relative inline-flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
+                  isDmPanelOpen
+                    ? "text-foreground bg-accent"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                )}
+                aria-label="Mensagens"
+              >
+                <MessageSquare size={18} />
+                {unreadDmCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white px-1 leading-none">
+                    {unreadDmCount > 99 ? "99+" : unreadDmCount}
+                  </span>
+                )}
+              </button>
+              <MiniDmPanel
+                isOpen={isDmPanelOpen}
+                onClose={() => setIsDmPanelOpen(false)}
+              />
+            </div>
           )}
 
           {user && (
@@ -273,6 +289,18 @@ export function Header() {
                   className="text-sm font-medium text-muted-foreground hover:text-foreground py-2"
                 >
                   Perfil
+                </Link>
+                <Link
+                  href="/messages"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground py-2"
+                >
+                  Mensagens
+                  {unreadDmCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-orange-500 text-[10px] font-bold text-white px-1">
+                      {unreadDmCount > 99 ? "99+" : unreadDmCount}
+                    </span>
+                  )}
                 </Link>
                 <button
                   onClick={handleSignOut}

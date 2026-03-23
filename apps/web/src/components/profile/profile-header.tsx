@@ -1,6 +1,7 @@
 import { useState, useMemo, useTransition, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   MapPin,
@@ -15,6 +16,7 @@ import {
   Film,
   Flag,
   Ban,
+  MessageSquare,
 } from "lucide-react";
 import type {
   UserProfile,
@@ -60,8 +62,10 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const { data: session } = useSession();
   const sessionUserId = session?.user?.id;
+  const router = useRouter();
 
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [isDmLoading, setIsDmLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [followDialog, setFollowDialog] = useState<
     "followers" | "following" | null
@@ -210,30 +214,59 @@ export function ProfileHeader({
                     Edit Profile
                   </Link>
                 ) : (
-                  <button
-                    onClick={() => {
-                      startTransition(async () => {
-                        try {
-                          if (isFollowing) {
-                            await api.users.unfollow(profile.id);
-                          } else {
-                            await api.users.follow(profile.id);
+                  <>
+                    <button
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            if (isFollowing) {
+                              await api.users.unfollow(profile.id);
+                            } else {
+                              await api.users.follow(profile.id);
+                            }
+                            setIsFollowing(!isFollowing);
+                          } catch {
+                            // silently ignore — UI stays unchanged
                           }
-                          setIsFollowing(!isFollowing);
-                        } catch {
-                          // silently ignore — UI stays unchanged
-                        }
-                      });
-                    }}
-                    disabled={isPending}
-                    className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 ${
-                      isFollowing
-                        ? "bg-zinc-800 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 border border-white/10"
-                        : "bg-white text-zinc-950 hover:bg-zinc-200"
-                    }`}
-                  >
-                    {isFollowing ? "Unfollow" : "Follow"}
-                  </button>
+                        });
+                      }}
+                      disabled={isPending}
+                      className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 ${
+                        isFollowing
+                          ? "bg-zinc-800 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 border border-white/10"
+                          : "bg-white text-zinc-950 hover:bg-zinc-200"
+                      }`}
+                    >
+                      {isFollowing ? "Unfollow" : "Follow"}
+                    </button>
+                    {sessionUserId && (
+                      <button
+                        onClick={async () => {
+                          setIsDmLoading(true);
+                          try {
+                            const conv = await api.messages.createConversation({
+                              type: "dm",
+                              participantIds: [profile.id],
+                            });
+                            router.push(`/messages/${conv.id}`);
+                          } catch {
+                            // silently ignore
+                          } finally {
+                            setIsDmLoading(false);
+                          }
+                        }}
+                        disabled={isDmLoading}
+                        title="Enviar mensagem"
+                        className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 hover:text-white transition-all disabled:opacity-60"
+                      >
+                        {isDmLoading ? (
+                          <div className="w-4 h-4 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                  </>
                 )}
                 <div className="relative">
                   <button
