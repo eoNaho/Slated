@@ -1,7 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { List as ListIcon, Lock, Globe, Ghost } from "lucide-react";
+import { List as ListIcon, Lock, Globe, Bookmark } from "lucide-react";
 import { cn, resolveImage } from "@/lib/utils";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 interface ListCardProps {
   list: {
@@ -19,11 +24,40 @@ interface ListCardProps {
 }
 
 export function ListCard({ list }: ListCardProps) {
+  const [bookmarked, setBookmarked] = useState(false);
+
+  const toggleBookmark = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const prev = bookmarked;
+    setBookmarked(!prev);
+    try {
+      if (prev) await api.bookmarks.unbookmark("list", list.id);
+      else await api.bookmarks.bookmark("list", list.id);
+    } catch {
+      setBookmarked(prev);
+      toast.error("Falha ao salvar lista");
+    }
+  };
+
   return (
-    <Link 
+    <Link
       href={`/lists/${list.user.username}/${list.slug}`}
       className="group relative flex flex-col gap-4 p-5 rounded-2xl bg-zinc-900 border border-white/5 hover:border-white/10 transition-all hover:-translate-y-1"
     >
+      {/* Bookmark button */}
+      <button
+        onClick={toggleBookmark}
+        className={cn(
+          "absolute top-3 right-3 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100",
+          bookmarked
+            ? "text-yellow-400 bg-yellow-400/10 opacity-100"
+            : "text-zinc-500 hover:text-yellow-400 hover:bg-yellow-400/10"
+        )}
+        aria-label={bookmarked ? "Remover dos salvos" : "Salvar lista"}
+      >
+        <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? "fill-current" : ""}`} />
+      </button>
       <div className="flex items-start justify-between">
         <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
            <ListIcon className="w-6 h-6" />

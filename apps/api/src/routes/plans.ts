@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { db, plans, subscriptions, eq, and } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 
@@ -47,45 +47,3 @@ export const plansRoutes = new Elysia({ prefix: "/plans", tags: ["Payments"] })
     };
   }, { requireAuth: true })
 
-  // Subscribe (Mock implementation - would integrate Stripe here)
-  .post(
-    "/subscribe",
-    async (ctx: any) => {
-      const { user, body, set } = ctx;
-
-      const { planId, interval } = body;
-
-      const [plan] = await db
-        .select()
-        .from(plans)
-        .where(eq(plans.id, planId))
-        .limit(1);
-      if (!plan) {
-        set.status = 404;
-        return { error: "Plan not found" };
-      }
-
-      // Mock subscription creation
-      const [sub] = await db
-        .insert(subscriptions)
-        .values({
-          userId: user.id,
-          planId,
-          status: "active",
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(
-            new Date().setMonth(new Date().getMonth() + 1)
-          ),
-        })
-        .returning();
-
-      return { success: true, data: sub };
-    },
-    {
-      requireAuth: true,
-      body: t.Object({
-        planId: t.String(),
-        interval: t.Union([t.Literal("month"), t.Literal("year")]),
-      }),
-    }
-  );

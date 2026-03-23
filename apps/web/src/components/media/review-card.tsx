@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
-import { Star, Heart, MessageCircle, Share2 } from "lucide-react";
+import { Star, Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 interface Review {
   id: number;
@@ -20,6 +25,21 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ review }: ReviewCardProps) {
+  const [bookmarked, setBookmarked] = useState(false);
+
+  const toggleBookmark = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const prev = bookmarked;
+    setBookmarked(!prev);
+    try {
+      if (prev) await api.bookmarks.unbookmark("review", String(review.id));
+      else await api.bookmarks.bookmark("review", String(review.id));
+    } catch {
+      setBookmarked(prev);
+      toast.error("Falha ao salvar review");
+    }
+  };
+
   return (
     <div className="bg-zinc-900/40 border border-white/5 rounded-xl p-5 hover:bg-zinc-900 hover:border-zinc-700 hover:shadow-lg transition-all group cursor-pointer h-full focus-within:ring-1 focus-within:ring-purple-500">
       <div className="flex gap-4">
@@ -82,6 +102,13 @@ export function ReviewCard({ review }: ReviewCardProps) {
               <MessageCircle className="h-3.5 w-3.5" /> {review.comments}
             </button>
             <div className="flex-1" />
+            <button
+              onClick={toggleBookmark}
+              className={`transition-colors focus:outline-none ${bookmarked ? "text-yellow-400" : "text-zinc-600 hover:text-yellow-400"}`}
+              aria-label={bookmarked ? "Remover dos salvos" : "Salvar review"}
+            >
+              <Bookmark className={`h-3.5 w-3.5 ${bookmarked ? "fill-current" : ""}`} />
+            </button>
             <button
               className="text-zinc-600 hover:text-white transition-colors focus:text-white focus:outline-none"
               aria-label="Share review"

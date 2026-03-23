@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Clock, Film, Tv, Flame } from "lucide-react";
 import type { WatchlistItem } from "@/types";
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, resolveImage } from "@/lib/utils";
 
 interface WatchlistGridProps {
   items: WatchlistItem[];
@@ -41,7 +41,7 @@ export function WatchlistGrid({ items, customCovers }: WatchlistGridProps) {
           <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 mb-2">
             <Image
               fill
-              src={customCovers?.[item.media.id] || item.media.posterPath || ""}
+              src={resolveImage(customCovers?.[item.media.id] || item.media.posterPath) || ""}
               alt={item.media.title}
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />

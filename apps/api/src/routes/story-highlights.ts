@@ -15,6 +15,7 @@ import {
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 import { storageService } from "../services/storage";
+import { logger } from "../utils/logger";
 
 export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -304,7 +305,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
 
       // Delete old cover if exists
       if (existing.coverImageUrl) {
-        await storageService.delete(existing.coverImageUrl).catch(() => {});
+        await storageService.delete(existing.coverImageUrl).catch((err) => logger.warn({ err }, "failed to delete highlight cover on update"));
       }
 
       const buffer = await file.arrayBuffer();

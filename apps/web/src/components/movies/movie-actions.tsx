@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
+import { BookOpen, Plus, Heart, Share2, Eye, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
   const [optimisticWatchlist, setOptimisticWatchlist] = useState<boolean | null>(null);
   const [optimisticWatched, setOptimisticWatched] = useState<boolean | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
 
   const liked = optimisticLiked ?? mediaState?.liked ?? false;
   const inWatchlist = optimisticWatchlist ?? mediaState?.inWatchlist ?? false;
@@ -88,6 +89,18 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const year = movie.releaseDate
     ? new Date(movie.releaseDate).getFullYear()
     : undefined;
+
+  const toggleBookmark = async () => {
+    const prev = bookmarked;
+    setBookmarked(!prev);
+    try {
+      if (prev) await api.bookmarks.unbookmark("media", movie.id);
+      else await api.bookmarks.bookmark("media", movie.id);
+    } catch {
+      setBookmarked(prev);
+      toast.error("Falha ao salvar");
+    }
+  };
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -171,6 +184,17 @@ export function MovieActions({ movie }: MovieActionsProps) {
         >
           <Heart className={`h-4 w-4 mr-2 ${liked ? "fill-red-400" : ""}`} />
           Like
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={toggleBookmark}
+          className={`flex-1 hover:bg-white/5 ${
+            bookmarked ? "text-yellow-400" : "text-zinc-400"
+          }`}
+          title={bookmarked ? "Remover dos salvos" : "Salvar"}
+        >
+          <Bookmark className={`h-4 w-4 mr-2 ${bookmarked ? "fill-yellow-400" : ""}`} />
+          Salvar
         </Button>
         <Button
           variant="ghost"

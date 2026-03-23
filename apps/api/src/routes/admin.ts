@@ -15,6 +15,8 @@ import {
   auditLogs,
   wordBlocklist,
   platformAnnouncements,
+  bookmarks,
+  subscriptions,
   eq,
   desc,
   asc,
@@ -60,6 +62,8 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       [{ newThisMonth }],
       [{ active24h }],
       [{ active7d }],
+      [{ totalBookmarks }],
+      [{ pastDueSubscriptions }],
     ] = await Promise.all([
       db.select({ totalUsers: count() }).from(user),
       db.select({ totalMedia: count() }).from(media),
@@ -74,6 +78,8 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       db.select({ newThisMonth: count() }).from(user).where(gte(user.createdAt, month)),
       db.select({ active24h: count() }).from(user).where(and(isNotNull(user.lastActiveAt), gte(user.lastActiveAt, day24h))),
       db.select({ active7d: count() }).from(user).where(and(isNotNull(user.lastActiveAt), gte(user.lastActiveAt, day7d))),
+      db.select({ totalBookmarks: count() }).from(bookmarks),
+      db.select({ pastDueSubscriptions: count() }).from(subscriptions).where(eq(subscriptions.status, "past_due")),
     ]);
 
     return {
@@ -83,6 +89,8 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
         reviews: totalReviews,
         lists: totalLists,
         reports: pendingReports,
+        totalBookmarks,
+        pastDueSubscriptions,
         reportsByStatus: {
           pending: pendingReports,
           investigating: investigatingReports,
@@ -222,6 +230,38 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
         avgResolutionHours: Number(avgResolution[0]?.avg ?? 0),
       },
     };
+  })
+
+  // ── Subscriptions at risk (past_due) ───────────────────────────────────────
+  .get("/subscriptions/at-risk", async ({ query }: any) => {
+    const limit = Math.min(Number(query?.limit ?? 20), 50);
+    const offset = (Math.max(Number(query?.page ?? 1), 1) - 1) * limit;
+
+    const [atRisk, [{ total }]] = await Promise.all([
+      db
+        .select({
+          id: subscriptions.id,
+          userId: subscriptions.userId,
+          status: subscriptions.status,
+          stripeCustomerId: subscriptions.stripeCustomerId,
+          currentPeriodEnd: subscriptions.currentPeriodEnd,
+          updatedAt: subscriptions.updatedAt,
+          user: {
+            name: user.name,
+            email: user.email,
+            image: user.image,
+          },
+        })
+        .from(subscriptions)
+        .innerJoin(user, eq(subscriptions.userId, user.id))
+        .where(eq(subscriptions.status, "past_due"))
+        .orderBy(desc(subscriptions.updatedAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: count() }).from(subscriptions).where(eq(subscriptions.status, "past_due")),
+    ]);
+
+    return { data: atRisk, total, page: Math.max(Number(query?.page ?? 1), 1), limit };
   })
 
   // ── Health check ───────────────────────────────────────────────────────────

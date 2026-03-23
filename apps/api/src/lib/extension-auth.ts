@@ -39,7 +39,7 @@ export async function resolveRawToken(raw: string): Promise<string | null> {
   db.update(activityTokens)
     .set({ lastUsedAt: new Date() })
     .where(eq(activityTokens.id, token.id))
-    .catch(() => {});
+    .catch((err) => console.warn({ err }, "failed to update token lastUsedAt"));
 
   return token.userId;
 }

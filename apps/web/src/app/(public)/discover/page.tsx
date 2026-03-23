@@ -4,16 +4,23 @@ import * as React from "react";
 import { api } from "@/lib/api";
 import { MediaGrid } from "@/components/common/media-grid";
 import { DiscoverFilters } from "@/components/discover/discover-filters";
-import type { SearchResult } from "@/types";
+import type { MediaGridItem } from "@/components/common/media-grid";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, LayoutGrid, Sparkles, Dices } from "lucide-react";
+import { ChevronRight, LayoutGrid, Sparkles, Dices, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { AddToListModal } from "@/components/lists/AddToListModal";
 import { useDiscoverMeta, useDiscoverResults } from "@/hooks/queries/use-discover";
+import { useQuery } from "@tanstack/react-query";
+import type { SearchResult } from "@/types";
+import { MediaCard } from "@/components/media/media-card";
+
+function toGridItem(r: SearchResult): MediaGridItem {
+  return { ...r, id: String(r.id) };
+}
 
 export default function DiscoverPage() {
-  const [items, setItems] = React.useState<SearchResult[]>([]);
+  const [items, setItems] = React.useState<MediaGridItem[]>([]);
   const [page, setPage] = React.useState(1);
   const [totalPages, setTotalPages] = React.useState(1);
   const [filters, setFilters] = React.useState({
@@ -26,8 +33,15 @@ export default function DiscoverPage() {
   const [isRoulette, setIsRoulette] = React.useState(false);
   const [rouletteCount, setRouletteCount] = React.useState(1);
   const [isSpinning, setIsSpinning] = React.useState(false);
-  const [isRouletteLoading, setIsRouletteLoading] = React.useState(false);
-  const [listMedia, setListMedia] = React.useState<SearchResult | null>(null);
+  const [listMedia, setListMedia] = React.useState<MediaGridItem | null>(null);
+
+  // Trending (time-decay scored, cached 5min on server)
+  const { data: trendingData } = useQuery({
+    queryKey: ["discover", "trending"],
+    queryFn: () => api.discover.trending({ limit: 10 }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const trendingMedia = (trendingData?.media ?? []) as SearchResult[];
 
   // Static metadata (genres, streaming services)
   const { data: metaData } = useDiscoverMeta();
@@ -50,7 +64,7 @@ export default function DiscoverPage() {
   // Sync query results → local items state (filter changes reset to page 1)
   React.useEffect(() => {
     if (resultsData && !isRoulette) {
-      setItems(resultsData.data);
+      setItems(resultsData.data.map(toGridItem));
       setTotalPages(resultsData.totalPages);
       setPage(1);
     }
@@ -70,9 +84,9 @@ export default function DiscoverPage() {
       });
 
       if (append) {
-        setItems(prev => [...prev, ...res.data]);
+        setItems(prev => [...prev, ...res.data.map(toGridItem)]);
       } else {
-        setItems(res.data);
+        setItems(res.data.map(toGridItem));
       }
       setTotalPages(res.totalPages);
     } catch (e) {
@@ -82,7 +96,6 @@ export default function DiscoverPage() {
 
   const handleSpin = async () => {
     setIsSpinning(true);
-    setIsRouletteLoading(true);
     try {
       // Small artificial delay for "spinning" feel
       await new Promise(r => setTimeout(r, 800));
@@ -93,13 +106,12 @@ export default function DiscoverPage() {
         year: filters.year ? Number(filters.year) : undefined,
         streaming: filters.streaming || undefined,
       });
-      setItems(res.data);
+      setItems(res.data.map(toGridItem));
       setTotalPages(1); // Roulette results are a single set
     } catch (e) {
       console.error("Failed to spin roulette", e);
     } finally {
       setIsSpinning(false);
-      setIsRouletteLoading(false);
     }
   };
 
@@ -159,6 +171,25 @@ export default function DiscoverPage() {
       </div>
 
       <div className="container mx-auto px-6 space-y-12">
+        {/* Trending Section — hidden in roulette mode */}
+        {!isRoulette && trendingMedia.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-purple-400" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">
+                Em alta esta semana
+              </h2>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {trendingMedia.map((item) => (
+                <div key={item.id} className="shrink-0">
+                  <MediaCard media={{ ...item, id: String(item.id) } as any} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Filters Section */}
         <section className={cn(
           "sticky top-20 z-40 bg-black/60 backdrop-blur-xl -mx-6 px-6 py-4 border-y border-white/5 transition-all",

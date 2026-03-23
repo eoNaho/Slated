@@ -227,6 +227,17 @@ export const mediaApi = {
   getGallery: (mediaId: string) =>
     fetcher<{ data: MediaGalleryData }>(`/media/${mediaId}/gallery`),
 
+  setCustomCoverFromGallery: (mediaId: string, filePath: string) =>
+    fetcher<{ data: { id: string; imageUrl: string } }>(`/media/${mediaId}/custom-cover/from-gallery`, {
+      method: "POST",
+      body: JSON.stringify({ filePath }),
+    }),
+
+  deleteCustomCover: (mediaId: string) =>
+    fetcher<{ data: { deleted: boolean } }>(`/media/${mediaId}/custom-cover`, {
+      method: "DELETE",
+    }),
+
   // Legacy / Local access
   getById: (id: string) => fetcher<{ data: MediaDetails }>(`/media/${id}`),
 
@@ -604,6 +615,41 @@ export const likesApi = {
     fetcher<{ success: boolean; message: string }>(`/likes/${targetType}/${targetId}`, {
       method: "DELETE",
     }),
+
+  listMedia: (userId: string, params?: { limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.offset) qs.set("offset", String(params.offset));
+    return fetcher<{ data: Array<{ id: string; createdAt: string; media: { id: string; title: string; slug: string; posterPath: string | null; type: string; releaseDate: string | null } }> }>(
+      `/likes/media/user/${userId}?${qs}`
+    );
+  },
+};
+
+// ==================== BOOKMARKS ====================
+
+export const bookmarksApi = {
+  bookmark: (targetType: "media" | "review" | "list", targetId: string, note?: string) =>
+    fetcher<{ data: { id: string; targetType: string; targetId: string; userId: string; note: string | null; createdAt: string }; isNew: boolean }>("/bookmarks", {
+      method: "POST",
+      body: JSON.stringify({ targetType, targetId, note }),
+    }),
+
+  unbookmark: (targetType: "media" | "review" | "list", targetId: string) =>
+    fetcher<{ success: boolean }>(`/bookmarks/${targetType}/${targetId}`, {
+      method: "DELETE",
+    }),
+
+  check: (targetType: string, targetId: string) =>
+    fetcher<{ bookmarked: boolean }>(`/bookmarks/check/${targetType}/${targetId}`),
+
+  list: (params?: { targetType?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.targetType) qs.set("targetType", params.targetType);
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    return fetcher<{ data: { id: string; targetType: string; targetId: string; note: string | null; createdAt: string }[]; pagination: { page: number; limit: number; hasMore: boolean } }>(`/bookmarks?${qs}`);
+  },
 };
 
 // ==================== PEOPLE ====================
@@ -1006,6 +1052,7 @@ export const api = {
   search: searchApi,
   notifications: notificationsApi,
   likes: likesApi,
+  bookmarks: bookmarksApi,
   comments: commentsApi,
   people: peopleApi,
   plans: plansApi,
@@ -1044,7 +1091,13 @@ export const api = {
       if (options.period) params.set("period", options.period);
       if (options.type) params.set("type", options.type);
       return fetcher<{ data: SearchResult[] }>(`/discover/popular?${params}`);
-    }
+    },
+    trending: (options: { type?: "movie" | "series"; limit?: number } = {}) => {
+      const params = new URLSearchParams();
+      if (options.type) params.set("type", options.type);
+      if (options.limit) params.set("limit", String(options.limit));
+      return fetcher<{ media: SearchResult[]; reviews: unknown[]; lists: unknown[] }>(`/discover/trending?${params}`);
+    },
   },
   reports: {
     create: (data: {

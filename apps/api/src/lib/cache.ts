@@ -21,7 +21,7 @@ export async function cached<T>(
 
   const value = await fn();
   // Fire-and-forget — don't let cache write failures block the response
-  cache.set(key, value, ttlSeconds).catch(() => {});
+  cache.set(key, value, ttlSeconds).catch((err) => console.warn({ err, key }, "cache set failed"));
   return value;
 }
 

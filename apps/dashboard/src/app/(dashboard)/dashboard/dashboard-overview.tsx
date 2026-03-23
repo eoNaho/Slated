@@ -4,7 +4,7 @@ import {
   Users, Film, MessageSquare, Zap, Clock,
   Activity, ChevronRight, ArrowUpRight, RefreshCw,
   ShieldAlert, TrendingUp, BookOpen, ListTodo, Database,
-  Server, Wifi,
+  Server, Wifi, Bookmark, Crown, AlertTriangle,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -252,6 +252,50 @@ export function DashboardOverview() {
           </>
         ) : null}
       </section>
+
+      {/* Secondary KPI row */}
+      {stats && (stats.totalBookmarks !== undefined || stats.premiumUsers !== undefined || stats.pastDueSubscriptions !== undefined) && (
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {stats.totalBookmarks !== undefined && (
+            <div className="glass-card flex items-center gap-4 px-5 py-4 rounded-2xl">
+              <div className="p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                <Bookmark className="w-4 h-4 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-zinc-400">Total Bookmarks</p>
+                <p className="text-xl font-bold text-white">{stats.totalBookmarks.toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+          {stats.premiumUsers !== undefined && (
+            <div className="glass-card flex items-center gap-4 px-5 py-4 rounded-2xl">
+              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <Crown className="w-4 h-4 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-zinc-400">Usuários Premium</p>
+                <p className="text-xl font-bold text-white">{stats.premiumUsers.toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+          {stats.pastDueSubscriptions !== undefined && (
+            <div className={`glass-card flex items-center gap-4 px-5 py-4 rounded-2xl ${stats.pastDueSubscriptions > 0 ? "border border-red-500/20" : ""}`}>
+              <div className={`p-2.5 rounded-xl ${stats.pastDueSubscriptions > 0 ? "bg-red-500/10 border border-red-500/20" : "bg-white/5 border border-white/5"}`}>
+                <AlertTriangle className={`w-4 h-4 ${stats.pastDueSubscriptions > 0 ? "text-red-400" : "text-zinc-600"}`} />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-zinc-400">Assinaturas Atrasadas</p>
+                <p className={`text-xl font-bold ${stats.pastDueSubscriptions > 0 ? "text-red-400" : "text-white"}`}>{stats.pastDueSubscriptions}</p>
+              </div>
+              {stats.pastDueSubscriptions > 0 && (
+                <a href="/premium" className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors shrink-0">
+                  Ver →
+                </a>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Charts row */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">

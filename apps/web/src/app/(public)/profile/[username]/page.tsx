@@ -13,6 +13,7 @@ import type {
   DiaryEntry,
   WatchlistItem,
   UserIdentity,
+  LikeItem,
 } from "@/types";
 import type { Story } from "@/types/stories";
 import type { StoryHighlight } from "@/lib/api";
@@ -20,7 +21,8 @@ import type { StoryHighlight } from "@/lib/api";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 const AUTH_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
+  "http://localhost:3001";
 
 async function fetchJson<T>(
   endpoint: string,
@@ -56,7 +58,7 @@ export async function generateMetadata({
     : `${name}'s film diary on PixelReel. Track, rate and discover films.`;
 
   return {
-    title: `${name} (@${u.username}) — PixelReel`,
+    title: `${name} (@${u.username})`,
     description,
     openGraph: {
       title: `${name} on PixelReel`,
@@ -76,10 +78,15 @@ export async function generateMetadata({
   };
 }
 
-async function getSessionInfo(): Promise<{ username: string | null; userId: string | null; cookieHeader: string }> {
+async function getSessionInfo(): Promise<{
+  username: string | null;
+  userId: string | null;
+  cookieHeader: string;
+}> {
   try {
     const cookieStore = await cookies();
-    const cookieHeader = cookieStore.getAll()
+    const cookieHeader = cookieStore
+      .getAll()
       .map((c) => `${c.name}=${c.value}`)
       .join("; ");
 
@@ -99,7 +106,10 @@ async function getSessionInfo(): Promise<{ username: string | null; userId: stri
   }
 }
 
-async function fetchJsonAuth<T>(endpoint: string, cookieHeader: string): Promise<T | null> {
+async function fetchJsonAuth<T>(
+  endpoint: string,
+  cookieHeader: string,
+): Promise<T | null> {
   try {
     const res = await fetch(`${API_URL}${endpoint}`, {
       headers: { Cookie: cookieHeader },
@@ -117,10 +127,17 @@ export default async function ProfilePage({ params }: PageProps) {
 
   // Phase 1: session first, then user+stats in parallel with auth cookies
   const sessionInfo = await getSessionInfo();
-  const { username: sessionUsername, userId: sessionUserId, cookieHeader } = sessionInfo;
+  const {
+    username: sessionUsername,
+    userId: sessionUserId,
+    cookieHeader,
+  } = sessionInfo;
 
   const [userRes, statsRes] = await Promise.all([
-    fetchJsonAuth<{ data: UserProfile & { isFollowing?: boolean } }>(`/users/${username}`, cookieHeader),
+    fetchJsonAuth<{ data: UserProfile & { isFollowing?: boolean } }>(
+      `/users/${username}`,
+      cookieHeader,
+    ),
     fetchJson<{ data: UserStats }>(`/users/${username}/stats`),
   ]);
 
@@ -154,10 +171,20 @@ export default async function ProfilePage({ params }: PageProps) {
 
   const profile: UserProfile = { ...user, stats };
   const isOwnProfile = sessionUsername === username;
-  const initialIsFollowing = !isOwnProfile && !!sessionUserId && !!(userRes.data as any).isFollowing;
+  const initialIsFollowing =
+    !isOwnProfile && !!sessionUserId && !!(userRes.data as any).isFollowing;
 
   // Phase 2: reviews, lists, stories, identity (public) + diary/watchlist for own profile
-  const [reviewsRes, listsRes, storiesRes, highlightsRes, identityRes, diaryRes, watchlistRes] = await Promise.all([
+  const [
+    reviewsRes,
+    listsRes,
+    storiesRes,
+    highlightsRes,
+    identityRes,
+    diaryRes,
+    watchlistRes,
+    likesRes,
+  ] = await Promise.all([
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
@@ -173,6 +200,20 @@ export default async function ProfilePage({ params }: PageProps) {
     isOwnProfile
       ? fetchJsonAuth<{ data: WatchlistItem[] }>("/watchlist", cookieHeader)
       : Promise.resolve(null),
+    fetchJson<{
+      data: Array<{
+        id: string;
+        createdAt: string;
+        media: {
+          id: string;
+          title: string;
+          slug: string;
+          posterPath: string | null;
+          type: string;
+          releaseDate: string | null;
+        };
+      }>;
+    }>(`/likes/media/user/${user.id}?limit=24`),
   ]);
 
   const reviews = reviewsRes?.data ?? [];
@@ -183,6 +224,23 @@ export default async function ProfilePage({ params }: PageProps) {
   const activity = activitiesRes?.data ?? [];
   const diary = diaryRes?.data ?? [];
   const watchlist = watchlistRes?.data ?? [];
+  const likes = (likesRes?.data ?? []).map((r) => ({
+    id: r.id,
+    userId: user.id,
+    mediaId: r.media.id,
+    likedAt: r.createdAt,
+    createdAt: r.createdAt,
+    media: {
+      id: r.media.id,
+      title: r.media.title,
+      slug: r.media.slug,
+      posterPath: r.media.posterPath,
+      type: r.media.type as "movie" | "series",
+      year: r.media.releaseDate
+        ? new Date(r.media.releaseDate).getFullYear()
+        : undefined,
+    },
+  })) as LikeItem[];
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
@@ -194,6 +252,7 @@ export default async function ProfilePage({ params }: PageProps) {
         currentUserId={sessionUserId ?? undefined}
         initialIsFollowing={initialIsFollowing}
         favorites={[]}
+        likes={likes}
         reviews={reviews}
         lists={lists}
         stories={stories}

@@ -122,7 +122,7 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
 
         if (coverFile && created.data?.id) {
           setCoverUploading(true);
-          await api.highlights.uploadCover(created.data.id, coverFile).catch(() => {});
+          await api.highlights.uploadCover(created.data.id, coverFile).catch(() => toast.error("Falha ao enviar capa do highlight"));
           setCoverUploading(false);
         }
       }

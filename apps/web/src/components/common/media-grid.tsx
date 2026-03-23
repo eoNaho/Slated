@@ -13,6 +13,7 @@ export interface MediaGridItem {
   voteAverage?: number | null;
   slug?: string;
   localSlug?: string;
+  localId?: string;
 }
 
 interface MediaGridProps {

@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { db, likes, activities, eq, and } from "../db";
+import { db, likes, activities, media, eq, and, inArray, desc } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 
 export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
@@ -75,6 +75,61 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
       body: t.Object({
         targetType: t.Union([t.Literal("media"), t.Literal("review"), t.Literal("list")]),
         targetId: t.String(),
+      }),
+    }
+  )
+
+  /**
+   * GET /likes/media/user/:userId
+   * Get a user's liked media (public). Returns liked media items with media details.
+   */
+  .get(
+    "/media/user/:userId",
+    async (ctx: any) => {
+      const { params, query } = ctx;
+      const limit = Math.min(Number(query.limit ?? 24), 100);
+      const offset = Number(query.offset ?? 0);
+
+      const likedRows = await db
+        .select({
+          id: likes.id,
+          createdAt: likes.createdAt,
+          mediaId: likes.targetId,
+        })
+        .from(likes)
+        .where(and(eq(likes.userId, params.userId), eq(likes.targetType, "media")))
+        .orderBy(desc(likes.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      if (likedRows.length === 0) return { data: [] };
+
+      const mediaIds = likedRows.map((r) => r.mediaId);
+      const mediaItems = await db
+        .select({
+          id: media.id,
+          title: media.title,
+          slug: media.slug,
+          posterPath: media.posterPath,
+          type: media.type,
+          releaseDate: media.releaseDate,
+        })
+        .from(media)
+        .where(inArray(media.id, mediaIds));
+
+      const mediaMap = Object.fromEntries(mediaItems.map((m) => [m.id, m]));
+
+      const data = likedRows
+        .map((r) => ({ id: r.id, createdAt: r.createdAt, media: mediaMap[r.mediaId] }))
+        .filter((r) => !!r.media);
+
+      return { data };
+    },
+    {
+      params: t.Object({ userId: t.String() }),
+      query: t.Object({
+        limit: t.Optional(t.String()),
+        offset: t.Optional(t.String()),
       }),
     }
   )

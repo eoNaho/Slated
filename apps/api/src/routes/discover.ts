@@ -7,6 +7,8 @@ import {
   mediaStreaming,
   streamingServices,
   activities,
+  reviews,
+  lists,
   eq,
   and,
   desc,
@@ -346,6 +348,99 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         year: t.Optional(t.String()),
         type: t.Optional(t.String()),
         streaming: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ==========================================================================
+  // Trending — time-decay scoring (half-life = 48 hours)
+  // Returns top media, reviews, and lists scored by recency-weighted activity
+  // ==========================================================================
+
+  .get(
+    "/trending",
+    async ({ query }: any) => {
+      const type = query.type as "movie" | "series" | undefined;
+      const limit = Math.min(Number(query.limit) || 10, 30);
+
+      const cacheKey = `trending:${type ?? "all"}:${limit}`;
+      return cached(cacheKey, TTL.EXPENSIVE, async () => {
+        // Time-decay score: sum(1 / (1 + age_hours / 48)) for each activity in the last 7 days
+        const trendingMediaQuery = await db.execute(sql`
+          SELECT
+            target_id AS media_id,
+            SUM(1.0 / (1.0 + EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600.0 / 48.0)) AS score
+          FROM activities
+          WHERE created_at > NOW() - INTERVAL '7 days'
+            AND target_type = 'media'
+          GROUP BY target_id
+          ORDER BY score DESC
+          LIMIT ${limit * 2}
+        `);
+
+        const trendingMediaIds = (trendingMediaQuery as unknown as { media_id: string; score: string }[])
+          .map((r) => r.media_id)
+          .filter(Boolean);
+
+        let trendingMedia: typeof media.$inferSelect[] = [];
+        if (trendingMediaIds.length > 0) {
+          const typeConditions = type ? [eq(media.type, type)] : [];
+          trendingMedia = await db
+            .select()
+            .from(media)
+            .where(and(inArray(media.id, trendingMediaIds), ...typeConditions))
+            .limit(limit);
+
+          // Preserve score-based order
+          const orderMap = new Map(trendingMediaIds.map((id, i) => [id, i]));
+          trendingMedia.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+        }
+
+        // Trending reviews: score = likesCount * 2 + commentsCount * 3, created in last 7 days
+        const trendingReviews = await db
+          .select()
+          .from(reviews)
+          .where(
+            and(
+              gte(reviews.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+              sql`${reviews.isHidden} = false`
+            )
+          )
+          .orderBy(
+            desc(sql`${reviews.likesCount} * 2 + ${reviews.commentsCount} * 3`)
+          )
+          .limit(limit);
+
+        // Trending lists: score by likesCount and itemCount
+        const trendingLists = await db
+          .select()
+          .from(lists)
+          .where(
+            and(
+              gte(lists.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+              eq(lists.isPublic, true)
+            )
+          )
+          .orderBy(
+            desc(sql`${lists.likesCount} * 2 + ${lists.itemsCount}`)
+          )
+          .limit(limit);
+
+        return {
+          media: trendingMedia.map((item) => ({
+            ...item,
+            posterPath: resolveImageUrl(item.posterPath),
+            backdropPath: resolveImageUrl(item.backdropPath),
+          })),
+          reviews: trendingReviews,
+          lists: trendingLists,
+        };
+      });
+    },
+    {
+      query: t.Object({
+        type: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
       }),
     }
   );

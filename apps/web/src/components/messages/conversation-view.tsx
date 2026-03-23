@@ -93,7 +93,7 @@ export function ConversationView({ conversationId, hideHeader = false }: Convers
 
   // Mark as read on mount
   useEffect(() => {
-    api.messages.markRead(conversationId).catch(() => {});
+    api.messages.markRead(conversationId).catch((e) => console.warn("Failed to mark as read", e));
   }, [conversationId]);
 
   // Auto-scroll to bottom on first load and new messages.

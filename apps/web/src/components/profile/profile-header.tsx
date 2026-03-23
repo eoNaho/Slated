@@ -27,6 +27,7 @@ import type {
 import { resolveImage } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { toast } from "sonner";
 import { FollowListDialog } from "./follow-list-dialog";
 import { WatchingNow } from "./watching-now";
 import { FramedAvatar } from "./framed-avatar";
@@ -652,7 +653,7 @@ export function ProfileHeader({
                 setShowMoreMenu(false);
                 navigator.clipboard
                   .writeText(window.location.href)
-                  .catch(() => {});
+                  .catch(() => toast.error("Falha ao copiar link"));
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
             >

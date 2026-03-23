@@ -33,6 +33,8 @@ export interface AdminStats {
     last24h: number;
     last7d: number;
   };
+  totalBookmarks?: number;
+  pastDueSubscriptions?: number;
 }
 
 // ==========================================

@@ -37,6 +37,7 @@ import { storiesRoutes } from "./routes/stories";
 import { discoverRoutes } from "./routes/discover";
 import { seriesRoutes } from "./routes/series";
 import { likesRoutes } from "./routes/likes";
+import { bookmarksRoutes } from "./routes/bookmarks";
 import { identityRoutes } from "./routes/identity";
 import { mediaCoversRoutes } from "./routes/media-covers";
 import { closeFriendsRoutes } from "./routes/close-friends";
@@ -186,6 +187,7 @@ const app = new Elysia()
       .use(discoverRoutes)
       .use(seriesRoutes)
       .use(likesRoutes)
+      .use(bookmarksRoutes)
       .use(identityRoutes)
       .use(mediaCoversRoutes)
       .use(closeFriendsRoutes)

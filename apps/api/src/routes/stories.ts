@@ -517,7 +517,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
 
       // Clean up image from storage if exists
       if (existing.imageUrl) {
-        await storageService.delete(existing.imageUrl).catch(() => {});
+        await storageService.delete(existing.imageUrl).catch((err) => logger.warn({ err }, "failed to delete story image on delete"));
       }
 
       await db.delete(stories).where(eq(stories.id, params.id));
@@ -841,7 +841,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
 
       // Delete old image if exists
       if (existing.imageUrl) {
-        await storageService.delete(existing.imageUrl).catch(() => {});
+        await storageService.delete(existing.imageUrl).catch((err) => logger.warn({ err }, "failed to delete story image on update"));
       }
 
       // Upload new image

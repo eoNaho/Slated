@@ -75,6 +75,31 @@ export const likes = pgTable(
   ]
 );
 
+// Bookmarks
+export const bookmarks = pgTable(
+  "bookmarks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    targetType: text("target_type").notNull(), // 'media' | 'review' | 'list'
+    targetId: uuid("target_id").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    unique("unique_user_bookmark").on(
+      table.userId,
+      table.targetType,
+      table.targetId
+    ),
+    index("idx_bookmarks_user").on(table.userId),
+    index("idx_bookmarks_target").on(table.targetType, table.targetId),
+    index("idx_bookmarks_user_type").on(table.userId, table.targetType),
+  ]
+);
+
 // Comments
 export const comments = pgTable(
   "comments",

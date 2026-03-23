@@ -670,7 +670,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
           followingId: targetUser.id,
         });
         // Invalidate stats caches for both users (follower/following counts changed)
-        invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch(() => {});
+        invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch((err) => console.warn({ err }, "failed to invalidate stats cache after follow"));
         return { message: "Followed successfully" };
       } catch (e: any) {
         if (e.code === "23505") {
@@ -774,7 +774,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         );
 
       // Invalidate stats caches for both users
-      invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch(() => {});
+      invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch((err) => console.warn({ err }, "failed to invalidate stats cache after unfollow"));
       return { message: "Unfollowed successfully" };
     },
     { requireAuth: true, params: t.Object({ userId: t.String() }) },

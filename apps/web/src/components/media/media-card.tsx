@@ -1,19 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Star, Heart, Plus, Trash2, Film, Tv } from "lucide-react";
+import { toast } from "sonner";
 import type { Media } from "@/types";
 import { getMediaUrl, resolveImage } from "@/lib/utils";
+import { likesApi } from "@/lib/api";
 
 interface MediaCardProps {
   media: Media;
   large?: boolean;
+  initialLiked?: boolean;
   onAddToList?: (media: Media) => void;
   onRemove?: (media: Media) => void;
 }
 
-export function MediaCard({ media, large = false, onAddToList, onRemove }: MediaCardProps) {
+export function MediaCard({ media, large = false, initialLiked = false, onAddToList, onRemove }: MediaCardProps) {
+  const [liked, setLiked] = useState(initialLiked);
   const href = getMediaUrl(media);
   const year = media.releaseDate
     ? new Date(media.releaseDate).getFullYear()
@@ -59,15 +64,26 @@ export function MediaCard({ media, large = false, onAddToList, onRemove }: Media
               )}
               <div className="flex gap-1">
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    // TODO: Like functionality
+                    const prev = liked;
+                    setLiked(!liked);
+                    try {
+                      if (prev) {
+                        await likesApi.unlike("media", media.id);
+                      } else {
+                        await likesApi.like("media", media.id);
+                      }
+                    } catch {
+                      setLiked(prev);
+                      toast.error("Falha ao atualizar like");
+                    }
                   }}
                   className="p-1.5 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors focus:outline-none focus:bg-purple-600"
-                  aria-label="Like"
+                  aria-label={liked ? "Remover like" : "Curtir"}
                 >
-                  <Heart className="h-3 w-3" />
+                  <Heart className={`h-3 w-3 ${liked ? "fill-current text-pink-400" : ""}`} />
                 </button>
                 <button
                   onClick={(e) => {

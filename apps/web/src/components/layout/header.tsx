@@ -14,6 +14,7 @@ import {
   LogOut,
   User,
   Settings,
+  Bookmark,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -212,6 +213,14 @@ export function Header() {
                     Perfil
                   </Link>
                   <Link
+                    href="/saved"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                  >
+                    <Bookmark className="w-4 h-4" />
+                    Salvos
+                  </Link>
+                  <Link
                     href="/settings"
                     onClick={() => setIsUserMenuOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
@@ -301,6 +310,13 @@ export function Header() {
                       {unreadDmCount > 99 ? "99+" : unreadDmCount}
                     </span>
                   )}
+                </Link>
+                <Link
+                  href="/saved"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground py-2"
+                >
+                  Salvos
                 </Link>
                 <button
                   onClick={handleSignOut}

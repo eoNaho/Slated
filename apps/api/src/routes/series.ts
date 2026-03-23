@@ -205,7 +205,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
         (e) => e.stillPath?.startsWith("tmdb:")
       ).length;
       if (tmdbStillCount > 0 && storageService.isConfigured()) {
-        uploadSeasonStills(season.id, item.slug, season.seasonNumber).catch(() => {});
+        uploadSeasonStills(season.id, item.slug, season.seasonNumber).catch((err) => logger.warn({ err }, "background still upload failed"));
       }
 
       // User episode progress + season rating

@@ -1351,7 +1351,10 @@ export function SettingsClient() {
                               if (!title.isUnlocked) return;
                               try {
                                 await identityApi.unlockTitle(title.id);
-                              } catch {}
+                              } catch {
+                                toast.error("Falha ao desbloquear título");
+                                return;
+                              }
                               await identityApi.setTitle(title.id);
                               setIdentityData((prev) =>
                                 prev

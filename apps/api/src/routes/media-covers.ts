@@ -104,6 +104,73 @@ export const mediaCoversRoutes = new Elysia({
     },
   )
 
+  // Set custom cover from media gallery (premium only, no file upload needed)
+  .post(
+    "/:id/custom-cover/from-gallery",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const canUseCustomCovers = await checkFeature(user.id, "custom_media_cover");
+      if (!canUseCustomCovers) {
+        set.status = 403;
+        return { error: "Custom media covers require a Pro or Ultra subscription" };
+      }
+
+      // Verify media exists
+      const [targetMedia] = await db
+        .select({ id: mediaTable.id })
+        .from(mediaTable)
+        .where(eq(mediaTable.id, params.id))
+        .limit(1);
+
+      if (!targetMedia) {
+        set.status = 404;
+        return { error: "Media not found" };
+      }
+
+      // Validate the TMDB file_path (must start with "/" and be an image path)
+      if (!body.filePath || !body.filePath.startsWith("/")) {
+        set.status = 400;
+        return { error: "Invalid gallery image path" };
+      }
+
+      // If there's an existing uploaded cover (not gallery), delete it from storage
+      const [existing] = await db
+        .select()
+        .from(mediaCustomCovers)
+        .where(and(eq(mediaCustomCovers.userId, user.id), eq(mediaCustomCovers.mediaId, params.id)))
+        .limit(1);
+
+      if (existing?.imagePath && !existing.imagePath.startsWith("tmdb:")) {
+        await storageService.delete(existing.imagePath).catch(() => null);
+      }
+
+      // Store with "tmdb:" prefix so the storage service resolves it to TMDB CDN
+      const tmdbPath = `tmdb:${body.filePath}`;
+
+      const [cover] = await db
+        .insert(mediaCustomCovers)
+        .values({ userId: user.id, mediaId: params.id, imagePath: tmdbPath })
+        .onConflictDoUpdate({
+          target: [mediaCustomCovers.userId, mediaCustomCovers.mediaId],
+          set: { imagePath: tmdbPath, createdAt: new Date() },
+        })
+        .returning();
+
+      return {
+        data: {
+          ...cover,
+          imageUrl: storageService.getImageUrl(cover.imagePath),
+        },
+      };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ filePath: t.String() }),
+    },
+  )
+
   // Delete custom cover for a media item
   .delete(
     "/:id/custom-cover",
@@ -126,7 +193,10 @@ export const mediaCoversRoutes = new Elysia({
         return { error: "Custom cover not found" };
       }
 
-      await storageService.delete(existing.imagePath).catch(() => null);
+      // Only delete from storage if it's a user upload, not a gallery (tmdb:) path
+      if (existing.imagePath && !existing.imagePath.startsWith("tmdb:")) {
+        await storageService.delete(existing.imagePath).catch(() => null);
+      }
       await db
         .delete(mediaCustomCovers)
         .where(

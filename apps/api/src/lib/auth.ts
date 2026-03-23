@@ -8,19 +8,18 @@ import { auth, type User } from "../auth";
 //   .get("/protected", ({ user }) => { ... }, { requireAuth: true })
 //   .get("/public",    ({ request }) => { ... })    // optional auth via getSession()
 //
-export const betterAuthPlugin = new Elysia({ name: "better-auth" })
-  .macro({
-    requireAuth: {
-      async resolve({ status, request: { headers } }) {
-        const session = await auth.api.getSession({ headers });
-        if (!session) return status(401);
-        return {
-          user: session.user as User,
-          session: session.session,
-        };
-      },
+export const betterAuthPlugin = new Elysia({ name: "better-auth" }).macro({
+  requireAuth: {
+    async resolve({ status, request: { headers } }) {
+      const session = await auth.api.getSession({ headers });
+      if (!session) return status(401);
+      return {
+        user: session.user as User,
+        session: session.session,
+      };
     },
-  });
+  },
+});
 
 // Helper for routes that need optional auth (public but personalized)
 export async function getOptionalSession(headers: Headers) {
