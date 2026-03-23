@@ -595,17 +595,29 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     async (ctx: any) => {
       const { user, params, body, set } = ctx;
 
-      const member = await isParticipant(params.id, user.id);
-      if (!member) {
+      // Single query: get all participant IDs (replaces separate isParticipant + getParticipantIds calls)
+      const participantRows = await db
+        .select({ userId: conversationParticipants.userId })
+        .from(conversationParticipants)
+        .where(
+          and(
+            eq(conversationParticipants.conversationId, params.id),
+            isNull(conversationParticipants.leftAt)
+          )
+        );
+
+      const participantIds = participantRows.map((r) => r.userId);
+      if (!participantIds.includes(user.id)) {
         set.status = 404;
         return { error: "Conversation not found" };
       }
 
-      const encryptedContent = await encrypt(body.content, params.id);
-      const encryptedPreview = await encrypt(
-        body.content.slice(0, 100),
-        params.id
-      );
+      // Encrypt content and preview in parallel
+      const preview = body.content.slice(0, 100);
+      const [encryptedContent, encryptedPreview] = await Promise.all([
+        encrypt(body.content, params.id),
+        encrypt(preview, params.id),
+      ]);
 
       const [msg] = await db
         .insert(messages)
@@ -619,44 +631,52 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
         })
         .returning();
 
-      // Update conversation metadata
-      await db
-        .update(conversations)
-        .set({
-          lastMessageAt: msg.createdAt,
-          lastMessagePreview: encryptedPreview,
-          messageCount: sql`${conversations.messageCount} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(conversations.id, params.id));
-
-      const participantIds = await getParticipantIds(params.id);
-      const otherParticipants = participantIds.filter((id) => id !== user.id);
-
-      // Broadcast to online participants via WebSocket
+      // Broadcast immediately (in-memory, no I/O)
+      // Include sender profile fields so receivers don't need an extra fetch
       broadcastToConversation(
         participantIds,
         {
           type: "new_message",
           conversationId: params.id,
-          message: { ...msg, content: body.content },
+          message: {
+            ...msg,
+            content: body.content,
+            senderUsername: user.username ?? null,
+            senderDisplayName: user.displayName ?? user.name ?? null,
+            senderAvatarUrl: user.image ?? null,
+          },
         },
-        user.id // exclude sender — they already have the message optimistically
+        user.id
       );
 
-      // Notify only participants who are offline (no active WS connection)
-      for (const recipientId of otherParticipants) {
-        if (!isOnline(recipientId)) {
-          await createNotification(
-            recipientId,
-            "dm",
-            user.displayName ?? user.username,
-            body.content.slice(0, 100),
-            { conversationId: params.id, messageId: msg.id },
-            user.id
-          );
-        }
-      }
+      // Fire-and-forget: conversation metadata update + offline notifications
+      // These don't need to block the response
+      void (async () => {
+        const otherParticipants = participantIds.filter((id) => id !== user.id);
+        await Promise.all([
+          db
+            .update(conversations)
+            .set({
+              lastMessageAt: msg.createdAt,
+              lastMessagePreview: encryptedPreview,
+              messageCount: sql`${conversations.messageCount} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(conversations.id, params.id)),
+          ...otherParticipants
+            .filter((id) => !isOnline(id))
+            .map((id) =>
+              createNotification(
+                id,
+                "dm",
+                user.displayName ?? user.username,
+                preview,
+                { conversationId: params.id, messageId: msg.id },
+                user.id
+              )
+            ),
+        ]);
+      })();
 
       return { ...msg, content: body.content };
     },
@@ -773,8 +793,11 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
         storyIsExpired: (story as any).is_expired,
       };
 
-      const encryptedContent = await encrypt(body.content, conversationId);
-      const encryptedPreview = await encrypt(body.content.slice(0, 100), conversationId);
+      const storyPreview = body.content.slice(0, 100);
+      const [encryptedContent, encryptedPreview] = await Promise.all([
+        encrypt(body.content, conversationId),
+        encrypt(storyPreview, conversationId),
+      ]);
 
       const [msg] = await db
         .insert(messages)
@@ -787,37 +810,45 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
         })
         .returning();
 
-      await db
-        .update(conversations)
-        .set({
-          lastMessageAt: msg.createdAt,
-          lastMessagePreview: encryptedPreview,
-          messageCount: sql`${conversations.messageCount} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(conversations.id, conversationId));
-
-      // Broadcast to story owner via WS if online
+      // Broadcast immediately
       broadcastToConversation(
         [user.id, storyOwner],
         {
           type: "new_message",
           conversationId,
-          message: { ...msg, content: body.content },
+          message: {
+            ...msg,
+            content: body.content,
+            senderUsername: user.username ?? null,
+            senderDisplayName: user.displayName ?? user.name ?? null,
+            senderAvatarUrl: user.image ?? null,
+          },
         },
         user.id
       );
 
-      if (!isOnline(storyOwner)) {
-        await createNotification(
-          storyOwner,
-          "story_reply",
-          user.displayName ?? user.username,
-          body.content.slice(0, 100),
-          { conversationId, messageId: msg.id, storyId: body.storyId },
-          user.id
-        );
-      }
+      // Fire-and-forget: conversation update + notification
+      void Promise.all([
+        db
+          .update(conversations)
+          .set({
+            lastMessageAt: msg.createdAt,
+            lastMessagePreview: encryptedPreview,
+            messageCount: sql`${conversations.messageCount} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(conversations.id, conversationId)),
+        isOnline(storyOwner)
+          ? Promise.resolve()
+          : createNotification(
+              storyOwner,
+              "story_reply",
+              user.displayName ?? user.username,
+              storyPreview,
+              { conversationId, messageId: msg.id, storyId: body.storyId },
+              user.id
+            ),
+      ]);
 
       return {
         conversationId,

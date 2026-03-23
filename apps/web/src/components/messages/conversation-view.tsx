@@ -83,7 +83,6 @@ export function ConversationView({ conversationId, hideHeader = false }: Convers
     return subscribeTyping(handleTyping);
   }, [subscribeTyping, handleTyping]);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
 
@@ -97,14 +96,17 @@ export function ConversationView({ conversationId, hideHeader = false }: Convers
     api.messages.markRead(conversationId).catch(() => {});
   }, [conversationId]);
 
-  // Auto-scroll to bottom on first load and new messages
+  // Auto-scroll to bottom on first load and new messages.
+  // Use scrollTo on the container instead of scrollIntoView — scrollIntoView
+  // scrolls the entire page, not just the message list.
   useEffect(() => {
-    if (!bottomRef.current) return;
+    const el = listRef.current;
+    if (!el) return;
     if (isFirstLoad.current && allMessages.length > 0) {
-      bottomRef.current.scrollIntoView({ behavior: "instant" });
+      el.scrollTop = el.scrollHeight;
       isFirstLoad.current = false;
     } else if (!isFirstLoad.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [allMessages.length]);
 
@@ -213,8 +215,6 @@ export function ConversationView({ conversationId, hideHeader = false }: Convers
           </div>
         )}
 
-        {/* Scroll anchor */}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}

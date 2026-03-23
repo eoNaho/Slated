@@ -107,7 +107,7 @@ export function WebSocketProvider({
       if (data.type === "new_message") {
         const { conversationId, message } = data;
 
-        // Append to messages cache (infinite query)
+        // Append to messages cache (infinite query) — no refetch needed
         queryClient.setQueryData(
           ["messages", conversationId],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,7 +130,39 @@ export function WebSocketProvider({
           }
         );
 
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        // Update conversation list cache directly — avoids a full refetch of the
+        // heavy conversations query (subqueries + decrypt all previews)
+        queryClient.setQueryData(
+          ["conversations"],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (old: any) => {
+            if (!old?.data) return old;
+            const now = message.createdAt ?? new Date().toISOString();
+            const updatedConvs = old.data.map((conv: { id: string }) =>
+              conv.id === conversationId
+                ? {
+                    ...conv,
+                    lastMessageAt: now,
+                    lastMessagePreview: message.content ?? "",
+                    // Bump unread count if the message is from someone else.
+                    // The actual sender side already used optimistic update so their
+                    // unreadCount stays at 0; the receiver increments here.
+                    unreadCount: (conv as { unreadCount?: number }).unreadCount
+                      ? (conv as { unreadCount: number }).unreadCount + 1
+                      : 1,
+                  }
+                : conv
+            );
+            // Re-sort by lastMessageAt descending
+            updatedConvs.sort(
+              (a: { lastMessageAt: string | null }, b: { lastMessageAt: string | null }) =>
+                (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? "")
+            );
+            return { ...old, data: updatedConvs };
+          }
+        );
+
+        // Still invalidate unread count badge (cheap single-number query)
         queryClient.invalidateQueries({ queryKey: ["messages", "unread-count"] });
       }
 
