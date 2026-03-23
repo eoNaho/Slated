@@ -10,9 +10,57 @@ import { betterAuthPlugin } from "../lib/auth";
 import { eq, desc, and, count, sum, sql, lt, gte } from "drizzle-orm";
 import { generateSecureToken, hashData } from "../middleware/security";
 import { resolveExtensionToken } from "../lib/extension-auth";
+import { metadataService } from "../services/metadata.service";
+import { logger } from "../utils/logger";
 
 // Scrobble threshold: auto-scrobble when progress >= this value
 const SCROBBLE_THRESHOLD = 80;
+
+// ─── TMDB Auto-Resolution ─────────────────────────────────────────────────────
+
+/**
+ * Automatically resolve a TMDB ID from a title string.
+ * Uses metadataService.search to find the best match.
+ * Returns { tmdbId, mediaType, runtimeMinutes } or nulls if not found.
+ */
+async function autoResolveTmdb(
+  title: string,
+  mediaType?: "movie" | "episode" | null,
+  season?: number | null,
+  episode?: number | null
+): Promise<{ tmdbId: number | null; resolvedMediaType: "movie" | "episode"; runtimeMinutes: number | null }> {
+  try {
+    // Map scrobble media_type to search type
+    // "episode" scrobbles are TV series in TMDB
+    const searchType: "movie" | "series" | "all" =
+      mediaType === "movie" ? "movie" :
+      mediaType === "episode" ? "series" : "all";
+
+    const result = await metadataService.search(title, { type: searchType, page: 1 });
+
+    if (result.results.length === 0) {
+      return { tmdbId: null, resolvedMediaType: mediaType || (season != null ? "episode" : "movie"), runtimeMinutes: null };
+    }
+
+    // Take the first (most relevant) result
+    const best = result.results[0];
+    const resolvedMediaType: "movie" | "episode" = best.mediaType === "series" ? "episode" : "movie";
+
+    logger.info(
+      { title, resolvedTmdbId: best.tmdbId, resolvedTitle: best.title, resolvedMediaType },
+      "Auto-resolved TMDB ID for scrobble"
+    );
+
+    return {
+      tmdbId: best.tmdbId,
+      resolvedMediaType: mediaType || resolvedMediaType,
+      runtimeMinutes: null, // Could be fetched in a future enhancement
+    };
+  } catch (err) {
+    logger.warn({ err, title }, "Failed to auto-resolve TMDB ID for scrobble");
+    return { tmdbId: null, resolvedMediaType: mediaType || (season != null ? "episode" : "movie"), runtimeMinutes: null };
+  }
+}
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -150,7 +198,15 @@ export const activityRoutes = new Elysia({
       }
 
       const now = new Date();
-      const { title, season, episode, progress, source, status, tmdb_id, media_type, runtime_minutes } = body;
+      const { title, season, episode, progress, source, status, runtime_minutes } = body;
+      let { tmdb_id, media_type } = body;
+
+      // Auto-resolve TMDB ID if not provided
+      if (tmdb_id == null) {
+        const resolved = await autoResolveTmdb(title, media_type, season, episode);
+        tmdb_id = resolved.tmdbId;
+        if (!media_type) media_type = resolved.resolvedMediaType;
+      }
 
       // Upsert current_activity
       await db
@@ -355,12 +411,21 @@ export const activityRoutes = new Elysia({
     async (ctx: any) => {
       const { user: authUser, body } = ctx;
 
+      let tmdbId = body.tmdb_id ?? null;
+      let mediaType = body.media_type;
+
+      // Auto-resolve TMDB ID if not provided
+      if (tmdbId == null) {
+        const resolved = await autoResolveTmdb(body.title, mediaType, body.season, body.episode);
+        tmdbId = resolved.tmdbId;
+      }
+
       const [created] = await db
         .insert(scrobbles)
         .values({
           userId: authUser.id,
-          tmdbId: body.tmdb_id ?? null,
-          mediaType: body.media_type,
+          tmdbId,
+          mediaType,
           title: body.title,
           season: body.season ?? null,
           episode: body.episode ?? null,
