@@ -1142,8 +1142,632 @@ adminOnlyRoutes
     return { success: true };
   });
 
+// ── Extended Staff Routes ──────────────────────────────────────────────────────
+
+// Reviews — moderation edit
+staffRoutes
+  .get(
+    "/discussions",
+    async ({ query }: any) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 20, 50);
+      const offset = (page - 1) * limit;
+      const q = query.q?.trim() || "";
+
+      const condition = q
+        ? ilike(reviews.content, `%${q}%`)
+        : undefined;
+
+      const [results, [{ total }]] = await Promise.all([
+        db
+          .select({
+            review: reviews,
+            author: {
+              id: user.id,
+              displayName: user.displayName,
+              username: user.username,
+              avatarUrl: user.avatarUrl,
+            },
+          })
+          .from(reviews)
+          .leftJoin(user, eq(reviews.userId, user.id))
+          .where(condition)
+          .orderBy(desc(reviews.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db.select({ total: count() }).from(reviews).where(condition),
+      ]);
+
+      return { data: results, total: Number(total), page, limit };
+    },
+    {
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+        q: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  .patch(
+    "/reviews/:id",
+    async ({ user: authUser, params, body, set }: any) => {
+      const [target] = await db.select().from(reviews).where(eq(reviews.id, params.id));
+      if (!target) { set.status = 404; return { error: "Review not found" }; }
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (body.content !== undefined) updates.content = body.content;
+      if (body.containsSpoilers !== undefined) updates.containsSpoilers = body.containsSpoilers;
+      if (body.isHidden !== undefined) updates.isHidden = body.isHidden;
+      if (body.hiddenReason !== undefined) updates.hiddenReason = body.hiddenReason;
+
+      const [updated] = await db.update(reviews).set(updates).where(eq(reviews.id, params.id)).returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_content_edit",
+        entityType: "review",
+        entityId: params.id,
+        metadata: { ownerId: target.userId },
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        content: t.Optional(t.String({ minLength: 1 })),
+        containsSpoilers: t.Optional(t.Boolean()),
+        isHidden: t.Optional(t.Boolean()),
+        hiddenReason: t.Optional(t.Nullable(t.String())),
+      }),
+    }
+  )
+
+  .patch(
+    "/comments/:id",
+    async ({ user: authUser, params, body, set }: any) => {
+      const [target] = await db.select().from(comments).where(eq(comments.id, params.id));
+      if (!target) { set.status = 404; return { error: "Comment not found" }; }
+
+      const commentUpdates: Record<string, unknown> = { updatedAt: new Date() };
+      if (body.content !== undefined) commentUpdates.content = body.content;
+      if (body.isHidden !== undefined) commentUpdates.isHidden = body.isHidden;
+      if (body.hiddenReason !== undefined) commentUpdates.hiddenReason = body.hiddenReason;
+
+      const [updated] = await db
+        .update(comments)
+        .set(commentUpdates)
+        .where(eq(comments.id, params.id))
+        .returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_content_edit",
+        entityType: "comment",
+        entityId: params.id,
+        metadata: { ownerId: target.userId },
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        content: t.Optional(t.String({ minLength: 1 })),
+        isHidden: t.Optional(t.Boolean()),
+        hiddenReason: t.Optional(t.Nullable(t.String())),
+      }),
+    }
+  )
+
+  // ── Media — list with search ───────────────────────────────────────────────
+  .get(
+    "/media",
+    async ({ query }: any) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 24, 100);
+      const offset = (page - 1) * limit;
+      const q = query.q?.trim() || "";
+      const type = query.type;
+
+      const conditions: ReturnType<typeof eq>[] = [];
+      if (q) conditions.push(ilike(media.title, `%${q}%`));
+      if (type) conditions.push(eq(media.type, type));
+      const condition = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [results, [{ total }]] = await Promise.all([
+        db
+          .select({
+            id: media.id,
+            tmdbId: media.tmdbId,
+            slug: media.slug,
+            type: media.type,
+            title: media.title,
+            originalTitle: media.originalTitle,
+            posterPath: media.posterPath,
+            backdropPath: media.backdropPath,
+            releaseDate: media.releaseDate,
+            status: media.status,
+            voteAverage: media.voteAverage,
+            popularity: media.popularity,
+            overview: media.overview,
+            tagline: media.tagline,
+            runtime: media.runtime,
+            seasonsCount: media.seasonsCount,
+            episodesCount: media.episodesCount,
+            trailerUrl: media.trailerUrl,
+            homepage: media.homepage,
+            imdbId: media.imdbId,
+            createdAt: media.createdAt,
+          })
+          .from(media)
+          .where(condition)
+          .orderBy(desc(media.popularity))
+          .limit(limit)
+          .offset(offset),
+        db.select({ total: count() }).from(media).where(condition),
+      ]);
+
+      return { data: results, total: Number(total), page, limit };
+    },
+    {
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+        q: t.Optional(t.String()),
+        type: t.Optional(t.String()),
+      }),
+    }
+  );
+
+// ── Admin-only extended routes ─────────────────────────────────────────────────
+
+adminOnlyRoutes
+
+  // ── User — edit profile ────────────────────────────────────────────────────
+  .patch(
+    "/users/:id",
+    async ({ user: authUser, params, body, set }: any) => {
+      const [target] = await db.select().from(user).where(eq(user.id, params.id));
+      if (!target) { set.status = 404; return { error: "User not found" }; }
+
+      const updates: Record<string, unknown> = {};
+      if (body.displayName !== undefined) updates.displayName = body.displayName;
+      if (body.username !== undefined) {
+        // Ensure username uniqueness
+        const [existing] = await db
+          .select({ id: user.id })
+          .from(user)
+          .where(and(eq(user.username, body.username), sql`${user.id} != ${params.id}`));
+        if (existing) { set.status = 409; return { error: "Username already taken" }; }
+        updates.username = body.username;
+      }
+      if (body.email !== undefined) {
+        const [existing] = await db
+          .select({ id: user.id })
+          .from(user)
+          .where(and(eq(user.email, body.email), sql`${user.id} != ${params.id}`));
+        if (existing) { set.status = 409; return { error: "Email already in use" }; }
+        updates.email = body.email;
+      }
+      if (body.bio !== undefined) updates.bio = body.bio;
+      if (body.avatarUrl !== undefined) updates.avatarUrl = body.avatarUrl;
+
+      if (Object.keys(updates).length === 0) {
+        return { data: target };
+      }
+
+      const [updated] = await db.update(user).set(updates).where(eq(user.id, params.id)).returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_user_edit",
+        entityType: "user",
+        entityId: params.id,
+        metadata: Object.keys(updates).reduce((acc, k) => ({ ...acc, [k]: true }), {}),
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        displayName: t.Optional(t.Nullable(t.String())),
+        username: t.Optional(t.String({ minLength: 2, maxLength: 30 })),
+        email: t.Optional(t.String({ format: "email" })),
+        bio: t.Optional(t.Nullable(t.String())),
+        avatarUrl: t.Optional(t.Nullable(t.String())),
+      }),
+    }
+  )
+
+  // ── User — delete account ──────────────────────────────────────────────────
+  .delete(
+    "/users/:id",
+    async ({ user: authUser, params, set }: any) => {
+      if (params.id === authUser.id) {
+        set.status = 400;
+        return { error: "Cannot delete your own account" };
+      }
+
+      const [target] = await db.select({ id: user.id, role: user.role, email: user.email }).from(user).where(eq(user.id, params.id));
+      if (!target) { set.status = 404; return { error: "User not found" }; }
+      if (target.role === "admin") {
+        set.status = 403;
+        return { error: "Cannot delete an admin account" };
+      }
+
+      await db.delete(user).where(eq(user.id, params.id));
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_user_delete",
+        entityType: "user",
+        entityId: params.id,
+        metadata: { email: target.email },
+      });
+
+      return { data: { deleted: true } };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // ── Media — create manually ────────────────────────────────────────────────
+  .post(
+    "/media",
+    async ({ user: authUser, body, set }: any) => {
+      // Create a slug from title
+      const baseSlug = body.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const finalSlug = `${baseSlug}-${Math.floor(Math.random() * 10000)}`;
+
+      const tmdbId = body.tmdbId ?? Math.floor(Math.random() * 10000000) * -1; // Use negative TMDB ID for manual entries if not provided
+
+      try {
+        const [inserted] = await db
+          .insert(media)
+          .values({
+            ...body,
+            tmdbId,
+            slug: finalSlug,
+          })
+          .returning();
+
+        await AuditService.log({
+          userId: authUser.id,
+          action: "admin_media_create",
+          entityType: "media",
+          entityId: inserted.id,
+          metadata: { title: inserted.title, type: inserted.type },
+        });
+
+        return { data: inserted };
+      } catch (err: any) {
+        if (err.code === "23505") {
+          set.status = 409;
+          return { error: "Media with this TMDB ID already exists" };
+        }
+        set.status = 500;
+        return { error: "Failed to create media" };
+      }
+    },
+    {
+      body: t.Object({
+        title: t.String({ minLength: 1 }),
+        type: t.Union([t.Literal("movie"), t.Literal("tv")]),
+        tmdbId: t.Optional(t.Integer()),
+        originalTitle: t.Optional(t.Nullable(t.String())),
+        tagline: t.Optional(t.Nullable(t.String())),
+        overview: t.Optional(t.Nullable(t.String())),
+        posterPath: t.Optional(t.Nullable(t.String())),
+        backdropPath: t.Optional(t.Nullable(t.String())),
+        releaseDate: t.Optional(t.Nullable(t.String())),
+        runtime: t.Optional(t.Nullable(t.Integer())),
+        status: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── Media — patch metadata ─────────────────────────────────────────────────
+  .patch(
+    "/media/:id",
+    async ({ user: authUser, params, body, set }: any) => {
+      const [target] = await db.select({ id: media.id }).from(media).where(eq(media.id, params.id));
+      if (!target) { set.status = 404; return { error: "Media not found" }; }
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      const fields = [
+        "title", "originalTitle", "tagline", "overview", "posterPath",
+        "backdropPath", "releaseDate", "runtime", "status", "homepage",
+        "trailerUrl", "imdbId", "imdbRating", "imdbVotes",
+        "metacriticScore", "rottenTomatoesScore",
+      ] as const;
+      for (const f of fields) {
+        if ((body as any)[f] !== undefined) updates[f] = (body as any)[f];
+      }
+
+      const [updated] = await db.update(media).set(updates).where(eq(media.id, params.id)).returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_media_edit",
+        entityType: "media",
+        entityId: params.id,
+        metadata: { title: updated.title },
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        title: t.Optional(t.String({ minLength: 1 })),
+        originalTitle: t.Optional(t.Nullable(t.String())),
+        tagline: t.Optional(t.Nullable(t.String())),
+        overview: t.Optional(t.Nullable(t.String())),
+        posterPath: t.Optional(t.Nullable(t.String())),
+        backdropPath: t.Optional(t.Nullable(t.String())),
+        releaseDate: t.Optional(t.Nullable(t.String())),
+        runtime: t.Optional(t.Nullable(t.Integer())),
+        status: t.Optional(t.String()),
+        homepage: t.Optional(t.Nullable(t.String())),
+        trailerUrl: t.Optional(t.Nullable(t.String())),
+        imdbId: t.Optional(t.Nullable(t.String())),
+        imdbRating: t.Optional(t.Nullable(t.Number())),
+        imdbVotes: t.Optional(t.Nullable(t.Integer())),
+        metacriticScore: t.Optional(t.Nullable(t.Integer())),
+        rottenTomatoesScore: t.Optional(t.Nullable(t.Integer())),
+      }),
+    }
+  )
+
+  // ── Media — delete ─────────────────────────────────────────────────────────
+  .delete(
+    "/media/:id",
+    async ({ user: authUser, params, set }: any) => {
+      const [target] = await db.select({ id: media.id, title: media.title }).from(media).where(eq(media.id, params.id));
+      if (!target) { set.status = 404; return { error: "Media not found" }; }
+
+      await db.delete(media).where(eq(media.id, params.id));
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_media_delete",
+        entityType: "media",
+        entityId: params.id,
+        metadata: { title: target.title },
+      });
+
+      return { data: { deleted: true } };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // ── Clubs — edit ───────────────────────────────────────────────────────────
+  .patch(
+    "/clubs/:id",
+    async ({ user: authUser, params, body, set }: any) => {
+      const [target] = await db.select({ id: clubs.id }).from(clubs).where(eq(clubs.id, params.id));
+      if (!target) { set.status = 404; return { error: "Club not found" }; }
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (body.name !== undefined) updates.name = body.name;
+      if (body.description !== undefined) updates.description = body.description;
+      if (body.isPrivate !== undefined) updates.isPrivate = body.isPrivate;
+      if (body.isArchived !== undefined) updates.isArchived = body.isArchived;
+
+      const [updated] = await db.update(clubs).set(updates).where(eq(clubs.id, params.id)).returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_club_edit",
+        entityType: "club",
+        entityId: params.id,
+        metadata: Object.keys(updates).filter(k => k !== "updatedAt").reduce((a, k) => ({ ...a, [k]: true }), {}),
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 2 })),
+        description: t.Optional(t.Nullable(t.String())),
+        isPrivate: t.Optional(t.Boolean()),
+        isArchived: t.Optional(t.Boolean()),
+      }),
+    }
+  )
+
+  // ── Clubs — delete ─────────────────────────────────────────────────────────
+  .delete(
+    "/clubs/:id",
+    async ({ user: authUser, params, set }: any) => {
+      const [target] = await db.select({ id: clubs.id, name: clubs.name }).from(clubs).where(eq(clubs.id, params.id));
+      if (!target) { set.status = 404; return { error: "Club not found" }; }
+
+      await db.delete(clubs).where(eq(clubs.id, params.id));
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_club_delete",
+        entityType: "club",
+        entityId: params.id,
+        metadata: { name: target.name },
+      });
+
+      return { data: { deleted: true } };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // ── Clubs — transfer ownership ─────────────────────────────────────────────
+  .patch(
+    "/clubs/:id/owner",
+    async ({ user: authUser, params, body, set }: any) => {
+      const [target] = await db.select({ id: clubs.id, name: clubs.name }).from(clubs).where(eq(clubs.id, params.id));
+      if (!target) { set.status = 404; return { error: "Club not found" }; }
+
+      const [newOwner] = await db.select({ id: user.id }).from(user).where(eq(user.id, body.newOwnerId));
+      if (!newOwner) { set.status = 404; return { error: "New owner not found" }; }
+
+      const [updated] = await db
+        .update(clubs)
+        .set({ ownerId: body.newOwnerId, updatedAt: new Date() })
+        .where(eq(clubs.id, params.id))
+        .returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_club_transfer_ownership",
+        entityType: "club",
+        entityId: params.id,
+        metadata: { newOwnerId: body.newOwnerId, clubName: target.name },
+      });
+
+      return { data: updated };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ newOwnerId: t.String() }),
+    }
+  )
+
+  // ── Subscriptions — list all ───────────────────────────────────────────────
+  .get(
+    "/subscriptions",
+    async ({ query }: any) => {
+      const page = Number(query.page) || 1;
+      const limit = Math.min(Number(query.limit) || 20, 50);
+      const offset = (page - 1) * limit;
+      const status = query.status;
+
+      const condition = status ? eq(subscriptions.status, status) : undefined;
+
+      const [rows, [{ total }]] = await Promise.all([
+        db
+          .select({
+            id: subscriptions.id,
+            userId: subscriptions.userId,
+            status: subscriptions.status,
+            currentPeriodStart: subscriptions.currentPeriodStart,
+            currentPeriodEnd: subscriptions.currentPeriodEnd,
+            cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+            createdAt: subscriptions.createdAt,
+            updatedAt: subscriptions.updatedAt,
+            user: {
+              displayName: user.displayName,
+              username: user.username,
+              email: user.email,
+              avatarUrl: user.avatarUrl,
+            },
+          })
+          .from(subscriptions)
+          .innerJoin(user, eq(subscriptions.userId, user.id))
+          .where(condition)
+          .orderBy(desc(subscriptions.updatedAt))
+          .limit(limit)
+          .offset(offset),
+        db.select({ total: count() }).from(subscriptions).where(condition),
+      ]);
+
+      return { data: rows, total: Number(total), page, limit };
+    },
+    {
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+        status: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── Subscriptions — grant premium manually ─────────────────────────────────
+  .post(
+    "/subscriptions/grant",
+    async ({ user: authUser, body, set }: any) => {
+      const [targetUser] = await db.select({ id: user.id }).from(user).where(eq(user.id, body.userId));
+      if (!targetUser) { set.status = 404; return { error: "User not found" }; }
+
+      const endAt = body.expiresAt
+        ? new Date(body.expiresAt)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // default 30 days
+
+      // Upsert: cancel any existing and create a new manual subscription
+      const [existing] = await db.select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.userId, body.userId));
+
+      let result;
+      if (existing) {
+        [result] = await db
+          .update(subscriptions)
+          .set({
+            status: "active",
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: endAt,
+            cancelAtPeriodEnd: false,
+            updatedAt: new Date(),
+          })
+          .where(eq(subscriptions.userId, body.userId))
+          .returning();
+      } else {
+        [result] = await db
+          .insert(subscriptions)
+          .values({
+            userId: body.userId,
+            status: "active",
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: endAt,
+          })
+          .returning();
+      }
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_subscription_grant",
+        entityType: "subscription",
+        entityId: result.id,
+        metadata: { targetUserId: body.userId, expiresAt: endAt.toISOString() },
+      });
+
+      return { data: result };
+    },
+    {
+      body: t.Object({
+        userId: t.String(),
+        expiresAt: t.Optional(t.Nullable(t.String())),
+      }),
+    }
+  )
+
+  // ── Subscriptions — revoke premium ─────────────────────────────────────────
+  .patch(
+    "/subscriptions/:id/revoke",
+    async ({ user: authUser, params, set }: any) => {
+      const [target] = await db.select({ id: subscriptions.id, userId: subscriptions.userId }).from(subscriptions).where(eq(subscriptions.id, params.id));
+      if (!target) { set.status = 404; return { error: "Subscription not found" }; }
+
+      const [updated] = await db
+        .update(subscriptions)
+        .set({ status: "canceled", cancelAtPeriodEnd: false, updatedAt: new Date() })
+        .where(eq(subscriptions.id, params.id))
+        .returning();
+
+      await AuditService.log({
+        userId: authUser.id,
+        action: "admin_subscription_revoke",
+        entityType: "subscription",
+        entityId: params.id,
+        metadata: { targetUserId: target.userId },
+      });
+
+      return { data: updated };
+    },
+    { params: t.Object({ id: t.String() }) }
+  );
+
 // ── Compose ────────────────────────────────────────────────────────────────────
 
 export const adminRoutes = new Elysia()
   .use(staffRoutes)
   .use(adminOnlyRoutes);
+

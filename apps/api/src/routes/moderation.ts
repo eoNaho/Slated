@@ -153,6 +153,7 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
   .post(
     "/reports/:id/resolve",
     async ({ params, body, user: moderator, set }: any) => {
+      if (!moderator) { set.status = 401; return { error: "Not authenticated" }; }
       const [report] = await db.select().from(reports).where(eq(reports.id, params.id));
       if (!report) {
         set.status = 404;

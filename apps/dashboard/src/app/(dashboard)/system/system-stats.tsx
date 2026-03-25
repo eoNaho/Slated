@@ -176,11 +176,11 @@ export function SystemStats() {
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-                    <p className="text-2xl font-bold text-white">{health?.storage.formattedSize ?? "—"}</p>
+                    <p className="text-2xl font-bold text-white">{health?.storage?.formattedSize ?? "—"}</p>
                     <p className="text-xs text-zinc-500 mt-1">Espaço utilizado</p>
                   </div>
                   <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-                    <p className="text-2xl font-bold text-white">{health?.storage.objectCount.toLocaleString() ?? "—"}</p>
+                    <p className="text-2xl font-bold text-white">{health?.storage?.objectCount?.toLocaleString() ?? "—"}</p>
                     <p className="text-xs text-zinc-500 mt-1">Arquivos armazenados</p>
                   </div>
                 </div>

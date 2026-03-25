@@ -19,8 +19,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import Link from "next/link";
 import Image from "next/image";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuDangerItem } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toast } from "sonner";
+import { EditUserModal } from "./edit-user-modal";
+import { MoreVertical, Edit2, Trash2 } from "lucide-react";
 
-interface AdminUser {
+export interface AdminUser {
   id: string;
   name: string | null;
   email: string;
@@ -54,6 +59,11 @@ export function UsersTable() {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [roleUpdating, setRoleUpdating] = useState<string | null>(null);
+  
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const limit = 20;
 
   const load = useCallback(async () => {
@@ -125,6 +135,21 @@ export function UsersTable() {
     e.preventDefault();
     setPage(1);
     setSearch(searchInput);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+    try {
+      await apiFetch(`/admin/users/${deleteConfirm.id}`, { method: "DELETE" });
+      setUsers((prev) => prev.filter((u) => u.id !== deleteConfirm.id));
+      setDeleteConfirm(null);
+      toast.success("Conta do usuário excluída permanentemente!");
+    } catch {
+      toast.error("Erro ao excluir usuário.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -297,6 +322,24 @@ export function UsersTable() {
                           <Ban className="w-3.5 h-3.5" /> Banir
                         </button>
                       )}
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-colors">
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditingUser(u)}>
+                            <Edit2 className="w-4 h-4 mr-2" /> Editar Perfil
+                          </DropdownMenuItem>
+                          {u.role !== "admin" && (
+                            <DropdownMenuDangerItem onClick={() => setDeleteConfirm(u)}>
+                              <Trash2 className="w-4 h-4 mr-2" /> Excluir Conta
+                            </DropdownMenuDangerItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </>
                   )}
                 </div>
@@ -333,6 +376,27 @@ export function UsersTable() {
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <EditUserModal
+        open={!!editingUser}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+        user={editingUser}
+        onSuccess={(updated) => {
+          setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+        }}
+      />
+      
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Excluir Conta Permanentemente"
+        description={`Tem certeza que deseja excluir a conta de "${deleteConfirm?.name || deleteConfirm?.username}"? Esta ação removerá irrevogavelmente o usuário, suas reviews, comentários e listas do banco de dados.`}
+        confirmLabel="Excluir Conta"
+        variant="danger"
+        onConfirm={handleDelete}
+        loading={isDeleting}
+      />
     </div>
   );
 }

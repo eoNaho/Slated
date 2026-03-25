@@ -25,13 +25,25 @@ export type AuditAction =
   | "admin_action"
   | "admin_user_status_change"
   | "admin_user_role_change"
+  | "admin_user_edit"
+  | "admin_user_delete"
   | "admin_content_delete"
+  | "admin_content_edit"
+  | "admin_content_hide"
   | "admin_report_resolve"
   | "admin_feature_flag_update"
   | "admin_blocklist_add"
   | "admin_blocklist_update"
   | "admin_blocklist_delete"
-  | "admin_blocklist_import";
+  | "admin_blocklist_import"
+  | "admin_media_create"
+  | "admin_media_edit"
+  | "admin_media_delete"
+  | "admin_club_edit"
+  | "admin_club_delete"
+  | "admin_club_transfer_ownership"
+  | "admin_subscription_grant"
+  | "admin_subscription_revoke";
 
 interface AuditLogEntry {
   userId: string;
