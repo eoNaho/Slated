@@ -33,6 +33,7 @@ import { contentFilterService } from "../services/content-filter";
 import { invalidateFlagsCache } from "../lib/feature-gate";
 import { adminGuard, staffGuard } from "../middleware/role-guard";
 import { AuditService } from "../services/audit";
+import { cached, TTL } from "../lib/cache";
 
 // ── Staff routes (admin + moderator) ──────────────────────────────────────────
 
@@ -41,66 +42,66 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   .get("/stats", async () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const week = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const month = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const day24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const day7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return cached("admin:stats", TTL.VOLATILE, async () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const week = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const month = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const day24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const day7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [
-      [{ totalUsers }],
-      [{ totalMedia }],
-      [{ totalReviews }],
-      [{ totalLists }],
-      [{ pendingReports }],
-      [{ investigatingReports }],
-      [{ resolvedReports }],
-      [{ dismissedReports }],
-      [{ newToday }],
-      [{ newThisWeek }],
-      [{ newThisMonth }],
-      [{ active24h }],
-      [{ active7d }],
-      [{ totalBookmarks }],
-      [{ pastDueSubscriptions }],
-    ] = await Promise.all([
-      db.select({ totalUsers: count() }).from(user),
-      db.select({ totalMedia: count() }).from(media),
-      db.select({ totalReviews: count() }).from(reviews),
-      db.select({ totalLists: count() }).from(lists),
-      db.select({ pendingReports: count() }).from(reports).where(eq(reports.status, "pending")),
-      db.select({ investigatingReports: count() }).from(reports).where(eq(reports.status, "investigating")),
-      db.select({ resolvedReports: count() }).from(reports).where(eq(reports.status, "resolved")),
-      db.select({ dismissedReports: count() }).from(reports).where(eq(reports.status, "dismissed")),
-      db.select({ newToday: count() }).from(user).where(gte(user.createdAt, today)),
-      db.select({ newThisWeek: count() }).from(user).where(gte(user.createdAt, week)),
-      db.select({ newThisMonth: count() }).from(user).where(gte(user.createdAt, month)),
-      db.select({ active24h: count() }).from(user).where(and(isNotNull(user.lastActiveAt), gte(user.lastActiveAt, day24h))),
-      db.select({ active7d: count() }).from(user).where(and(isNotNull(user.lastActiveAt), gte(user.lastActiveAt, day7d))),
-      db.select({ totalBookmarks: count() }).from(bookmarks),
-      db.select({ pastDueSubscriptions: count() }).from(subscriptions).where(eq(subscriptions.status, "past_due")),
-    ]);
+      const [
+        [{ totalUsers }],
+        [{ totalMedia }],
+        [{ totalReviews }],
+        [{ totalLists }],
+        reportStatusRows,
+        [{ newToday }],
+        [{ newThisWeek }],
+        [{ newThisMonth }],
+        [{ active24h }],
+        [{ active7d }],
+        [{ totalBookmarks }],
+        [{ pastDueSubscriptions }],
+      ] = await Promise.all([
+        db.select({ totalUsers: count() }).from(user),
+        db.select({ totalMedia: count() }).from(media),
+        db.select({ totalReviews: count() }).from(reviews),
+        db.select({ totalLists: count() }).from(lists),
+        db.select({ status: reports.status, count: count() }).from(reports).groupBy(reports.status),
+        db.select({ newToday: count() }).from(user).where(gte(user.createdAt, today)),
+        db.select({ newThisWeek: count() }).from(user).where(gte(user.createdAt, week)),
+        db.select({ newThisMonth: count() }).from(user).where(gte(user.createdAt, month)),
+        db.select({ active24h: count() }).from(user).where(and(isNotNull(user.lastActiveAt), gte(user.lastActiveAt, day24h))),
+        db.select({ active7d: count() }).from(user).where(and(isNotNull(user.lastActiveAt), gte(user.lastActiveAt, day7d))),
+        db.select({ totalBookmarks: count() }).from(bookmarks),
+        db.select({ pastDueSubscriptions: count() }).from(subscriptions).where(eq(subscriptions.status, "past_due")),
+      ]);
 
-    return {
-      data: {
-        user: totalUsers,
-        media: totalMedia,
-        reviews: totalReviews,
-        lists: totalLists,
-        reports: pendingReports,
-        totalBookmarks,
-        pastDueSubscriptions,
-        reportsByStatus: {
-          pending: pendingReports,
-          investigating: investigatingReports,
-          resolved: resolvedReports,
-          dismissed: dismissedReports,
+      const reportsByStatus = Object.fromEntries(
+        reportStatusRows.map((r) => [r.status, Number(r.count)]),
+      ) as Record<string, number>;
+
+      return {
+        data: {
+          user: totalUsers,
+          media: totalMedia,
+          reviews: totalReviews,
+          lists: totalLists,
+          reports: reportsByStatus.pending ?? 0,
+          totalBookmarks,
+          pastDueSubscriptions,
+          reportsByStatus: {
+            pending: reportsByStatus.pending ?? 0,
+            investigating: reportsByStatus.investigating ?? 0,
+            resolved: reportsByStatus.resolved ?? 0,
+            dismissed: reportsByStatus.dismissed ?? 0,
+          },
+          newUsers: { today: newToday, week: newThisWeek, month: newThisMonth },
+          activeUsers: { last24h: active24h, last7d: active7d },
         },
-        newUsers: { today: newToday, week: newThisWeek, month: newThisMonth },
-        activeUsers: { last24h: active24h, last7d: active7d },
-      },
-    };
+      };
+    });
   })
 
   // ── Stats: user growth time-series ────────────────────────────────────────
@@ -112,15 +113,17 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       const groupBy = period === "12m" ? "week" : "day";
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      const rows = await db
-        .select({
-          date: sql<string>`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})::date`,
-          count: count(),
-        })
-        .from(user)
-        .where(gte(user.createdAt, since))
-        .groupBy(sql`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})`)
-        .orderBy(sql`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})`);
+      const rows = await cached(`admin:stats:user-growth:${period}`, TTL.EXPENSIVE, async () => {
+        return db
+          .select({
+            date: sql<string>`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})::date`,
+            count: count(),
+          })
+          .from(user)
+          .where(gte(user.createdAt, since))
+          .groupBy(sql`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})`)
+          .orderBy(sql`date_trunc(${sql.raw(`'${groupBy}'`)}, ${user.createdAt})`);
+      });
 
       return { data: rows };
     },
@@ -138,6 +141,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       const days = Number(query.days) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+      const merged = await cached(`admin:stats:content-activity:${days}`, TTL.EXPENSIVE, async () => {
       const [reviewRows, commentRows, listRows, diaryRows] = await Promise.all([
         db
           .select({
@@ -190,9 +194,10 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       addRows(listRows, "lists");
       addRows(diaryRows, "diary");
 
-      const merged = Object.entries(dateMap)
+      return Object.entries(dateMap)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, counts]) => ({ date, ...counts }));
+      });
 
       return { data: merged };
     },
@@ -205,6 +210,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
   // ── Stats: reports analytics ───────────────────────────────────────────────
   .get("/stats/reports-analytics", async () => {
+    return cached("admin:stats:reports-analytics", TTL.EXPENSIVE, async () => {
     const [byReason, byStatus, avgResolution] = await Promise.all([
       db
         .select({ reason: reports.reason, count: count() })
@@ -230,6 +236,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
         avgResolutionHours: Number(avgResolution[0]?.avg ?? 0),
       },
     };
+    });
   })
 
   // ── Subscriptions at risk (past_due) ───────────────────────────────────────

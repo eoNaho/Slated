@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find E:Projetospixelreel-rebornappsapisrc -name *.sql)"
+    ]
+  }
+}

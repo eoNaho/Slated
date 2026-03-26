@@ -14,7 +14,12 @@ import {
   Clapperboard,
 } from "lucide-react";
 import { formatRuntime, resolveImage } from "@/lib/utils";
-import { getMovie, getPopularReviews, getSimilarFilms, getPopularLists } from "@/lib/queries/media";
+import {
+  getMovie,
+  getPopularReviews,
+  getSimilarFilms,
+  getPopularLists,
+} from "@/lib/queries/media";
 import { MovieActions } from "@/components/movies/movie-actions";
 import { MediaCoverButton } from "@/components/media/media-cover-button";
 import { MoviePoster } from "@/components/movies/movie-poster";
@@ -33,7 +38,9 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const movie = await getMovie(slug);
 
@@ -41,7 +48,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Movie Not Found — PixelReel" };
   }
 
-  const year = movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : null;
+  const year = movie.releaseDate
+    ? new Date(movie.releaseDate).getFullYear()
+    : null;
   const title = `${movie.title}${year ? ` (${year})` : ""}`;
   const description =
     movie.overview?.slice(0, 155) ??
@@ -61,7 +70,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       type: "video.movie",
       siteName: "PixelReel",
       ...(movie.backdropPath && {
-        images: [{ url: movie.backdropPath, width: 1280, height: 720, alt: movie.title }],
+        images: [
+          {
+            url: movie.backdropPath,
+            width: 1280,
+            height: 720,
+            alt: movie.title,
+          },
+        ],
       }),
       ...(movie.releaseDate && { releaseDate: movie.releaseDate }),
     },
@@ -84,12 +100,18 @@ export default async function MoviePage({ params }: PageProps) {
 
   if (!movie) notFound();
 
-  const year = movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : null;
+  const year = movie.releaseDate
+    ? new Date(movie.releaseDate).getFullYear()
+    : null;
   const cast = movie.credits?.filter((c) => c.creditType === "cast") ?? [];
   const crew = movie.credits?.filter((c) => c.creditType === "crew") ?? [];
   const directors = crew.filter((c) => c.job === "Director");
-  const writers = crew.filter((c) => c.job === "Screenplay" || c.job === "Writer" || c.job === "Story");
-  const otherCrew = crew.filter((c) => !["Director", "Screenplay", "Writer", "Story"].includes(c.job ?? ""));
+  const writers = crew.filter(
+    (c) => c.job === "Screenplay" || c.job === "Writer" || c.job === "Story",
+  );
+  const otherCrew = crew.filter(
+    (c) => !["Director", "Screenplay", "Writer", "Story"].includes(c.job ?? ""),
+  );
 
   const [reviews, similarFilms, popularLists] = await Promise.all([
     getPopularReviews(movie.id),
@@ -97,16 +119,27 @@ export default async function MoviePage({ params }: PageProps) {
     getPopularLists(movie.id),
   ]);
 
-  const genres = (movie.genres ?? []).map((g) => (typeof g === "string" ? g : g.name));
+  const genres = (movie.genres ?? []).map((g) =>
+    typeof g === "string" ? g : g.name,
+  );
 
   return (
-    <div className="min-h-screen text-[#e8e5df]" style={{ background: "#0d0d0f" }}>
+    <div
+      className="min-h-screen text-[#e8e5df]"
+      style={{ background: "#0d0d0f" }}
+    >
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div className="relative w-full" style={{ height: "65vh", minHeight: 380 }}>
+      <div
+        className="relative w-full"
+        style={{ height: "65vh", minHeight: 380 }}
+      >
         {movie.backdropPath ? (
           <div className="absolute inset-0">
             <Image
-              src={resolveImage(movie.backdropPath, "original") || movie.backdropPath}
+              src={
+                resolveImage(movie.backdropPath, "original") ||
+                movie.backdropPath
+              }
               alt={movie.title}
               fill
               className="object-cover object-[center_30%]"
@@ -133,24 +166,37 @@ export default async function MoviePage({ params }: PageProps) {
         {/* Edge vignette */}
         <div
           className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(13,13,15,0.8) 100%)" }}
+          style={{
+            background:
+              "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(13,13,15,0.8) 100%)",
+          }}
         />
 
         {/* Bottom fade - deeper and smoother */}
         <div
           className="absolute inset-x-0 bottom-0"
-          style={{ height: "85%", background: "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 15%, rgba(13,13,15,0.95) 40%, rgba(13,13,15,0.4) 70%, transparent 100%)" }}
+          style={{
+            height: "85%",
+            background:
+              "linear-gradient(to top, #0d0d0f 0%, #0d0d0f 15%, rgba(13,13,15,0.95) 40%, rgba(13,13,15,0.4) 70%, transparent 100%)",
+          }}
         />
 
         {/* Top fade */}
         <div
           className="absolute inset-x-0 top-0 h-40"
-          style={{ background: "linear-gradient(to bottom, rgba(13,13,15,0.7) 0%, rgba(13,13,15,0.3) 50%, transparent 100%)" }}
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(13,13,15,0.7) 0%, rgba(13,13,15,0.3) 50%, transparent 100%)",
+          }}
         />
 
         {movie.trailerUrl && (
           <div className="absolute bottom-6 right-6 lg:bottom-8 lg:right-8">
-            <TrailerDialog trailerUrl={movie.trailerUrl} movieTitle={movie.title} />
+            <TrailerDialog
+              trailerUrl={movie.trailerUrl}
+              movieTitle={movie.title}
+            />
           </div>
         )}
       </div>
@@ -158,20 +204,23 @@ export default async function MoviePage({ params }: PageProps) {
       {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
       <div className="container mx-auto px-4 lg:px-8 -mt-52 relative z-10 pb-20">
         <div className="flex flex-col lg:flex-row gap-8 xl:gap-12">
-
           {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
           <div className="w-full lg:w-56 xl:w-64 flex-shrink-0">
             {/* Poster with glow */}
             <div className="relative group mb-8">
-              <div 
+              <div
                 className="absolute -inset-4 bg-purple-600/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{ background: "radial-gradient(circle, rgba(147,51,234,0.3) 0%, transparent 70%)" }}
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(147,51,234,0.3) 0%, transparent 70%)",
+                }}
               />
               <div
                 className="relative rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
                 style={{
                   aspectRatio: "2/3",
-                  boxShadow: "0 20px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)",
+                  boxShadow:
+                    "0 20px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)",
                 }}
               >
                 <MoviePoster
@@ -186,18 +235,27 @@ export default async function MoviePage({ params }: PageProps) {
             <MovieActions movie={movie} />
 
             {movie.voteAverage && movie.voteAverage > 0 ? (
-              <div className="mt-5 p-4 rounded-xl border border-white/[0.06]" style={{ background: "rgba(255,255,255,0.02)" }}>
+              <div
+                className="mt-5 p-4 rounded-xl border border-white/[0.06]"
+                style={{ background: "rgba(255,255,255,0.02)" }}
+              >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">TMDB Rating</span>
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">
+                    TMDB Rating
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span className="text-lg font-bold text-white">{movie.voteAverage.toFixed(1)}</span>
+                    <span className="text-lg font-bold text-white">
+                      {movie.voteAverage.toFixed(1)}
+                    </span>
                     <span className="text-zinc-600 text-sm">/10</span>
                   </div>
                 </div>
                 <StarRating rating={movie.voteAverage} />
                 {movie.voteCount ? (
-                  <p className="text-[11px] text-zinc-600 mt-2">{movie.voteCount.toLocaleString()} ratings</p>
+                  <p className="text-[11px] text-zinc-600 mt-2">
+                    {movie.voteCount.toLocaleString()} ratings
+                  </p>
                 ) : null}
               </div>
             ) : null}
@@ -207,10 +265,14 @@ export default async function MoviePage({ params }: PageProps) {
                 <SectionLabel>Where to Watch</SectionLabel>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {Object.values(
-                    movie.streaming.reduce((acc, curr) => {
-                      if (!acc[curr.serviceId]) acc[curr.serviceId] = { ...curr };
-                      return acc;
-                    }, {} as Record<string, typeof movie.streaming[0]>)
+                    movie.streaming.reduce(
+                      (acc, curr) => {
+                        if (!acc[curr.serviceId])
+                          acc[curr.serviceId] = { ...curr };
+                        return acc;
+                      },
+                      {} as Record<string, (typeof movie.streaming)[0]>,
+                    ),
                   ).map((mapping) => (
                     <a
                       key={mapping.serviceId}
@@ -246,34 +308,61 @@ export default async function MoviePage({ params }: PageProps) {
             <div className="mt-5 space-y-3">
               {movie.runtime ? (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Runtime</span>
-                  <span className="text-zinc-300 font-medium">{formatRuntime(movie.runtime)}</span>
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Runtime
+                  </span>
+                  <span className="text-zinc-300 font-medium">
+                    {formatRuntime(movie.runtime)}
+                  </span>
                 </div>
               ) : null}
               {movie.releaseDate ? (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />Released</span>
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Released
+                  </span>
                   <span className="text-zinc-300 font-medium">
-                    {new Date(movie.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {new Date(movie.releaseDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </span>
                 </div>
               ) : null}
               {movie.status ? (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600 flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" />Status</span>
-                  <span className="text-zinc-300 font-medium capitalize">{movie.status.replace(/_/g, " ")}</span>
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5" />
+                    Status
+                  </span>
+                  <span className="text-zinc-300 font-medium capitalize">
+                    {movie.status.replace(/_/g, " ")}
+                  </span>
                 </div>
               ) : null}
               {movie.budget && movie.budget > 0 ? (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600 flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5" />Budget</span>
-                  <span className="text-zinc-300 font-medium">${(movie.budget / 1_000_000).toFixed(0)}M</span>
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    Budget
+                  </span>
+                  <span className="text-zinc-300 font-medium">
+                    ${(movie.budget / 1_000_000).toFixed(0)}M
+                  </span>
                 </div>
               ) : null}
               {movie.revenue && movie.revenue > 0 ? (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600 flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5" />Revenue</span>
-                  <span className="text-zinc-300 font-medium">${(movie.revenue / 1_000_000).toFixed(0)}M</span>
+                  <span className="text-zinc-600 flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    Revenue
+                  </span>
+                  <span className="text-zinc-300 font-medium">
+                    ${(movie.revenue / 1_000_000).toFixed(0)}M
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -298,7 +387,6 @@ export default async function MoviePage({ params }: PageProps) {
 
           {/* ── RIGHT MAIN CONTENT ───────────────────────────────────────── */}
           <div className="flex-1 min-w-0 pt-2 lg:pt-8">
-
             <header className="mb-8">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 {year && (
@@ -320,9 +408,9 @@ export default async function MoviePage({ params }: PageProps) {
 
               <h1
                 className="font-black text-white leading-[0.9] tracking-tight mb-4"
-                style={{ 
+                style={{
                   fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
-                  textShadow: "0 10px 30px rgba(0,0,0,0.5)"
+                  textShadow: "0 10px 30px rgba(0,0,0,0.5)",
                 }}
               >
                 {movie.title}
@@ -341,7 +429,9 @@ export default async function MoviePage({ params }: PageProps) {
                           >
                             {d.person.name}
                           </Link>
-                          {i < directors.length - 1 && <span className="text-zinc-700">,</span>}
+                          {i < directors.length - 1 && (
+                            <span className="text-zinc-700">,</span>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -349,7 +439,9 @@ export default async function MoviePage({ params }: PageProps) {
                 )}
                 {movie.originalTitle && movie.originalTitle !== movie.title && (
                   <div className="flex items-center gap-2">
-                    <span className="text-zinc-600 italic">{movie.originalTitle}</span>
+                    <span className="text-zinc-600 italic">
+                      {movie.originalTitle}
+                    </span>
                   </div>
                 )}
               </div>
@@ -420,9 +512,14 @@ export default async function MoviePage({ params }: PageProps) {
                   ))}
                 </div>
               ) : (
-                <div className="py-12 rounded-xl flex flex-col items-center gap-3 border border-white/[0.05]" style={{ background: "rgba(255,255,255,0.015)" }}>
+                <div
+                  className="py-12 rounded-xl flex flex-col items-center gap-3 border border-white/[0.05]"
+                  style={{ background: "rgba(255,255,255,0.015)" }}
+                >
                   <Clapperboard className="h-10 w-10 text-zinc-800" />
-                  <p className="text-zinc-600 text-sm">No reviews yet. Be the first.</p>
+                  <p className="text-zinc-600 text-sm">
+                    No reviews yet. Be the first.
+                  </p>
                 </div>
               )}
             </section>

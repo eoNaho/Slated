@@ -72,6 +72,7 @@ interface ProfileTabsProps {
   watchingNow?: CurrentActivity | null;
   scrobbles?: Scrobble[];
   initialTab?: string;
+  initialCustomCovers?: Record<string, string>;
 }
 
 const tabs = [
@@ -108,14 +109,26 @@ export function ProfileTabs({
   watchingNow = null,
   scrobbles = [],
   initialTab,
+  initialCustomCovers,
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const [showCreateList, setShowCreateList] = useState(false);
   const [showCreateScrobble, setShowCreateScrobble] = useState(false);
 
   const { data: clubs = [], isPending: clubsPending } = useUserClubs(username, activeTab === "clubs");
-  const { data: customCovers = {} } = useCustomCovers(username);
+  const { data: customCovers = {} } = useCustomCovers(username, initialCustomCovers);
   const clubsLoaded = !clubsPending;
+
+  // Deduplicate diary: remove true duplicates (same mediaId + watchedAt, non-rewatch)
+  const deduplicatedDiary = (() => {
+    const seen = new Set<string>();
+    return diary.filter((entry) => {
+      const key = `${entry.mediaId}-${entry.watchedAt}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
 
@@ -198,14 +211,14 @@ export function ProfileTabs({
                 </div>
                 <div className="lg:col-span-4 space-y-10">
                   <FavoriteGenres genres={[]} />
-                  <ActivitySidebar entries={diary} limit={5} customCovers={customCovers} />
+                  <ActivitySidebar entries={deduplicatedDiary} limit={5} customCovers={customCovers} />
                   <UserLists lists={lists} limit={2} />
                 </div>
               </div>
             )}
 
-            {activeTab === "films" && <FilmsGrid entries={diary} customCovers={customCovers} />}
-            {activeTab === "diary" && <FilmsDiary entries={diary} customCovers={customCovers} />}
+            {activeTab === "films" && <FilmsGrid entries={deduplicatedDiary} customCovers={customCovers} />}
+            {activeTab === "diary" && <FilmsDiary entries={deduplicatedDiary} customCovers={customCovers} />}
             {activeTab === "reviews" &&
               (reviews.length > 0 ? (
                 <ReviewsList reviews={reviews} showViewAll={false} currentUserId={currentUserId} customCovers={customCovers} />

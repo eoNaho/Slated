@@ -9,9 +9,10 @@ import { slugify } from "@/lib/utils";
 
 interface SimilarFilmsCarouselProps {
   films: SearchResult[];
+  customCovers?: Record<string, string>;
 }
 
-export function SimilarFilmsCarousel({ films }: SimilarFilmsCarouselProps) {
+export function SimilarFilmsCarousel({ films, customCovers }: SimilarFilmsCarouselProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: "left" | "right") => {
@@ -51,6 +52,7 @@ export function SimilarFilmsCarousel({ films }: SimilarFilmsCarouselProps) {
         {films.slice(0, 20).map((film) => {
           const href = `/movies/${film.localSlug ?? slugify(film.title)}`;
           const filmYear = film.releaseDate ? new Date(film.releaseDate).getFullYear() : null;
+          const posterSrc = (film.localId && customCovers?.[film.localId]) || film.posterPath;
 
           return (
             <Link
@@ -63,9 +65,9 @@ export function SimilarFilmsCarousel({ films }: SimilarFilmsCarouselProps) {
                 className="relative rounded-lg overflow-hidden bg-zinc-900 mb-2.5 ring-1 ring-white/[0.06] group-hover/card:ring-amber-400/40 transition-all duration-300"
                 style={{ width: 130, height: 195 }}
               >
-                {film.posterPath ? (
+                {posterSrc ? (
                   <Image
-                    src={film.posterPath}
+                    src={posterSrc}
                     alt={film.title}
                     fill
                     className="object-cover group-hover/card:scale-105 transition-transform duration-500"

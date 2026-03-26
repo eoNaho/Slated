@@ -159,4 +159,70 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
         contains_spoilers: t.Optional(t.Boolean()),
       }),
     }
+  )
+
+  // Update a diary entry
+  .patch(
+    "/:id",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const [entry] = await db
+        .select({ id: diary.id, userId: diary.userId })
+        .from(diary)
+        .where(eq(diary.id, params.id))
+        .limit(1);
+
+      if (!entry) { set.status = 404; return { error: "Entry not found" }; }
+      if (entry.userId !== user.id) { set.status = 403; return { error: "Forbidden" }; }
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (body.watched_at !== undefined) updates.watchedAt = body.watched_at;
+      if (body.rating !== undefined) updates.rating = body.rating;
+      if (body.is_rewatch !== undefined) updates.isRewatch = body.is_rewatch;
+      if (body.notes !== undefined) updates.notes = body.notes;
+
+      const [updated] = await db
+        .update(diary)
+        .set(updates)
+        .where(eq(diary.id, params.id))
+        .returning();
+
+      return { data: updated };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        watched_at: t.Optional(t.String()),
+        rating: t.Optional(t.Nullable(t.Number({ minimum: 0.5, maximum: 5 }))),
+        is_rewatch: t.Optional(t.Boolean()),
+        notes: t.Optional(t.Nullable(t.String())),
+      }),
+    }
+  )
+
+  // Delete a diary entry
+  .delete(
+    "/:id",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const [entry] = await db
+        .select({ id: diary.id, userId: diary.userId })
+        .from(diary)
+        .where(eq(diary.id, params.id))
+        .limit(1);
+
+      if (!entry) { set.status = 404; return { error: "Entry not found" }; }
+      if (entry.userId !== user.id) { set.status = 403; return { error: "Forbidden" }; }
+
+      await db.delete(diary).where(eq(diary.id, params.id));
+
+      return { success: true };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+    }
   );

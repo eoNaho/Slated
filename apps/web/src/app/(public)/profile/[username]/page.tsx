@@ -148,16 +148,9 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
 
   const user = userRes.data;
 
-  // Phase 1.5: activity and scrobbles (need user.id)
-  const [activityNowRes, scrobblesRes, activitiesRes] = await Promise.all([
-    fetchJson<{ data: CurrentActivity | null }>(`/activity/now/${user.id}`),
-    fetchJson<{ data: Scrobble[]; total: number }>(
-      `/activity/scrobbles/${user.id}?limit=20`,
-    ),
-    fetchJson<{ data: Activity[]; total: number }>(
-      `/feed/user/${user.id}?limit=20`,
-    ),
-  ]);
+  const isOwnProfile = sessionUsername === username;
+  const initialIsFollowing =
+    !isOwnProfile && !!sessionUserId && !!(userRes.data as any).isFollowing;
 
   const stats: UserStats = statsRes?.data ?? {
     userId: user.id,
@@ -173,12 +166,12 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
   };
 
   const profile: UserProfile = { ...user, stats };
-  const isOwnProfile = sessionUsername === username;
-  const initialIsFollowing =
-    !isOwnProfile && !!sessionUserId && !!(userRes.data as any).isFollowing;
 
-  // Phase 2: reviews, lists, stories, identity (public) + diary/watchlist for own profile
+  // Phase 2: all remaining requests in parallel (activity + content + own-profile data)
   const [
+    activityNowRes,
+    scrobblesRes,
+    activitiesRes,
     reviewsRes,
     listsRes,
     storiesRes,
@@ -187,7 +180,15 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
     diaryRes,
     watchlistRes,
     likesRes,
+    customCoversRes,
   ] = await Promise.all([
+    fetchJson<{ data: CurrentActivity | null }>(`/activity/now/${user.id}`),
+    fetchJson<{ data: Scrobble[]; total: number }>(
+      `/activity/scrobbles/${user.id}?limit=20`,
+    ),
+    fetchJson<{ data: Activity[]; total: number }>(
+      `/feed/user/${user.id}?limit=20`,
+    ),
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
@@ -217,6 +218,7 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
         };
       }>;
     }>(`/likes/media/user/${user.id}?limit=24`),
+    fetchJson<{ data: Record<string, string> }>(`/users/${username}/custom-covers`),
   ]);
 
   const reviews = reviewsRes?.data ?? [];
@@ -276,6 +278,7 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
         scrobbles={scrobblesRes?.data || []}
         activity={activity}
         initialTab={initialTab}
+        initialCustomCovers={customCoversRes?.data ?? {}}
       />
     </div>
   );

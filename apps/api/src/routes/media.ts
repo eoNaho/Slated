@@ -20,6 +20,7 @@ import { tmdbService } from "../services/tmdb";
 import { metadataService } from "../services/metadata.service";
 import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
+import { cached, TTL } from "../lib/cache";
 
 // ============================================================================
 // Helper to resolve image URLs
@@ -58,15 +59,18 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         language = "en-US",
       } = query;
 
+      const cacheKey = `media:discover:${type}:${genre ?? ""}:${year ?? ""}:${sortBy}:${page}:${language}`;
       try {
-        const results = await metadataService.discover({
-          type: type as "movie" | "series",
-          genre: genre ? Number(genre) : undefined,
-          year: year ? Number(year) : undefined,
-          sortBy: sortBy as any,
-          page: Number(page),
-          language,
-        });
+        const results = await cached(cacheKey, TTL.VOLATILE, () =>
+          metadataService.discover({
+            type: type as "movie" | "series",
+            genre: genre ? Number(genre) : undefined,
+            year: year ? Number(year) : undefined,
+            sortBy: sortBy as any,
+            page: Number(page),
+            language,
+          }),
+        );
 
         return {
           data: results.results,
@@ -115,10 +119,14 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       const { timeWindow = "week", type = "all", page = 1 } = query;
 
       try {
-        const results = await metadataService.getTrending(
-          timeWindow as "day" | "week",
-          type as "movie" | "series" | "all",
-          Number(page),
+        const results = await cached(
+          `media:trending:${timeWindow}:${type}:${page}`,
+          TTL.EXPENSIVE,
+          () => metadataService.getTrending(
+            timeWindow as "day" | "week",
+            type as "movie" | "series" | "all",
+            Number(page),
+          ),
         );
 
         return {
@@ -155,9 +163,10 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       const { type = "movie", page = 1 } = query;
 
       try {
-        const results = await metadataService.getPopular(
-          type as "movie" | "series",
-          Number(page),
+        const results = await cached(
+          `media:popular:${type}:${page}`,
+          TTL.EXPENSIVE,
+          () => metadataService.getPopular(type as "movie" | "series", Number(page)),
         );
 
         return {
@@ -191,9 +200,10 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       const { type = "movie", page = 1 } = query;
 
       try {
-        const results = await metadataService.getTopRated(
-          type as "movie" | "series",
-          Number(page),
+        const results = await cached(
+          `media:top-rated:${type}:${page}`,
+          TTL.EXPENSIVE,
+          () => metadataService.getTopRated(type as "movie" | "series", Number(page)),
         );
 
         return {
@@ -227,7 +237,11 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
       const { page = 1 } = query;
 
       try {
-        const results = await metadataService.getUpcoming(Number(page));
+        const results = await cached(
+          `media:upcoming:${page}`,
+          TTL.EXPENSIVE,
+          () => metadataService.getUpcoming(Number(page)),
+        );
         return {
           data: results.results,
           page: results.page,
@@ -889,27 +903,28 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           ? desc(reviews.likesCount)
           : desc(reviews.createdAt);
 
-      const results = await db
-        .select({
-          review: reviews,
-          user: {
-            id: userTable.id,
-            username: userTable.username,
-            displayName: userTable.displayName,
-            avatarUrl: userTable.avatarUrl,
-          },
-        })
-        .from(reviews)
-        .innerJoin(userTable, eq(reviews.userId, userTable.id))
-        .where(eq(reviews.mediaId, params.id))
-        .orderBy(orderBy)
-        .limit(limit)
-        .offset(offset);
-
-      const [{ total }] = await db
-        .select({ total: count() })
-        .from(reviews)
-        .where(eq(reviews.mediaId, params.id));
+      const [results, [{ total }]] = await Promise.all([
+        db
+          .select({
+            review: reviews,
+            user: {
+              id: userTable.id,
+              username: userTable.username,
+              displayName: userTable.displayName,
+              avatarUrl: userTable.avatarUrl,
+            },
+          })
+          .from(reviews)
+          .innerJoin(userTable, eq(reviews.userId, userTable.id))
+          .where(eq(reviews.mediaId, params.id))
+          .orderBy(orderBy)
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ total: count() })
+          .from(reviews)
+          .where(eq(reviews.mediaId, params.id)),
+      ]);
 
       return {
         data: results.map((r) => ({
@@ -944,29 +959,30 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
 
       const { lists, listItems } = await import("../db");
 
-      const results = await db
-        .select({
-          list: lists,
-          user: {
-            id: userTable.id,
-            username: userTable.username,
-            displayName: userTable.displayName,
-            avatarUrl: userTable.avatarUrl,
-          },
-        })
-        .from(listItems)
-        .innerJoin(lists, eq(listItems.listId, lists.id))
-        .innerJoin(userTable, eq(lists.userId, userTable.id))
-        .where(and(eq(listItems.mediaId, params.id), eq(lists.isPublic, true)))
-        .orderBy(desc(lists.likesCount))
-        .limit(limit)
-        .offset(offset);
-
-      const [{ total }] = await db
-        .select({ total: count() })
-        .from(listItems)
-        .innerJoin(lists, eq(listItems.listId, lists.id))
-        .where(and(eq(listItems.mediaId, params.id), eq(lists.isPublic, true)));
+      const [results, [{ total }]] = await Promise.all([
+        db
+          .select({
+            list: lists,
+            user: {
+              id: userTable.id,
+              username: userTable.username,
+              displayName: userTable.displayName,
+              avatarUrl: userTable.avatarUrl,
+            },
+          })
+          .from(listItems)
+          .innerJoin(lists, eq(listItems.listId, lists.id))
+          .innerJoin(userTable, eq(lists.userId, userTable.id))
+          .where(and(eq(listItems.mediaId, params.id), eq(lists.isPublic, true)))
+          .orderBy(desc(lists.likesCount))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ total: count() })
+          .from(listItems)
+          .innerJoin(lists, eq(listItems.listId, lists.id))
+          .where(and(eq(listItems.mediaId, params.id), eq(lists.isPublic, true))),
+      ]);
 
       return {
         data: results.map((r) => ({
