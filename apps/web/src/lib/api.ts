@@ -245,7 +245,7 @@ export const mediaApi = {
     fetcher<{ data: MediaDetails }>(`/media/slug/${slug}`),
 
   getState: (id: string) =>
-    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null; customCoverUrl: string | null } }>(
+    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null; customCoverUrl: string | null; diaryId: string | null; diaryWatchedAt: string | null; diaryIsRewatch: boolean | null } }>(
       `/media/${id}/state`
     ),
 
@@ -460,6 +460,25 @@ export const diaryApi = {
         is_rewatch: data.isRewatch,
         watched_at: data.watchedAt,
         contains_spoilers: data.containsSpoilers,
+      }),
+    }),
+
+  update: (
+    entryId: string,
+    data: {
+      rating?: number;
+      notes?: string | null;
+      isRewatch?: boolean;
+      watchedAt?: string;
+    }
+  ) =>
+    fetcher<DiaryEntry>(`/diary/${entryId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        rating: data.rating,
+        notes: data.notes,
+        is_rewatch: data.isRewatch,
+        watched_at: data.watchedAt,
       }),
     }),
 };

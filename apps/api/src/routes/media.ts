@@ -682,7 +682,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         db.select({ id: likes.id }).from(likes).where(
           and(eq(likes.userId, user.id), eq(likes.targetType, "media"), eq(likes.targetId, params.id))
         ).limit(1).then(r => r[0]),
-        db.select({ id: diary.id, notes: diary.notes, rating: diary.rating }).from(diary).where(
+        db.select({ id: diary.id, notes: diary.notes, rating: diary.rating, watchedAt: diary.watchedAt, isRewatch: diary.isRewatch }).from(diary).where(
           and(eq(diary.userId, user.id), eq(diary.mediaId, params.id))
         ).orderBy(desc(diary.watchedAt)).limit(1).then(r => r[0]),
         db.select({ id: watchlist.id }).from(watchlist).where(
@@ -704,6 +704,9 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           rating: reviewRecord?.rating ?? watchRecord?.rating ?? null,
           review: reviewRecord?.content ?? watchRecord?.notes ?? null,
           customCoverUrl: coverRecord?.imagePath ? storageService.getImageUrl(coverRecord.imagePath) : null,
+          diaryId: watchRecord?.id ?? null,
+          diaryWatchedAt: watchRecord?.watchedAt ?? null,
+          diaryIsRewatch: watchRecord?.isRewatch ?? null,
         },
       };
     },

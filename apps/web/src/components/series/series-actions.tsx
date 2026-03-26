@@ -36,6 +36,9 @@ export function SeriesActions({ series }: SeriesActionsProps) {
   const watched = optimisticWatched ?? mediaState?.watched ?? false;
   const rating = mediaState?.rating ?? null;
   const review = mediaState?.review ?? null;
+  const diaryId = mediaState?.diaryId ?? null;
+  const diaryWatchedAt = mediaState?.diaryWatchedAt ?? null;
+  const diaryIsRewatch = mediaState?.diaryIsRewatch ?? false;
 
   const invalidateState = () =>
     queryClient.invalidateQueries({ queryKey: ["media", series.id, "state"] });
@@ -202,14 +205,23 @@ export function SeriesActions({ series }: SeriesActionsProps) {
         }}
         onSubmit={async (data) => {
           try {
-            await api.diary.add(series.id, {
-              rating: data.rating,
-              notes: data.review,
-              isRewatch: data.isRewatch,
-              watchedAt: data.watchedDate,
-              containsSpoilers: data.containsSpoilers,
-              reviewTitle: data.reviewTitle,
-            });
+            if (diaryId) {
+              await api.diary.update(diaryId, {
+                rating: data.rating,
+                notes: data.review || null,
+                isRewatch: data.isRewatch,
+                watchedAt: data.watchedDate,
+              });
+            } else {
+              await api.diary.add(series.id, {
+                rating: data.rating,
+                notes: data.review,
+                isRewatch: data.isRewatch,
+                watchedAt: data.watchedDate,
+                containsSpoilers: data.containsSpoilers,
+                reviewTitle: data.reviewTitle,
+              });
+            }
             toast.success("Logged successfully!");
             if (data.liked !== liked) {
               if (data.liked) await api.likes.like("media", series.id);
@@ -227,7 +239,8 @@ export function SeriesActions({ series }: SeriesActionsProps) {
           rating: rating ?? 0,
           review: review ?? "",
           liked: liked,
-          isRewatch: watched,
+          isRewatch: diaryIsRewatch ?? watched,
+          watchedDate: diaryWatchedAt ?? new Date().toISOString().split("T")[0],
         }}
       />
     </>

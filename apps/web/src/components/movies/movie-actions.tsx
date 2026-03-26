@@ -37,6 +37,9 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const watched = optimisticWatched ?? mediaState?.watched ?? false;
   const rating = mediaState?.rating ?? null;
   const review = mediaState?.review ?? null;
+  const diaryId = mediaState?.diaryId ?? null;
+  const diaryWatchedAt = mediaState?.diaryWatchedAt ?? null;
+  const diaryIsRewatch = mediaState?.diaryIsRewatch ?? false;
 
   const invalidateState = () =>
     queryClient.invalidateQueries({ queryKey: ["media", movie.id, "state"] });
@@ -232,14 +235,23 @@ export function MovieActions({ movie }: MovieActionsProps) {
         }}
         onSubmit={async (data) => {
           try {
-            await api.diary.add(movie.id, {
-              rating: data.rating,
-              notes: data.review,
-              reviewTitle: data.reviewTitle,
-              isRewatch: data.isRewatch,
-              watchedAt: data.watchedDate,
-              containsSpoilers: data.containsSpoilers,
-            });
+            if (diaryId) {
+              await api.diary.update(diaryId, {
+                rating: data.rating,
+                notes: data.review || null,
+                isRewatch: data.isRewatch,
+                watchedAt: data.watchedDate,
+              });
+            } else {
+              await api.diary.add(movie.id, {
+                rating: data.rating,
+                notes: data.review,
+                reviewTitle: data.reviewTitle,
+                isRewatch: data.isRewatch,
+                watchedAt: data.watchedDate,
+                containsSpoilers: data.containsSpoilers,
+              });
+            }
 
             // Sync liked state if it changed in the modal
             if (data.liked !== liked) {
@@ -260,7 +272,8 @@ export function MovieActions({ movie }: MovieActionsProps) {
           rating: rating ?? 0,
           review: review ?? "",
           liked: liked,
-          isRewatch: watched,
+          isRewatch: diaryIsRewatch ?? watched,
+          watchedDate: diaryWatchedAt ?? new Date().toISOString().split("T")[0],
         }}
       />
     </>
