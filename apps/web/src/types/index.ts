@@ -361,7 +361,7 @@ export interface LikeItem {
 export interface Activity {
   id: string;
   userId: string;
-  type: "watch" | "review" | "list" | "follow" | "like" | "achievement";
+  type: "watch" | "watched" | "watched_episode" | "review" | "rating" | "list" | "follow" | "like" | "achievement" | "club";
   targetType?: string | null;
   targetId?: string | null;
   metadata?: Record<string, unknown>;
@@ -378,6 +378,20 @@ export interface Activity {
     rating?: number;
     content?: string;
     username?: string;
+    // Club fields
+    description?: string;
+    coverUrl?: string;
+    categories?: string[];
+    memberCount?: number;
+    isPublic?: boolean;
+    allowJoinRequests?: boolean;
+    // List fields
+    itemCount?: number;
+    itemPosters?: string[];
+    // Episode fields
+    episodeName?: string;
+    episodeNumber?: number;
+    seriesId?: string;
   };
 }
 

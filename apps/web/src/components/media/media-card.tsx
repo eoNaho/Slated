@@ -23,6 +23,8 @@ export function MediaCard({ media, large = false, initialLiked = false, onAddToL
   const year = media.releaseDate
     ? new Date(media.releaseDate).getFullYear()
     : "";
+  // SearchResult uses `mediaType`, Media uses `type` — support both
+  const mediaKind: "movie" | "series" = media.type ?? (media as unknown as { mediaType: "movie" | "series" }).mediaType ?? "series";
 
   return (
     <Link
@@ -42,7 +44,7 @@ export function MediaCard({ media, large = false, initialLiked = false, onAddToL
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-800">
-            {media.type === "movie" ? (
+            {mediaKind === "movie" ? (
               <Film className="h-12 w-12 text-zinc-700" />
             ) : (
               <Tv className="h-12 w-12 text-zinc-700" />
@@ -124,10 +126,10 @@ export function MediaCard({ media, large = false, initialLiked = false, onAddToL
         {/* Type Badge */}
         <div
           className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-medium ${
-            media.type === "movie" ? "bg-purple-600" : "bg-pink-600"
+            mediaKind === "movie" ? "bg-purple-600" : "bg-pink-600"
           } text-white`}
         >
-          {media.type === "movie" ? "Movie" : "TV"}
+          {mediaKind === "movie" ? "Movie" : "TV"}
         </div>
       </div>
 

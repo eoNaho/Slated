@@ -24,7 +24,8 @@ export type ActivityType =
   | "list"
   | "like"
   | "follow"
-  | "achievement";
+  | "achievement"
+  | "club";
 export type TargetType = "media" | "review" | "list" | "club" | "event";
 export type AchievementCategory =
   | "watching"

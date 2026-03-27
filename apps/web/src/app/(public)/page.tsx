@@ -75,7 +75,7 @@ export default async function HomePage() {
         <div className="container mx-auto">
           <DashboardGreeting
             user={session.user}
-            featuredRecommendation={null}
+            featuredRecommendation={trendingMedia[0] ?? null}
           />
         </div>
       )}

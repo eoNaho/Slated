@@ -266,6 +266,26 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
         role: "owner",
       });
 
+      // Create activity for discoverable clubs (public or accepting join requests)
+      if (newClub.isPublic || newClub.allowJoinRequests) {
+        await db.insert(activities).values({
+          userId: user.id,
+          type: "club",
+          targetType: "club",
+          targetId: newClub.id,
+          metadata: JSON.stringify({
+            name: newClub.name,
+            slug: newClub.slug,
+            description: newClub.description,
+            coverUrl: newClub.coverUrl,
+            categories: newClub.categories,
+            memberCount: 1,
+            isPublic: newClub.isPublic,
+            allowJoinRequests: newClub.allowJoinRequests,
+          }),
+        });
+      }
+
       return { data: newClub };
     },
     {

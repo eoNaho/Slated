@@ -300,16 +300,26 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
           .where(eq(lists.id, newList.id));
       }
 
+      // Fetch first 4 item posters for feed preview
+      const previewItems = await db
+        .select({ posterPath: media.posterPath })
+        .from(listItems)
+        .innerJoin(media, eq(listItems.mediaId, media.id))
+        .where(eq(listItems.listId, newList.id))
+        .limit(4);
+
       // Create activity
       await db.insert(activities).values({
         userId: user.id,
         type: "list",
         targetType: "list",
         targetId: newList.id,
-        metadata: JSON.stringify({ 
+        metadata: JSON.stringify({
           name: newList.name,
           slug: newList.slug,
-          username: user.username 
+          username: user.username,
+          itemCount: body.item_ids?.length ?? 0,
+          itemPosters: previewItems.map((p) => p.posterPath).filter(Boolean),
         }),
       });
 

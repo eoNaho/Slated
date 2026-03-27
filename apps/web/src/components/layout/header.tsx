@@ -19,6 +19,7 @@ import {
   List,
   Users,
   Compass,
+  Rss,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ import { useUnreadDmCount } from "@/hooks/queries/use-messages";
 import { MiniDmPanel } from "@/components/messages/mini-dm-panel";
 
 const navLinks = [
+  { href: "/feed", label: "Feed", icon: Rss },
   { href: "/movies", label: "Movies", icon: Film },
   { href: "/series", label: "Series", icon: Tv },
   { href: "/lists", label: "Lists", icon: List },
