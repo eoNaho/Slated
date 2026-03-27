@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { db, likes, activities, media, eq, and, inArray, desc } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { canViewSection } from "../lib/privacy";
+import { tasteProfileService } from "../services/recommendation.service";
 
 export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -60,6 +61,11 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
             const { lists } = await import("../db");
             const { sql } = await import("drizzle-orm");
             await db.update(lists).set({ likesCount: sql`${lists.likesCount} + 1` }).where(eq(lists.id, body.targetId));
+        }
+
+        // Invalidate taste profile cache when user likes a media item
+        if (body.targetType === "media") {
+          tasteProfileService.invalidate(user.id).catch(() => null);
         }
 
         return { data: newLike, isNew: true };
@@ -174,11 +180,16 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
           await db.update(lists).set({ likesCount: sql`GREATEST(${lists.likesCount} - 1, 0)` }).where(eq(lists.id, params.targetId));
       }
 
+      // Invalidate taste profile cache when user unlikes a media item
+      if (params.targetType === "media") {
+        tasteProfileService.invalidate(user.id).catch(() => null);
+      }
+
       return { success: true, message: "Like removed" };
     },
     {
       requireAuth: true,
-      params: t.Object({ 
+      params: t.Object({
         targetType: t.Union([t.Literal("media"), t.Literal("review"), t.Literal("list")]),
         targetId: t.String() 
       }),

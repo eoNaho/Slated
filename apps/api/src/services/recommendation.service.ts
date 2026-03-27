@@ -20,6 +20,7 @@ import {
   mediaGenres,
   diary,
   reviews,
+  likes,
   follows,
   activities,
   user as userTable,
@@ -203,7 +204,7 @@ export class TasteProfileService {
       .orderBy(desc(diary.watchedAt))
       .limit(500);
 
-    // ── 2. Build score map ─────────────────────────────────────────────────
+    // ── 2. Build score map from diary ─────────────────────────────────────
 
     const mediaScoreMap = new Map<string, { rating: number; recency: number }>();
 
@@ -218,6 +219,30 @@ export class TasteProfileService {
 
     const watchedIds = [...mediaScoreMap.keys()];
 
+    // ── 2b. Incorporate likes as taste signals ────────────────────────────
+    // Likes signal interest without implying the user has watched the media,
+    // so we use them for genre/decade/language accumulation but NOT for
+    // the watchedMediaIds exclusion set (liked media can still be recommended).
+
+    const likedRows = await db
+      .select({ targetId: likes.targetId })
+      .from(likes)
+      .where(and(eq(likes.userId, userId), eq(likes.targetType, "media")))
+      .limit(200);
+
+    // Liked media not already in diary — treat as a strong positive signal (≈ 4.0 rating)
+    const LIKE_SYNTHETIC_RATING = 4.0;
+    const likeScoreMap = new Map<string, { rating: number; recency: number }>();
+    for (const row of likedRows) {
+      if (!mediaScoreMap.has(row.targetId)) {
+        likeScoreMap.set(row.targetId, { rating: LIKE_SYNTHETIC_RATING, recency: 1.0 });
+      }
+    }
+    const likedOnlyIds = [...likeScoreMap.keys()];
+
+    // Combined ID list for genre/decade/language queries
+    const allProfileMediaIds = [...watchedIds, ...likedOnlyIds];
+
     // ── 3. Fetch genres and accumulate ────────────────────────────────────
 
     const genreAccumulator    = new Map<string, { name: string; score: number }>();
@@ -227,7 +252,7 @@ export class TasteProfileService {
     let ratingCount = 0;
     const ratingValues: number[] = [];
 
-    if (watchedIds.length > 0) {
+    if (allProfileMediaIds.length > 0) {
       const mediaDetails = await db
         .select({
           id:               media.id,
@@ -235,7 +260,7 @@ export class TasteProfileService {
           originalLanguage: media.originalLanguage,
         })
         .from(media)
-        .where(inArray(media.id, watchedIds));
+        .where(inArray(media.id, allProfileMediaIds));
 
       const genreRows = await db
         .select({
@@ -245,7 +270,7 @@ export class TasteProfileService {
         })
         .from(mediaGenres)
         .innerJoin(genres, eq(mediaGenres.genreId, genres.id))
-        .where(inArray(mediaGenres.mediaId, watchedIds));
+        .where(inArray(mediaGenres.mediaId, allProfileMediaIds));
 
       const genresByMedia = new Map<string, Array<{ id: string; name: string }>>();
       for (const row of genreRows) {
@@ -254,7 +279,7 @@ export class TasteProfileService {
       }
 
       for (const m of mediaDetails) {
-        const entry = mediaScoreMap.get(m.id);
+        const entry = mediaScoreMap.get(m.id) ?? likeScoreMap.get(m.id);
         if (!entry) continue;
 
         const { rating, recency } = entry;
@@ -278,8 +303,8 @@ export class TasteProfileService {
           );
         }
 
-        // Bug 9 fix: use != null instead of truthy check (catches rating=0)
-        if (entry.rating != null) {
+        // Only count actual ratings from diary entries (not synthetic like ratings)
+        if (mediaScoreMap.has(m.id) && entry.rating != null) {
           ratingSum += entry.rating;
           ratingCount++;
           ratingValues.push(entry.rating);
