@@ -128,8 +128,13 @@ export const mediaCoversRoutes = new Elysia({
         return { error: "Media not found" };
       }
 
+      // Normalize the file path: strip "tmdb:" prefix if present (stored in DB with this prefix)
+      const rawPath = body.filePath.startsWith("tmdb:")
+        ? body.filePath.slice(5)
+        : body.filePath;
+
       // Validate the TMDB file_path (must start with "/" and be an image path)
-      if (!body.filePath || !body.filePath.startsWith("/")) {
+      if (!rawPath || !rawPath.startsWith("/")) {
         set.status = 400;
         return { error: "Invalid gallery image path" };
       }
@@ -146,7 +151,7 @@ export const mediaCoversRoutes = new Elysia({
       }
 
       // Store with "tmdb:" prefix so the storage service resolves it to TMDB CDN
-      const tmdbPath = `tmdb:${body.filePath}`;
+      const tmdbPath = `tmdb:${rawPath}`;
 
       const [cover] = await db
         .insert(mediaCustomCovers)

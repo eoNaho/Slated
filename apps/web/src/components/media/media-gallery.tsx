@@ -44,7 +44,7 @@ export function MediaGallery({ mediaId }: MediaGalleryProps) {
         const url = res.data.customCoverUrl;
         if (url?.includes("image.tmdb.org")) {
           const match = url.match(/\/t\/p\/[^/]+(\/.+)$/);
-          if (match) setActiveCoverPath(match[1]);
+          if (match) setActiveCoverPath(`tmdb:${match[1]}`);
         }
       })
       .catch(() => null);
