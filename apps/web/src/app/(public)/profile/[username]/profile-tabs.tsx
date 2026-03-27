@@ -14,6 +14,7 @@ import {
   Users,
   History,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import { CreateListModal } from "@/components/lists/CreateListModal";
 import { CreateScrobbleModal } from "@/components/profile/create-scrobble-modal";
@@ -33,6 +34,7 @@ import {
   ScrobblesStats,
 } from "@/components/profile";
 import { ClubCard } from "@/components/clubs/club-card";
+import { TasteProfileChart } from "@/components/profile/taste-profile-chart";
 import type { Club } from "@/lib/queries/clubs";
 import { useUserClubs } from "@/hooks/queries/use-user-clubs";
 import { useCustomCovers } from "@/hooks/queries/use-custom-covers";
@@ -100,6 +102,7 @@ const tabs = [
   { value: "likes", label: "Likes", icon: Heart },
   { value: "activity", label: "Activity", icon: ActivityIcon },
   { value: "scrobbles", label: "Scrobbles", icon: History },
+  { value: "taste", label: "Taste", icon: Sparkles },
 ];
 
 // Legacy fallback for tabs without explicit privacy settings
@@ -304,6 +307,9 @@ export function ProfileTabs({
                 <ScrobblesStats userId={profile.id} />
                 <ScrobblesHistory scrobbles={scrobbles} userId={profile.id} isOwnProfile={isOwnProfile} />
               </div>
+            )}
+            {activeTab === "taste" && isOwnProfile && (
+              <TasteProfileChart isPremium={profile.isPremium} />
             )}
           </>
         )}

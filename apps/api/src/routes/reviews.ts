@@ -19,6 +19,7 @@ import { blockedUserIds } from "../lib/block-filter";
 import { canViewSection } from "../lib/privacy";
 import { contentFilterService } from "../services/content-filter";
 import { checkContentVelocity } from "../lib/moderation-escalation";
+import { notifyTasteMatchReview } from "../services/recommendation-notifications";
 
 export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -208,6 +209,9 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
           episode_id: body.episode_id,
         }),
       });
+
+      // Notify taste-match users about this review (fire-and-forget)
+      notifyTasteMatchReview(authUser.id, body.media_id).catch(() => {});
 
       return { data: newReview };
     },

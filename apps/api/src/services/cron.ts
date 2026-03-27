@@ -12,6 +12,16 @@
 import { tmdbService } from "./tmdb";
 import { db, media, inArray } from "../db";
 import { logger } from "../utils/logger";
+import {
+  precomputeSimilarityMatrix,
+  invalidateStaleProfiles,
+  warmRecommendationCache,
+  precomputeRecommendationBatches,
+} from "./recommendation-jobs";
+import {
+  notifyTrendingInGenre,
+  notifyFriendsWatched,
+} from "./recommendation-notifications";
 
 // ─── Scheduler ────────────────────────────────────────────────────────────────
 
@@ -77,6 +87,15 @@ export function startCronJobs(): void {
       );
     }
   });
+
+  // ── Recommendation system ────────────────────────────────────────────────
+
+  registerJob("rec-similarity-matrix", 24 * 60 * 60 * 1000, precomputeSimilarityMatrix);
+  registerJob("rec-invalidate-profiles", 60 * 60 * 1000, invalidateStaleProfiles);
+  registerJob("rec-warm-cache", 60 * 60 * 1000, warmRecommendationCache);
+  registerJob("rec-batch-precompute", 4 * 60 * 60 * 1000, precomputeRecommendationBatches);
+  registerJob("rec-notify-trending", 60 * 60 * 1000, notifyTrendingInGenre);
+  registerJob("rec-notify-friends", 60 * 60 * 1000, notifyFriendsWatched);
 
   // ── Start all ────────────────────────────────────────────────────────────
 

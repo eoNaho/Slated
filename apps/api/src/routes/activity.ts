@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
+import { tasteProfileService } from "../services/recommendation.service";
 import {
   activityTokens,
   currentActivity,
@@ -436,6 +437,8 @@ export const activityRoutes = new Elysia({
           watchedAt: body.watched_at ? new Date(body.watched_at) : new Date(),
         })
         .returning();
+
+      tasteProfileService.invalidate(authUser.id).catch(() => {});
 
       return { data: created };
     },

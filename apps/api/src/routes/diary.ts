@@ -1,6 +1,8 @@
 import { Elysia, t } from "elysia";
 import { db, diary, reviews, media, eq, and, desc, count, isNull } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { tasteProfileService } from "../services/recommendation.service";
+import { recommendationFeedback } from "../db/schema/recommendations";
 
 export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -145,6 +147,21 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
         }
       }
 
+      // Invalidate taste profile cache so recs reflect new watch
+      tasteProfileService.invalidate(user.id).catch(() => {});
+
+      // Track conversion: was this media previously recommended?
+      db.update(recommendationFeedback)
+        .set({ convertedToWatch: true })
+        .where(
+          and(
+            eq(recommendationFeedback.userId, user.id),
+            eq(recommendationFeedback.recType, "media"),
+            eq(recommendationFeedback.targetId, body.media_id),
+          )
+        )
+        .catch(() => {});
+
       return { data: newEntry };
     },
     {
@@ -188,6 +205,8 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
         .where(eq(diary.id, params.id))
         .returning();
 
+      tasteProfileService.invalidate(user.id).catch(() => {});
+
       return { data: updated };
     },
     {
@@ -218,6 +237,8 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
       if (entry.userId !== user.id) { set.status = 403; return { error: "Forbidden" }; }
 
       await db.delete(diary).where(eq(diary.id, params.id));
+
+      tasteProfileService.invalidate(user.id).catch(() => {});
 
       return { success: true };
     },

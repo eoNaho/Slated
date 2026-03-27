@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { db, ratings, media, activities, eq, and, desc, count } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 import { storageService } from "../services/storage";
+import { tasteProfileService } from "../services/recommendation.service";
 
 // Helper to resolve image URLs
 function resolveImageUrl(path: string | null): string | null {
@@ -159,6 +160,8 @@ export const ratingsRoutes = new Elysia({ prefix: "/ratings", tags: ["Social"] }
           metadata: JSON.stringify({ rating: body.rating }),
         });
       }
+
+      tasteProfileService.invalidate(user.id).catch(() => {});
 
       return { data: result, isNew: !existing };
     },

@@ -1224,6 +1224,67 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  recommendations: {
+    getMedia: (params: { limit?: number; includeScores?: boolean } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.limit) qs.set("limit", String(params.limit));
+      if (params.includeScores) qs.set("includeScores", "true");
+      return fetcher<{
+        data: (SearchResult & { score?: number; explanation?: string })[];
+        source: string;
+        cached: boolean;
+      }>(`/recommendations/media?${qs}`);
+    },
+    getUsers: (params: { limit?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.limit) qs.set("limit", String(params.limit));
+      return fetcher<{
+        data: { id: string; username: string | null; displayName: string | null; avatarUrl: string | null; similarity?: number; mutualFollows?: number }[];
+      }>(`/recommendations/users?${qs}`);
+    },
+    getFeed: (params: { cursor?: string; limit?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.cursor) qs.set("cursor", params.cursor);
+      if (params.limit) qs.set("limit", String(params.limit));
+      return fetcher<{
+        data: { id: string; type: string; userId: string; targetId: string; metadata: Record<string, unknown>; score: number; socialProofCount: number; createdAt: string }[];
+        nextCursor: string | null;
+        hasMore: boolean;
+      }>(`/recommendations/feed?${qs}`);
+    },
+    getTasteProfile: () =>
+      fetcher<{
+        topGenres: { id: string; name: string; score: number }[];
+        topDecades: { decade: string; count: number }[];
+        averageRating: number;
+        totalWatched: number;
+        diversityScore: number;
+        mainstreamScore: number;
+      }>("/recommendations/taste-profile"),
+    seed: () =>
+      fetcher<{ success: boolean }>("/recommendations/seed", { method: "POST" }),
+    submitFeedback: (data: { targetType: "media" | "user"; targetId: string; feedbackType: "not_interested" | "loved_it" | "already_seen" | "not_my_taste"; source?: string; context?: string }) =>
+      fetcher<{ success: boolean }>("/recommendations/feedback", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    getExplanations: (mediaIds: string[]) => {
+      const qs = new URLSearchParams({ mediaIds: mediaIds.join(",") });
+      return fetcher<{
+        data: { targetMediaId: string; explanationType: string; explanationText: string; score: number }[];
+      }>(`/recommendations/explanations?${qs}`);
+    },
+    submitOnboarding: (data: { selectedGenreIds: number[]; seedMediaIds: string[] }) =>
+      fetcher<{ success: boolean }>("/recommendations/onboarding", {
+        method: "POST",
+        body: JSON.stringify({
+          genreIds: data.selectedGenreIds.map(String),
+          seedMediaIds: data.seedMediaIds,
+        }),
+      }),
+    getOnboardingStatus: () =>
+      fetcher<{ completed: boolean; hasEnoughData: boolean }>("/recommendations/onboarding/status"),
+  },
 };
 
 export { ApiError };

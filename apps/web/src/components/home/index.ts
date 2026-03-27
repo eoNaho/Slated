@@ -4,3 +4,6 @@ export { WatchlistRow } from "./watchlist-row";
 export { FriendsActivity } from "./friends-activity";
 export { CTABanner } from "./cta-banner";
 export { DashboardGreeting } from "./dashboard-greeting";
+export { ForYouCarousel } from "./for-you-carousel";
+export { PeopleYouMayKnow } from "./people-you-may-know";
+export { OnboardingBanner } from "./onboarding-banner";

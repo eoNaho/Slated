@@ -18,3 +18,4 @@ export * from "./gallery";
 export * from "./moderation";
 export * from "./messaging";
 export * from "./platform";
+export * from "./recommendations";

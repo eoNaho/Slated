@@ -18,6 +18,7 @@ import {
   inArray,
   gte,
 } from "../db";
+import { mediaRecService } from "../services/recommendation.service";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { storageService } from "../services/storage";
 import { cached, TTL } from "../lib/cache";
@@ -460,7 +461,32 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
 
       const cacheKey = `recommended:${user.id}:${type ?? "all"}:${limit}`;
       return cached(cacheKey, TTL.VOLATILE, async () => {
-        // Find most recent scrobble with tmdbId
+        // Primary: use the new recommendation engine
+        try {
+          const recs = await mediaRecService.getRecommendations(user.id, {
+            limit,
+            type: (type ?? "all") as "movie" | "series" | "all",
+            excludeWatched: true,
+          });
+
+          if (recs.length >= 3) {
+            return {
+              data: recs.map((r) => ({
+                id:          r.mediaId,
+                tmdbId:      r.tmdbId,
+                type:        r.type,
+                title:       r.title,
+                posterPath:  r.posterPath,
+                releaseDate: r.releaseDate,
+                voteAverage: r.voteAverage,
+              })),
+            };
+          }
+        } catch {
+          // Fall through to TMDB fallback
+        }
+
+        // Fallback: TMDB-based single-item heuristic (for new users without data)
         const [recentScrobble] = await db
           .select({ tmdbId: scrobbles.tmdbId, mediaType: scrobbles.mediaType })
           .from(scrobbles)
@@ -473,9 +499,6 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
           .orderBy(desc(scrobbles.watchedAt))
           .limit(1);
 
-        // Find most recent highly rated diary entry (rating >= 3.5 or 7/10)
-        // Wait, diary might not have tmdbId if not joined with media. Let's just use scrobbles to guarantee tmdbId,
-        // or join diary with media to get tmdbId.
         const [recentDiary] = await db
           .select({ tmdbId: media.tmdbId, mediaType: media.type })
           .from(diary)
@@ -491,10 +514,7 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
           .limit(1);
 
         const target = recentDiary || recentScrobble;
-
-        if (!target?.tmdbId) {
-          return { data: [] }; // No baseline to recommend from
-        }
+        if (!target?.tmdbId) return { data: [] };
 
         try {
           const targetMediaType = target.mediaType === "series" ? "series" : "movie";
@@ -504,28 +524,22 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
             1
           );
 
-          // We only need the top N
-          const mapped = recsRes.results.slice(0, limit).map((t) => ({
-            id: String(t.tmdbId), // Mock an ID for the UI if not in our DB
-            tmdbId: t.tmdbId,
-            type: t.mediaType,
-            title: t.title,
-            posterPath: t.posterPath,
-            backdropPath: t.backdropPath,
-            releaseDate: t.releaseDate,
-            voteAverage: t.voteAverage,
-            overview: t.overview,
-          }));
-
           return {
-            data: mapped,
-            basedOn: {
-              tmdbId: target.tmdbId,
-              mediaType: targetMediaType,
-            },
+            data: recsRes.results.slice(0, limit).map((t) => ({
+              id:          String(t.tmdbId),
+              tmdbId:      t.tmdbId,
+              type:        t.mediaType,
+              title:       t.title,
+              posterPath:  t.posterPath,
+              backdropPath: t.backdropPath,
+              releaseDate: t.releaseDate,
+              voteAverage: t.voteAverage,
+              overview:    t.overview,
+            })),
+            basedOn: { tmdbId: target.tmdbId, mediaType: targetMediaType },
           };
-        } catch (e) {
-          return { data: [] }; // Fail gracefully
+        } catch {
+          return { data: [] };
         }
       });
     },

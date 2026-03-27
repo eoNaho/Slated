@@ -48,6 +48,8 @@ import { moderationRoutes } from "./routes/moderation";
 import { messagesRoutes } from "./routes/messages";
 import { wsRoutes } from "./routes/ws";
 import { announcementsRoutes } from "./routes/announcements";
+import { recommendationsRoutes } from "./routes/recommendations";
+import { adminRecommendationsRoutes } from "./routes/admin-recommendations";
 
 // Explicit list of allowed origins (never use `true` which allows all origins)
 const ALLOWED_ORIGINS = [
@@ -196,7 +198,9 @@ const app = new Elysia()
       .use(blocksRoutes)
       .use(moderationRoutes)
       .use(messagesRoutes)
-      .use(announcementsRoutes),
+      .use(announcementsRoutes)
+      .use(recommendationsRoutes)
+      .use(adminRecommendationsRoutes),
   )
 
   .listen(process.env.PORT || 3001);

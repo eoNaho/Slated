@@ -8,6 +8,9 @@ import {
   FriendsActivity,
   CTABanner,
   DashboardGreeting,
+  ForYouCarousel,
+  PeopleYouMayKnow,
+  OnboardingBanner,
 } from "@/components/home";
 import { Carousel, SectionHeader } from "@/components/common";
 import { MediaCard, ReviewCard } from "@/components/media";
@@ -15,7 +18,6 @@ import {
   getTrending,
   transformTrendingToMedia,
   generateReviews,
-  getRecommendations,
 } from "@/lib/queries/home";
 import { StoriesBar } from "@/components/stories/StoriesBar";
 
@@ -48,17 +50,11 @@ export default async function HomePage() {
   const session = await getSession(cookieHeader);
   const isLoggedIn = !!session?.user;
 
-  const recommendationsReq = isLoggedIn
-    ? getRecommendations(cookieHeader)
-    : Promise.resolve({ data: [] });
-
-  const [trendingAll, trendingMovies, trendingTV, recommendedRes] =
-    await Promise.all([
-      getTrending("all"),
-      getTrending("movie"),
-      getTrending("series"),
-      recommendationsReq,
-    ]);
+  const [trendingAll, trendingMovies, trendingTV] = await Promise.all([
+    getTrending("all"),
+    getTrending("movie"),
+    getTrending("series"),
+  ]);
 
   const heroMedia = transformTrendingToMedia(trendingAll.slice(0, 5));
   const trendingMedia = transformTrendingToMedia(trendingAll);
@@ -68,8 +64,6 @@ export default async function HomePage() {
   ]);
   const reviews = generateReviews(trendingAll.slice(5, 9));
   const trendingSidebar = transformTrendingToMedia(trendingMovies.slice(0, 8));
-  const hasRecommendations =
-    recommendedRes.data && recommendedRes.data.length > 0;
 
   return (
     <div className="relative min-h-screen">
@@ -81,9 +75,7 @@ export default async function HomePage() {
         <div className="container mx-auto">
           <DashboardGreeting
             user={session.user}
-            featuredRecommendation={
-              hasRecommendations ? recommendedRes.data[0] : null
-            }
+            featuredRecommendation={null}
           />
         </div>
       )}
@@ -91,18 +83,14 @@ export default async function HomePage() {
       {/* Hero Section — Editorial Layout */}
       <HeroSection initialMedia={heroMedia} />
 
-      {/* Recommendations Carousel */}
-      {isLoggedIn && hasRecommendations && (
-        <div className="container mx-auto">
-          <Carousel title="Recommended for You" href="#">
-            {recommendedRes.data.map((media) => (
-              <div key={media.id} className="snap-start flex-shrink-0">
-                <MediaCard media={media} />
-              </div>
-            ))}
-          </Carousel>
-        </div>
-      )}
+      {/* Onboarding prompt for new users without enough data */}
+      <OnboardingBanner />
+
+      {/* For You — personalised recommendations (client, fetches on mount) */}
+      <ForYouCarousel />
+
+      {/* People You May Know */}
+      <PeopleYouMayKnow />
 
       {/* [Logged-in] Watchlist — what to watch next */}
       <WatchlistRow />
