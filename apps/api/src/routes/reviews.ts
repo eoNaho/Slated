@@ -14,8 +14,9 @@ import {
   sql,
   notInArray,
 } from "../db";
-import { betterAuthPlugin } from "../lib/auth";
+import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
+import { canViewSection } from "../lib/privacy";
 import { contentFilterService } from "../services/content-filter";
 import { checkContentVelocity } from "../lib/moderation-escalation";
 
@@ -26,11 +27,22 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
   .get(
     "/",
     async (ctx: any) => {
-      const { query } = ctx;
+      const { query, request, set } = ctx;
       const authUser = ctx.user ?? null;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
+
+      // Privacy check when filtering by a specific user's reviews
+      if (query.user_id) {
+        const session = await getOptionalSession(request.headers);
+        const viewerId = session?.user?.id ?? null;
+        const allowed = await canViewSection(viewerId, query.user_id, "reviews");
+        if (!allowed) {
+          set.status = 403;
+          return { error: "This content is private" };
+        }
+      }
 
       const conditions: ReturnType<typeof eq>[] = [];
       conditions.push(eq(reviews.isHidden, false));

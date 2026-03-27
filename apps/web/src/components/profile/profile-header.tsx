@@ -46,6 +46,8 @@ interface ProfileHeaderProps {
   isOwnProfile?: boolean;
   currentUserId?: string;
   initialIsFollowing?: boolean;
+  initialFollowStatus?: "accepted" | "pending" | "none";
+  isPrivate?: boolean;
   watchingNow?: CurrentActivity | null;
   stories?: Story[];
   highlights?: StoryHighlight[];
@@ -56,6 +58,8 @@ export function ProfileHeader({
   profile,
   isOwnProfile,
   initialIsFollowing = false,
+  initialFollowStatus,
+  isPrivate = false,
   watchingNow = null,
   stories = [],
   highlights = [],
@@ -65,7 +69,11 @@ export function ProfileHeader({
   const sessionUserId = session?.user?.id;
   const router = useRouter();
 
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  // followStatus supersedes legacy isFollowing boolean
+  const [followStatus, setFollowStatus] = useState<"accepted" | "pending" | "none">(
+    initialFollowStatus ?? (initialIsFollowing ? "accepted" : "none")
+  );
+  const isFollowing = followStatus === "accepted";
   const [isDmLoading, setIsDmLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [followDialog, setFollowDialog] = useState<
@@ -349,12 +357,16 @@ export function ProfileHeader({
                     onClick={() => {
                       startTransition(async () => {
                         try {
-                          if (isFollowing) {
+                          if (followStatus === "accepted") {
                             await api.users.unfollow(profile.id);
+                            setFollowStatus("none");
+                          } else if (followStatus === "pending") {
+                            await api.users.unfollow(profile.id);
+                            setFollowStatus("none");
                           } else {
-                            await api.users.follow(profile.id);
+                            const res = await api.users.follow(profile.id);
+                            setFollowStatus(res.status ?? "accepted");
                           }
-                          setIsFollowing(!isFollowing);
                         } catch {
                           // silently ignore — UI stays unchanged
                         }
@@ -362,12 +374,14 @@ export function ProfileHeader({
                     }}
                     disabled={isPending}
                     className={`h-10 px-6 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 ${
-                      isFollowing
+                      followStatus === "accepted"
                         ? "bg-zinc-800 text-zinc-300 hover:bg-red-500/10 hover:text-red-400 border border-white/10"
+                        : followStatus === "pending"
+                        ? "bg-zinc-800 text-zinc-400 border border-white/10 cursor-default"
                         : "bg-white text-zinc-950 hover:bg-zinc-200"
                     }`}
                   >
-                    {isFollowing ? "Unfollow" : "Follow"}
+                    {followStatus === "accepted" ? "Unfollow" : followStatus === "pending" ? "Requested" : isPrivate ? "Request" : "Follow"}
                   </button>
                   {sessionUserId && (
                     <button

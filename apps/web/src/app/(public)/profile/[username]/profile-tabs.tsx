@@ -52,12 +52,26 @@ import type {
   UserIdentity,
 } from "@/types";
 
+type VisibilityLevel = "public" | "followers" | "private";
+
+interface PrivacySections {
+  diary: VisibilityLevel;
+  watchlist: VisibilityLevel;
+  activity: VisibilityLevel;
+  reviews: VisibilityLevel;
+  lists: VisibilityLevel;
+  likes: VisibilityLevel;
+}
+
 interface ProfileTabsProps {
   profile: UserProfile;
   username: string;
   isOwnProfile: boolean;
   currentUserId?: string;
   initialIsFollowing?: boolean;
+  followStatus?: "accepted" | "pending" | "none";
+  isPrivate?: boolean;
+  privacySections?: PrivacySections | null;
   favorites: FavoriteFilm[];
   reviews: Review[];
   lists: ListType[];
@@ -88,7 +102,8 @@ const tabs = [
   { value: "scrobbles", label: "Scrobbles", icon: History },
 ];
 
-const PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
+// Legacy fallback for tabs without explicit privacy settings
+const DEFAULT_PRIVATE_TABS = ["diary", "watchlist", "likes", "activity"];
 
 export function ProfileTabs({
   profile,
@@ -96,6 +111,9 @@ export function ProfileTabs({
   isOwnProfile,
   currentUserId,
   initialIsFollowing = false,
+  followStatus = "none",
+  isPrivate = false,
+  privacySections = null,
   favorites,
   reviews,
   lists,
@@ -130,7 +148,21 @@ export function ProfileTabs({
     });
   })();
 
-  const isPrivateTab = PRIVATE_TABS.includes(activeTab) && !isOwnProfile;
+  const isPrivateTab = (() => {
+    if (isOwnProfile) return false;
+    const tab = activeTab as keyof PrivacySections;
+    // If profile is private and viewer is not an accepted follower, gate everything except overview
+    if (isPrivate && followStatus !== "accepted" && activeTab !== "overview") return true;
+    // Use per-section visibility if available
+    if (privacySections && tab in privacySections) {
+      const vis = privacySections[tab];
+      if (vis === "private") return true;
+      if (vis === "followers" && followStatus !== "accepted") return true;
+      return false;
+    }
+    // Fallback to legacy hardcoded list
+    return DEFAULT_PRIVATE_TABS.includes(activeTab);
+  })();
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -150,6 +182,8 @@ export function ProfileTabs({
         isOwnProfile={isOwnProfile}
         currentUserId={currentUserId}
         initialIsFollowing={initialIsFollowing}
+        initialFollowStatus={followStatus}
+        isPrivate={isPrivate}
         watchingNow={watchingNow}
         stories={stories}
         highlights={highlights}

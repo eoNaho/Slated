@@ -149,8 +149,13 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
   const user = userRes.data;
 
   const isOwnProfile = sessionUsername === username;
-  const initialIsFollowing =
-    !isOwnProfile && !!sessionUserId && !!(userRes.data as any).isFollowing;
+  const followStatus: "accepted" | "pending" | "none" =
+    !isOwnProfile && !!sessionUserId
+      ? ((userRes.data as any).followStatus ?? ((userRes.data as any).isFollowing ? "accepted" : "none"))
+      : "none";
+  const initialIsFollowing = followStatus === "accepted";
+  const isPrivate = !!(userRes.data as any).isPrivate;
+  const privacySections = (userRes.data as any).privacySections ?? null;
 
   const stats: UserStats = statsRes?.data ?? {
     userId: user.id,
@@ -164,6 +169,10 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
     xp: 0,
     level: 1,
   };
+
+  // If the profile is restricted (private and viewer is not an accepted follower),
+  // render a minimal locked-profile view without fetching any content
+  const isRestricted = !isOwnProfile && isPrivate && followStatus !== "accepted" && (userRes.data as any).restricted;
 
   const profile: UserProfile = { ...user, stats };
 
@@ -186,9 +195,12 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
     fetchJson<{ data: Scrobble[]; total: number }>(
       `/activity/scrobbles/${user.id}?limit=20`,
     ),
-    fetchJson<{ data: Activity[]; total: number }>(
-      `/feed/user/${user.id}?limit=20`,
-    ),
+    isOwnProfile
+      ? fetchJsonAuth<{ data: Activity[]; total: number }>(
+          `/feed/user/${user.id}?limit=20`,
+          cookieHeader,
+        )
+      : Promise.resolve(null),
     fetchJson<{ data: Review[]; total: number }>(
       `/reviews?user_id=${user.id}&limit=10`,
     ),
@@ -226,7 +238,7 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
   const stories = storiesRes?.data ?? [];
   const highlights = highlightsRes?.data ?? [];
   const identity = identityRes?.data ?? null;
-  const activity = activitiesRes?.data ?? [];
+  const activity = isOwnProfile ? (activitiesRes?.data ?? []) : [];
   const diary = diaryRes?.data ?? [];
   const watchlist = watchlistRes?.data ?? [];
   const likes = (likesRes?.data ?? []).map((r) => ({
@@ -265,6 +277,9 @@ export default async function ProfilePage({ params, searchParams }: PageProps) {
         isOwnProfile={isOwnProfile}
         currentUserId={sessionUserId ?? undefined}
         initialIsFollowing={initialIsFollowing}
+        followStatus={followStatus}
+        isPrivate={isPrivate}
+        privacySections={privacySections}
         favorites={favoritesData}
         likes={likes}
         reviews={reviews}

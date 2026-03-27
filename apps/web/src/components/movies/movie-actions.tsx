@@ -30,14 +30,19 @@ export function MovieActions({ movie }: MovieActionsProps) {
   const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
   const [optimisticWatchlist, setOptimisticWatchlist] = useState<boolean | null>(null);
   const [optimisticWatched, setOptimisticWatched] = useState<boolean | null>(null);
-  const [bookmarked, setBookmarked] = useState(false);
+  const [optimisticBookmarked, setOptimisticBookmarked] = useState<boolean | null>(null);
+  // Optimistic diaryId: set locally after toggleWatched so the LogModal can update instead of create
+  const [optimisticDiaryId, setOptimisticDiaryId] = useState<string | null | undefined>(undefined);
+  const [isTogglingWatched, setIsTogglingWatched] = useState(false);
 
   const liked = optimisticLiked ?? mediaState?.liked ?? false;
   const inWatchlist = optimisticWatchlist ?? mediaState?.inWatchlist ?? false;
   const watched = optimisticWatched ?? mediaState?.watched ?? false;
+  const bookmarked = optimisticBookmarked ?? mediaState?.bookmarked ?? false;
   const rating = mediaState?.rating ?? null;
   const review = mediaState?.review ?? null;
-  const diaryId = mediaState?.diaryId ?? null;
+  // Use optimistic diaryId if set, otherwise fall back to server state
+  const diaryId = optimisticDiaryId !== undefined ? optimisticDiaryId : (mediaState?.diaryId ?? null);
   const diaryWatchedAt = mediaState?.diaryWatchedAt ?? null;
   const diaryIsRewatch = mediaState?.diaryIsRewatch ?? false;
 
@@ -73,19 +78,20 @@ export function MovieActions({ movie }: MovieActionsProps) {
   };
 
   const toggleWatched = async () => {
-    if (watched) {
-      toast.info("Already marked as watched. Edit from your diary if needed.");
-      return;
-    }
+    if (watched || isTogglingWatched) return;
+    setIsTogglingWatched(true);
     setOptimisticWatched(true);
     try {
-      await api.diary.add(movie.id, { isRewatch: false });
+      const res = await api.diary.add(movie.id, { isRewatch: false });
+      // Set diaryId optimistically so the LogModal uses update instead of create
+      setOptimisticDiaryId((res as any)?.data?.id ?? null);
       toast.success("Marked as watched!");
-      setOptimisticWatched(null);
       invalidateState();
     } catch {
       setOptimisticWatched(null);
       toast.error("Failed to mark as watched");
+    } finally {
+      setIsTogglingWatched(false);
     }
   };
 
@@ -95,13 +101,15 @@ export function MovieActions({ movie }: MovieActionsProps) {
 
   const toggleBookmark = async () => {
     const prev = bookmarked;
-    setBookmarked(!prev);
+    setOptimisticBookmarked(!prev);
     try {
       if (prev) await api.bookmarks.unbookmark("media", movie.id);
       else await api.bookmarks.bookmark("media", movie.id);
+      setOptimisticBookmarked(null);
+      invalidateState();
     } catch {
-      setBookmarked(prev);
-      toast.error("Falha ao salvar");
+      setOptimisticBookmarked(prev);
+      toast.error("Failed to update bookmark");
     }
   };
 
@@ -111,10 +119,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title,
-          url,
-        });
+        await navigator.share({ title, url });
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           console.error("Error sharing:", err);
@@ -149,6 +154,7 @@ export function MovieActions({ movie }: MovieActionsProps) {
         <Button
           variant="outline"
           onClick={toggleWatched}
+          disabled={isTogglingWatched}
           className={`w-full border-white/20 hover:bg-white/5 justify-start ${
             watched
               ? "bg-green-500/10 border-green-500/30 text-green-400"
@@ -194,10 +200,10 @@ export function MovieActions({ movie }: MovieActionsProps) {
           className={`flex-1 hover:bg-white/5 ${
             bookmarked ? "text-yellow-400" : "text-zinc-400"
           }`}
-          title={bookmarked ? "Remover dos salvos" : "Salvar"}
+          title={bookmarked ? "Remove from saved" : "Save"}
         >
           <Bookmark className={`h-4 w-4 mr-2 ${bookmarked ? "fill-yellow-400" : ""}`} />
-          Salvar
+          Save
         </Button>
         <Button
           variant="ghost"
@@ -260,12 +266,13 @@ export function MovieActions({ movie }: MovieActionsProps) {
             }
 
             setOptimisticWatched(true);
+            setOptimisticDiaryId(undefined); // let server state take over
             invalidateState();
-            toast.success("Salvo com sucesso!");
+            toast.success("Saved successfully!");
             router.refresh();
           } catch (err) {
             console.error("Failed to log:", err);
-            toast.error("Erro ao salvar");
+            toast.error("Failed to save");
           }
         }}
         initialData={{

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 
 // User settings
@@ -18,6 +18,14 @@ export const userSettings = pgTable("user_settings", {
   profileTheme: text("profile_theme"),
   layoutConfig: text("layout_config"), // JSON string with section order
   showcasedBadges: text("showcased_badges"), // JSON string array of achievement IDs
+  // Privacy settings (typed columns, supersede the legacy JSON `privacy` field)
+  isPrivate: boolean("is_private").notNull().default(false),
+  visibilityDiary: text("visibility_diary").notNull().default("public"),
+  visibilityWatchlist: text("visibility_watchlist").notNull().default("public"),
+  visibilityActivity: text("visibility_activity").notNull().default("public"),
+  visibilityReviews: text("visibility_reviews").notNull().default("public"),
+  visibilityLists: text("visibility_lists").notNull().default("public"),
+  visibilityLikes: text("visibility_likes").notNull().default("public"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 

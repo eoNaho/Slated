@@ -15,7 +15,8 @@ import {
   inArray,
 } from "../db";
 import { storageService } from "../services/storage";
-import { betterAuthPlugin } from "../lib/auth";
+import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { canViewSection } from "../lib/privacy";
 
 export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -23,10 +24,22 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
   // Get recent public lists
   .get(
     "/",
-    async ({ query }) => {
+    async (ctx: any) => {
+      const { query, request, set } = ctx;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
+
+      // Privacy check when filtering by a specific user's lists
+      if (query.user_id) {
+        const session = await getOptionalSession(request.headers);
+        const viewerId = session?.user?.id ?? null;
+        const allowed = await canViewSection(viewerId, query.user_id, "lists");
+        if (!allowed) {
+          set.status = 403;
+          return { error: "This content is private" };
+        }
+      }
 
       const conditions = [eq(lists.isPublic, true)];
       if (query.user_id) conditions.push(eq(lists.userId, query.user_id));
@@ -183,7 +196,8 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
   // Get list by username and slug
   .get(
     "/by-slug/:username/:slug",
-    async ({ params, set }) => {
+    async (ctx: any) => {
+      const { params, set, request } = ctx;
       const { username, slug } = params;
 
       const result = await db
@@ -205,6 +219,15 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
       if (!result) {
         set.status = 404;
         return { error: "List not found" };
+      }
+
+      // Privacy check
+      const session = await getOptionalSession(request.headers);
+      const viewerId = session?.user?.id ?? null;
+      const allowed = await canViewSection(viewerId, result.user.id, "lists");
+      if (!allowed) {
+        set.status = 403;
+        return { error: "This content is private" };
       }
 
       // Fetch items

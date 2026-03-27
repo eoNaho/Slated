@@ -23,6 +23,7 @@ import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { cached, invalidate, TTL } from "../lib/cache";
 import { storageService } from "../services/storage";
 import { getUserPlanTier } from "../lib/feature-gate";
+import { checkProfileAccess } from "../lib/privacy";
 
 function resolveImageUrl(path: string | null): string | null {
   if (!path) return null;
@@ -116,15 +117,48 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       }
 
       const session = await getOptionalSession(request.headers);
+      const viewerId = session?.user?.id ?? null;
 
-      const [socialLinks, followRow] = await Promise.all([
+      const [socialLinks, followRow, targetSettings] = await Promise.all([
         db.select().from(userSocialLinks).where(eq(userSocialLinks.userId, profile.id)).then(r => r[0] ?? null),
-        session?.user && session.user.id !== profile.id
-          ? db.select({ id: follows.followerId }).from(follows).where(and(eq(follows.followerId, session.user.id), eq(follows.followingId, profile.id))).limit(1).then(r => r[0] ?? null)
+        viewerId && viewerId !== profile.id
+          ? db.select({ status: follows.status }).from(follows).where(and(eq(follows.followerId, viewerId), eq(follows.followingId, profile.id))).limit(1).then(r => r[0] ?? null)
           : Promise.resolve(null),
+        db.select({
+          isPrivate: userSettings.isPrivate,
+          visibilityDiary: userSettings.visibilityDiary,
+          visibilityWatchlist: userSettings.visibilityWatchlist,
+          visibilityActivity: userSettings.visibilityActivity,
+          visibilityReviews: userSettings.visibilityReviews,
+          visibilityLists: userSettings.visibilityLists,
+          visibilityLikes: userSettings.visibilityLikes,
+        }).from(userSettings).where(eq(userSettings.userId, profile.id)).limit(1).then(r => r[0] ?? null),
       ]);
 
       const { email, ...publicProfile } = profile;
+      const isPrivate = targetSettings?.isPrivate ?? false;
+      const followStatus: "accepted" | "pending" | "none" =
+        followRow?.status === "accepted" ? "accepted"
+        : followRow?.status === "pending" ? "pending"
+        : "none";
+      const isOwnProfile = viewerId === profile.id;
+      const canSeeProfile = isOwnProfile || !isPrivate || followStatus === "accepted";
+
+      // Restricted profile view for private accounts the viewer doesn't follow
+      if (!canSeeProfile) {
+        return {
+          data: {
+            id: publicProfile.id,
+            username: publicProfile.username,
+            displayName: publicProfile.displayName,
+            avatarUrl: resolveImageUrl(publicProfile.avatarUrl),
+            bio: publicProfile.bio,
+            isPrivate: true,
+            followStatus,
+            restricted: true,
+          },
+        };
+      }
 
       return {
         data: {
@@ -135,7 +169,17 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
             ? (() => { try { return JSON.parse(publicProfile.bioExtended); } catch { return null; } })()
             : null,
           socialLinks,
-          isFollowing: !!followRow,
+          isFollowing: followStatus === "accepted",
+          followStatus,
+          isPrivate,
+          privacySections: targetSettings ? {
+            diary: targetSettings.visibilityDiary,
+            watchlist: targetSettings.visibilityWatchlist,
+            activity: targetSettings.visibilityActivity,
+            reviews: targetSettings.visibilityReviews,
+            lists: targetSettings.visibilityLists,
+            likes: targetSettings.visibilityLikes,
+          } : null,
         },
       };
     },
@@ -468,8 +512,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         [clubsCountRes],
       ] = await Promise.all([
         db.select().from(userStats).where(eq(userStats.userId, profile.id)).limit(1).then((r) => r[0]),
-        db.select({ total: count() }).from(follows).where(eq(follows.followingId, profile.id)),
-        db.select({ total: count() }).from(follows).where(eq(follows.followerId, profile.id)),
+        db.select({ total: count() }).from(follows).where(and(eq(follows.followingId, profile.id), eq(follows.status, "accepted"))),
+        db.select({ total: count() }).from(follows).where(and(eq(follows.followerId, profile.id), eq(follows.status, "accepted"))),
         db.select({ total: count() }).from(diary).where(eq(diary.userId, profile.id)),
         db.select({ total: count() }).from(reviews).where(eq(reviews.userId, profile.id)),
         db.select({ total: count() }).from(lists).where(eq(lists.userId, profile.id)),
@@ -557,14 +601,14 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         })
         .from(follows)
         .innerJoin(userTable, eq(follows.followerId, userTable.id))
-        .where(eq(follows.followingId, targetUser.id))
+        .where(and(eq(follows.followingId, targetUser.id), eq(follows.status, "accepted")))
         .limit(limit)
         .offset(offset);
 
       const [{ total }] = await db
         .select({ total: count() })
         .from(follows)
-        .where(eq(follows.followingId, targetUser.id));
+        .where(and(eq(follows.followingId, targetUser.id), eq(follows.status, "accepted")));
 
       return {
         data: followers,
@@ -614,14 +658,14 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         })
         .from(follows)
         .innerJoin(userTable, eq(follows.followingId, userTable.id))
-        .where(eq(follows.followerId, targetUser.id))
+        .where(and(eq(follows.followerId, targetUser.id), eq(follows.status, "accepted")))
         .limit(limit)
         .offset(offset);
 
       const [{ total }] = await db
         .select({ total: count() })
         .from(follows)
-        .where(eq(follows.followerId, targetUser.id));
+        .where(and(eq(follows.followerId, targetUser.id), eq(follows.status, "accepted")));
 
       return {
         data: following,
@@ -664,14 +708,27 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         return { error: "User not found" };
       }
 
+      // Check if target has a private profile
+      const targetSettings = await db
+        .select({ isPrivate: userSettings.isPrivate })
+        .from(userSettings)
+        .where(eq(userSettings.userId, targetUser.id))
+        .limit(1)
+        .then((r) => r[0] ?? { isPrivate: false });
+
+      const status = targetSettings.isPrivate ? "pending" : "accepted";
+
       try {
         await db.insert(follows).values({
           followerId: user.id,
           followingId: targetUser.id,
+          status,
         });
-        // Invalidate stats caches for both users (follower/following counts changed)
-        invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch((err) => console.warn({ err }, "failed to invalidate stats cache after follow"));
-        return { message: "Followed successfully" };
+        // Only invalidate stats when actually followed (not pending)
+        if (status === "accepted") {
+          invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch((err) => console.warn({ err }, "failed to invalidate stats cache after follow"));
+        }
+        return { message: status === "pending" ? "Follow request sent" : "Followed successfully", status };
       } catch (e: any) {
         if (e.code === "23505") {
           set.status = 400;
@@ -808,4 +865,187 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       return { data: map };
     },
     { params: t.Object({ username: t.String() }) },
+  )
+
+  // ── Privacy Settings ─────────────────────────────────────────────────────
+
+  // Get current user privacy settings
+  .get(
+    "/me/privacy",
+    async (ctx: any) => {
+      const { user } = ctx;
+
+      const settings = await db
+        .select({
+          isPrivate: userSettings.isPrivate,
+          visibilityDiary: userSettings.visibilityDiary,
+          visibilityWatchlist: userSettings.visibilityWatchlist,
+          visibilityActivity: userSettings.visibilityActivity,
+          visibilityReviews: userSettings.visibilityReviews,
+          visibilityLists: userSettings.visibilityLists,
+          visibilityLikes: userSettings.visibilityLikes,
+        })
+        .from(userSettings)
+        .where(eq(userSettings.userId, user.id))
+        .limit(1)
+        .then((r) => r[0] ?? null);
+
+      // Return defaults if no settings row yet
+      return {
+        data: settings ?? {
+          isPrivate: false,
+          visibilityDiary: "public",
+          visibilityWatchlist: "public",
+          visibilityActivity: "public",
+          visibilityReviews: "public",
+          visibilityLists: "public",
+          visibilityLikes: "public",
+        },
+      };
+    },
+    { requireAuth: true },
+  )
+
+  // Update current user privacy settings
+  .patch(
+    "/me/privacy",
+    async (ctx: any) => {
+      const { user, body } = ctx;
+
+      const updateData: Record<string, any> = { updatedAt: new Date() };
+      if (body.isPrivate !== undefined) updateData.isPrivate = body.isPrivate;
+      if (body.visibilityDiary !== undefined) updateData.visibilityDiary = body.visibilityDiary;
+      if (body.visibilityWatchlist !== undefined) updateData.visibilityWatchlist = body.visibilityWatchlist;
+      if (body.visibilityActivity !== undefined) updateData.visibilityActivity = body.visibilityActivity;
+      if (body.visibilityReviews !== undefined) updateData.visibilityReviews = body.visibilityReviews;
+      if (body.visibilityLists !== undefined) updateData.visibilityLists = body.visibilityLists;
+      if (body.visibilityLikes !== undefined) updateData.visibilityLikes = body.visibilityLikes;
+
+      const [updated] = await db
+        .insert(userSettings)
+        .values({ userId: user.id, ...updateData })
+        .onConflictDoUpdate({
+          target: userSettings.userId,
+          set: updateData,
+        })
+        .returning({
+          isPrivate: userSettings.isPrivate,
+          visibilityDiary: userSettings.visibilityDiary,
+          visibilityWatchlist: userSettings.visibilityWatchlist,
+          visibilityActivity: userSettings.visibilityActivity,
+          visibilityReviews: userSettings.visibilityReviews,
+          visibilityLists: userSettings.visibilityLists,
+          visibilityLikes: userSettings.visibilityLikes,
+        });
+
+      // When switching to public: auto-accept all pending follow requests
+      if (body.isPrivate === false) {
+        await db
+          .update(follows)
+          .set({ status: "accepted" })
+          .where(and(eq(follows.followingId, user.id), eq(follows.status, "pending")));
+        invalidate(`user:stats:${user.id}`).catch(() => null);
+      }
+
+      return { data: updated };
+    },
+    {
+      requireAuth: true,
+      body: t.Object({
+        isPrivate: t.Optional(t.Boolean()),
+        visibilityDiary: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
+        visibilityWatchlist: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
+        visibilityActivity: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
+        visibilityReviews: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
+        visibilityLists: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
+        visibilityLikes: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
+      }),
+    },
+  )
+
+  // ── Follow Requests ──────────────────────────────────────────────────────
+
+  // List incoming pending follow requests
+  .get(
+    "/me/follow-requests",
+    async (ctx: any) => {
+      const { user } = ctx;
+
+      const requests = await db
+        .select({
+          id: userTable.id,
+          username: userTable.username,
+          displayName: userTable.displayName,
+          avatarUrl: userTable.avatarUrl,
+          requestedAt: follows.createdAt,
+        })
+        .from(follows)
+        .innerJoin(userTable, eq(follows.followerId, userTable.id))
+        .where(and(eq(follows.followingId, user.id), eq(follows.status, "pending")))
+        .orderBy(desc(follows.createdAt));
+
+      return {
+        data: requests.map((r) => ({
+          ...r,
+          avatarUrl: resolveImageUrl(r.avatarUrl),
+        })),
+      };
+    },
+    { requireAuth: true },
+  )
+
+  // Accept a follow request
+  .post(
+    "/me/follow-requests/:requesterId/accept",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const updated = await db
+        .update(follows)
+        .set({ status: "accepted" })
+        .where(
+          and(
+            eq(follows.followerId, params.requesterId),
+            eq(follows.followingId, user.id),
+            eq(follows.status, "pending"),
+          ),
+        )
+        .returning();
+
+      if (updated.length === 0) {
+        set.status = 404;
+        return { error: "Follow request not found" };
+      }
+
+      invalidate(`user:stats:${user.id}`, `user:stats:${params.requesterId}`).catch(() => null);
+      return { message: "Follow request accepted" };
+    },
+    { requireAuth: true, params: t.Object({ requesterId: t.String() }) },
+  )
+
+  // Reject a follow request
+  .post(
+    "/me/follow-requests/:requesterId/reject",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const deleted = await db
+        .delete(follows)
+        .where(
+          and(
+            eq(follows.followerId, params.requesterId),
+            eq(follows.followingId, user.id),
+            eq(follows.status, "pending"),
+          ),
+        )
+        .returning();
+
+      if (deleted.length === 0) {
+        set.status = 404;
+        return { error: "Follow request not found" };
+      }
+
+      return { message: "Follow request rejected" };
+    },
+    { requireAuth: true, params: t.Object({ requesterId: t.String() }) },
   );

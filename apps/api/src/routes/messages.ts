@@ -121,36 +121,36 @@ async function canSendDm(
   if (policy === "nobody") return false;
 
   if (policy === "followers") {
-    // target must follow sender
+    // target must follow sender (accepted follows only)
     const [row] = await db
       .select({ followerId: follows.followerId })
       .from(follows)
       .where(
-        and(eq(follows.followerId, targetUserId), eq(follows.followingId, senderId))
+        and(eq(follows.followerId, targetUserId), eq(follows.followingId, senderId), eq(follows.status, "accepted"))
       );
     return !!row;
   }
 
   if (policy === "following") {
-    // sender must follow target
+    // sender must follow target (accepted follows only)
     const [row] = await db
       .select({ followerId: follows.followerId })
       .from(follows)
       .where(
-        and(eq(follows.followerId, senderId), eq(follows.followingId, targetUserId))
+        and(eq(follows.followerId, senderId), eq(follows.followingId, targetUserId), eq(follows.status, "accepted"))
       );
     return !!row;
   }
 
   if (policy === "mutual") {
-    // both must follow each other
+    // both must follow each other (accepted follows only)
     const rows = await db
       .select({ followerId: follows.followerId })
       .from(follows)
       .where(
         or(
-          and(eq(follows.followerId, senderId), eq(follows.followingId, targetUserId)),
-          and(eq(follows.followerId, targetUserId), eq(follows.followingId, senderId))
+          and(eq(follows.followerId, senderId), eq(follows.followingId, targetUserId), eq(follows.status, "accepted")),
+          and(eq(follows.followerId, targetUserId), eq(follows.followingId, senderId), eq(follows.status, "accepted"))
         )
       );
     return rows.length === 2;

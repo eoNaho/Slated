@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db, likes, activities, media, eq, and, inArray, desc } from "../db";
-import { betterAuthPlugin } from "../lib/auth";
+import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { canViewSection } from "../lib/privacy";
 
 export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -86,7 +87,16 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
   .get(
     "/media/user/:userId",
     async (ctx: any) => {
-      const { params, query } = ctx;
+      const { params, query, request, set } = ctx;
+      const session = await getOptionalSession(request.headers);
+      const viewerId = session?.user?.id ?? null;
+
+      const allowed = await canViewSection(viewerId, params.userId, "likes");
+      if (!allowed) {
+        set.status = 403;
+        return { error: "This content is private" };
+      }
+
       const limit = Math.min(Number(query.limit ?? 24), 100);
       const offset = Number(query.offset ?? 0);
 

@@ -42,6 +42,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { identityApi } from "@/lib/api";
+import type { PrivacySettings, VisibilityLevel } from "@/lib/api";
 import type { ProfileFrame, ProfileTitle, UserIdentity } from "@/types";
 import { useSession, authClient } from "@/lib/auth-client";
 import { resolveImage } from "@/lib/utils";
@@ -251,6 +252,56 @@ function SectionHeader({
   );
 }
 
+// ── VisibilitySelect ──────────────────────────────────────────────────────────
+
+function VisibilitySelect({
+  icon: Icon,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  description: string;
+  value: VisibilityLevel;
+  onChange: (v: VisibilityLevel) => void;
+}) {
+  const options: { value: VisibilityLevel; label: string }[] = [
+    { value: "public", label: "Public" },
+    { value: "followers", label: "Followers" },
+    { value: "private", label: "Private" },
+  ];
+
+  return (
+    <div className="flex items-center justify-between py-4 border-b border-zinc-800/40 last:border-0">
+      <div className="flex items-start gap-3">
+        <Icon className="h-4 w-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-zinc-200">{label}</p>
+          <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
+        </div>
+      </div>
+      <div className="flex gap-1 ml-4 flex-shrink-0">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+              value === opt.value
+                ? "bg-purple-600 text-white"
+                : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
@@ -396,8 +447,14 @@ export function SettingsClient() {
 
   // ── Privacy state
   const [privateAccount, setPrivateAccount] = useState(false);
-  const [publicWatchlist, setPublicWatchlist] = useState(true);
-  const [publicDiary, setPublicDiary] = useState(true);
+  const [visibilityDiary, setVisibilityDiary] = useState<VisibilityLevel>("public");
+  const [visibilityWatchlist, setVisibilityWatchlist] = useState<VisibilityLevel>("public");
+  const [visibilityActivity, setVisibilityActivity] = useState<VisibilityLevel>("public");
+  const [visibilityReviews, setVisibilityReviews] = useState<VisibilityLevel>("public");
+  const [visibilityLists, setVisibilityLists] = useState<VisibilityLevel>("public");
+  const [visibilityLikes, setVisibilityLikes] = useState<VisibilityLevel>("public");
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [privacySaved, setPrivacySaved] = useState(false);
 
   // ── Notifications state
   const [notifFollowers, setNotifFollowers] = useState(true);
@@ -455,6 +512,21 @@ export function SettingsClient() {
       setIdentityLoading(true);
     }
   }, [identityQueryData, identityQueryLoading, section]);
+
+  // Load privacy settings when entering privacy section
+  useEffect(() => {
+    if (section !== "privacy") return;
+    api.users.getPrivacy().then((res) => {
+      const p = res.data;
+      setPrivateAccount(p.isPrivate);
+      setVisibilityDiary(p.visibilityDiary);
+      setVisibilityWatchlist(p.visibilityWatchlist);
+      setVisibilityActivity(p.visibilityActivity);
+      setVisibilityReviews(p.visibilityReviews);
+      setVisibilityLists(p.visibilityLists);
+      setVisibilityLikes(p.visibilityLikes);
+    }).catch(() => null);
+  }, [section]);
 
   // Load full user profile (social links, cover, bioExtended)
   const { data: profileData } = useUserProfile(!!session?.user);
@@ -699,9 +771,27 @@ export function SettingsClient() {
     }
   };
 
-  const handlePrivacySave = (e: React.FormEvent) => {
+  const handlePrivacySave = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Privacy settings saved");
+    setPrivacyLoading(true);
+    try {
+      await api.users.updatePrivacy({
+        isPrivate: privateAccount,
+        visibilityDiary,
+        visibilityWatchlist,
+        visibilityActivity,
+        visibilityReviews,
+        visibilityLists,
+        visibilityLikes,
+      });
+      setPrivacySaved(true);
+      toast.success("Privacy settings saved");
+      setTimeout(() => setPrivacySaved(false), 2500);
+    } catch {
+      toast.error("Failed to save privacy settings");
+    } finally {
+      setPrivacyLoading(false);
+    }
   };
 
   const handleNotificationsSave = (e: React.FormEvent) => {
@@ -1526,19 +1616,56 @@ export function SettingsClient() {
                       checked={privateAccount}
                       onChange={setPrivateAccount}
                     />
-                    <ToggleRow
-                      icon={Clock}
-                      label="Show watchlist publicly"
-                      description="Anyone can see what's on your watchlist."
-                      checked={publicWatchlist}
-                      onChange={setPublicWatchlist}
-                    />
-                    <ToggleRow
+                  </div>
+                </div>
+
+                <div
+                  className="rounded-2xl border border-zinc-800/60 overflow-hidden"
+                  style={{ background: "rgba(24,24,27,0.5)" }}
+                >
+                  <div className="px-5 pt-1">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest pt-4 pb-2">Section Visibility</p>
+                    <VisibilitySelect
                       icon={BookOpen}
-                      label="Show diary publicly"
-                      description="Others can browse your film diary."
-                      checked={publicDiary}
-                      onChange={setPublicDiary}
+                      label="Diary"
+                      description="Your film diary and watch history."
+                      value={visibilityDiary}
+                      onChange={setVisibilityDiary}
+                    />
+                    <VisibilitySelect
+                      icon={Clock}
+                      label="Watchlist"
+                      description="Films and series you plan to watch."
+                      value={visibilityWatchlist}
+                      onChange={setVisibilityWatchlist}
+                    />
+                    <VisibilitySelect
+                      icon={Eye}
+                      label="Activity"
+                      description="Your recent activity feed."
+                      value={visibilityActivity}
+                      onChange={setVisibilityActivity}
+                    />
+                    <VisibilitySelect
+                      icon={MessageSquare}
+                      label="Reviews"
+                      description="Your written reviews and ratings."
+                      value={visibilityReviews}
+                      onChange={setVisibilityReviews}
+                    />
+                    <VisibilitySelect
+                      icon={Film}
+                      label="Lists"
+                      description="Your curated film lists."
+                      value={visibilityLists}
+                      onChange={setVisibilityLists}
+                    />
+                    <VisibilitySelect
+                      icon={Heart}
+                      label="Likes"
+                      description="Films and content you've liked."
+                      value={visibilityLikes}
+                      onChange={setVisibilityLikes}
                     />
                   </div>
                 </div>
@@ -1547,7 +1674,7 @@ export function SettingsClient() {
                 <CloseFriendsSection />
 
                 <div className="flex justify-end pt-2">
-                  <SaveButton loading={false} saved={false} />
+                  <SaveButton loading={privacyLoading} saved={privacySaved} />
                 </div>
               </form>
             )}

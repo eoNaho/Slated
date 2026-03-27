@@ -14,6 +14,7 @@ import {
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
+import { canViewSection } from "../lib/privacy";
 
 export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -136,7 +137,17 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
   // Get user-specific feed
   .get(
     "/user/:userId",
-    async ({ params, query }) => {
+    async (ctx: any) => {
+      const { params, query, request, set } = ctx;
+      const session = await getOptionalSession(request.headers);
+      const viewerId = session?.user?.id ?? null;
+
+      const allowed = await canViewSection(viewerId, params.userId, "activity");
+      if (!allowed) {
+        set.status = 403;
+        return { error: "This content is private" };
+      }
+
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;

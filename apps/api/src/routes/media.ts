@@ -676,9 +676,9 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { data: { liked: false, watched: false, inWatchlist: false, rating: null, review: null } };
       }
 
-      const { likes, diary, watchlist, reviews, mediaCustomCovers } = await import("../db");
+      const { likes, diary, watchlist, reviews, mediaCustomCovers, bookmarks } = await import("../db");
 
-      const [likeRecord, watchRecord, watchlistRecord, reviewRecord, coverRecord] = await Promise.all([
+      const [likeRecord, watchRecord, watchlistRecord, reviewRecord, coverRecord, bookmarkRecord] = await Promise.all([
         db.select({ id: likes.id }).from(likes).where(
           and(eq(likes.userId, user.id), eq(likes.targetType, "media"), eq(likes.targetId, params.id))
         ).limit(1).then(r => r[0]),
@@ -694,6 +694,9 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         db.select({ imagePath: mediaCustomCovers.imagePath }).from(mediaCustomCovers).where(
           and(eq(mediaCustomCovers.userId, user.id), eq(mediaCustomCovers.mediaId, params.id))
         ).limit(1).then(r => r[0]),
+        db.select({ id: bookmarks.id }).from(bookmarks).where(
+          and(eq(bookmarks.userId, user.id), eq(bookmarks.targetType, "media"), eq(bookmarks.targetId, params.id))
+        ).limit(1).then(r => r[0]),
       ]);
 
       return {
@@ -707,6 +710,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
           diaryId: watchRecord?.id ?? null,
           diaryWatchedAt: watchRecord?.watchedAt ?? null,
           diaryIsRewatch: watchRecord?.isRewatch ?? null,
+          bookmarked: !!bookmarkRecord,
         },
       };
     },

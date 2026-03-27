@@ -42,12 +42,14 @@ export const follows = pgTable(
     followingId: uuid("following_id")
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
+    status: text("status").notNull().default("accepted"), // 'accepted' | 'pending'
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [
     primaryKey({ columns: [table.followerId, table.followingId] }),
     index("idx_follows_follower").on(table.followerId),
     index("idx_follows_following").on(table.followingId),
+    index("idx_follows_status").on(table.followingId, table.status),
     check("no_self_follow", sql`${table.followerId} != ${table.followingId}`),
   ]
 );

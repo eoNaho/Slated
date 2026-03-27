@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Heart, Share2, Eye } from "lucide-react";
+import { BookOpen, Plus, Heart, Share2, Eye, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogModal } from "@/components/media";
 import { toast } from "sonner";
@@ -30,13 +30,19 @@ export function SeriesActions({ series }: SeriesActionsProps) {
   const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
   const [optimisticWatchlist, setOptimisticWatchlist] = useState<boolean | null>(null);
   const [optimisticWatched, setOptimisticWatched] = useState<boolean | null>(null);
+  const [optimisticBookmarked, setOptimisticBookmarked] = useState<boolean | null>(null);
+  // Optimistic diaryId: set locally after toggleWatched so the LogModal can update instead of create
+  const [optimisticDiaryId, setOptimisticDiaryId] = useState<string | null | undefined>(undefined);
+  const [isTogglingWatched, setIsTogglingWatched] = useState(false);
 
   const liked = optimisticLiked ?? mediaState?.liked ?? false;
   const inWatchlist = optimisticWatchlist ?? mediaState?.inWatchlist ?? false;
   const watched = optimisticWatched ?? mediaState?.watched ?? false;
+  const bookmarked = optimisticBookmarked ?? mediaState?.bookmarked ?? false;
   const rating = mediaState?.rating ?? null;
   const review = mediaState?.review ?? null;
-  const diaryId = mediaState?.diaryId ?? null;
+  // Use optimistic diaryId if set, otherwise fall back to server state
+  const diaryId = optimisticDiaryId !== undefined ? optimisticDiaryId : (mediaState?.diaryId ?? null);
   const diaryWatchedAt = mediaState?.diaryWatchedAt ?? null;
   const diaryIsRewatch = mediaState?.diaryIsRewatch ?? false;
 
@@ -72,19 +78,20 @@ export function SeriesActions({ series }: SeriesActionsProps) {
   };
 
   const toggleWatched = async () => {
-    if (watched) {
-      toast.info("Already marked as watched. Edit from your diary if needed.");
-      return;
-    }
+    if (watched || isTogglingWatched) return;
+    setIsTogglingWatched(true);
     setOptimisticWatched(true);
     try {
-      await api.diary.add(series.id, { isRewatch: false });
+      const res = await api.diary.add(series.id, { isRewatch: false });
+      // Set diaryId optimistically so the LogModal uses update instead of create
+      setOptimisticDiaryId((res as any)?.data?.id ?? null);
       toast.success("Marked as watched!");
-      setOptimisticWatched(null);
       invalidateState();
     } catch {
       setOptimisticWatched(null);
       toast.error("Failed to mark as watched");
+    } finally {
+      setIsTogglingWatched(false);
     }
   };
 
@@ -92,16 +99,27 @@ export function SeriesActions({ series }: SeriesActionsProps) {
     ? new Date(series.releaseDate).getFullYear()
     : undefined;
 
+  const toggleBookmark = async () => {
+    const prev = bookmarked;
+    setOptimisticBookmarked(!prev);
+    try {
+      if (prev) await api.bookmarks.unbookmark("media", series.id);
+      else await api.bookmarks.bookmark("media", series.id);
+      setOptimisticBookmarked(null);
+      invalidateState();
+    } catch {
+      setOptimisticBookmarked(prev);
+      toast.error("Failed to update bookmark");
+    }
+  };
+
   const handleShare = async () => {
     const url = window.location.href;
     const title = `${series.title} - PixelReel`;
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title,
-          url,
-        });
+        await navigator.share({ title, url });
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           console.error("Error sharing:", err);
@@ -133,6 +151,7 @@ export function SeriesActions({ series }: SeriesActionsProps) {
         <Button
           variant="outline"
           onClick={toggleWatched}
+          disabled={isTogglingWatched}
           className={`w-full border-white/20 hover:bg-white/5 justify-start ${
             watched
               ? "bg-green-500/10 border-green-500/30 text-green-400"
@@ -169,6 +188,17 @@ export function SeriesActions({ series }: SeriesActionsProps) {
         >
           <Heart className={`h-4 w-4 mr-2 ${liked ? "fill-red-400" : ""}`} />
           Like
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={toggleBookmark}
+          className={`flex-1 hover:bg-white/5 ${
+            bookmarked ? "text-yellow-400" : "text-zinc-400"
+          }`}
+          title={bookmarked ? "Remove from saved" : "Save"}
+        >
+          <Bookmark className={`h-4 w-4 mr-2 ${bookmarked ? "fill-yellow-400" : ""}`} />
+          Save
         </Button>
         <Button
           variant="ghost"
@@ -222,17 +252,21 @@ export function SeriesActions({ series }: SeriesActionsProps) {
                 reviewTitle: data.reviewTitle,
               });
             }
-            toast.success("Logged successfully!");
+
+            // Sync liked state if it changed in the modal
             if (data.liked !== liked) {
               if (data.liked) await api.likes.like("media", series.id);
               else await api.likes.unlike("media", series.id);
             }
+
             setOptimisticWatched(true);
+            setOptimisticDiaryId(undefined); // let server state take over
             invalidateState();
+            toast.success("Saved successfully!");
             router.refresh();
           } catch (err) {
             console.error("Failed to log:", err);
-            toast.error("Failed to log media");
+            toast.error("Failed to save");
           }
         }}
         initialData={{

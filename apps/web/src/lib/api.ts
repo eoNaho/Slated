@@ -32,6 +32,18 @@ import type {
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
+export type VisibilityLevel = "public" | "followers" | "private";
+
+export interface PrivacySettings {
+  isPrivate: boolean;
+  visibilityDiary: VisibilityLevel;
+  visibilityWatchlist: VisibilityLevel;
+  visibilityActivity: VisibilityLevel;
+  visibilityReviews: VisibilityLevel;
+  visibilityLists: VisibilityLevel;
+  visibilityLikes: VisibilityLevel;
+}
+
 class ApiError extends Error {
   constructor(
     message: string,
@@ -112,11 +124,6 @@ export const usersApi = {
       body: JSON.stringify(data),
     }),
 
-  follow: (userId: string) =>
-    fetcher<{ message: string }>(`/users/${userId}/follow`, {
-      method: "POST",
-    }),
-
   unfollow: (userId: string) =>
     fetcher<{ message: string }>(`/users/${userId}/follow`, {
       method: "DELETE",
@@ -136,6 +143,35 @@ export const usersApi = {
     fetcher<{ data: Pick<User, "id" | "username" | "displayName" | "avatarUrl">[] }>(
       `/users/search?q=${encodeURIComponent(q)}`
     ),
+
+  follow: (userId: string) =>
+    fetcher<{ message: string; status: "accepted" | "pending" }>(`/users/${userId}/follow`, {
+      method: "POST",
+    }),
+
+  getPrivacy: () =>
+    fetcher<{ data: PrivacySettings }>("/users/me/privacy"),
+
+  updatePrivacy: (data: Partial<PrivacySettings>) =>
+    fetcher<{ data: PrivacySettings }>("/users/me/privacy", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  getFollowRequests: () =>
+    fetcher<{ data: Array<{ id: string; username: string; displayName: string | null; avatarUrl: string | null; requestedAt: string | null }> }>(
+      "/users/me/follow-requests"
+    ),
+
+  acceptFollowRequest: (requesterId: string) =>
+    fetcher<{ message: string }>(`/users/me/follow-requests/${requesterId}/accept`, {
+      method: "POST",
+    }),
+
+  rejectFollowRequest: (requesterId: string) =>
+    fetcher<{ message: string }>(`/users/me/follow-requests/${requesterId}/reject`, {
+      method: "POST",
+    }),
 };
 
 // ==================== MEDIA ====================
@@ -245,7 +281,7 @@ export const mediaApi = {
     fetcher<{ data: MediaDetails }>(`/media/slug/${slug}`),
 
   getState: (id: string) =>
-    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null; customCoverUrl: string | null; diaryId: string | null; diaryWatchedAt: string | null; diaryIsRewatch: boolean | null } }>(
+    fetcher<{ data: { liked: boolean; watched: boolean; inWatchlist: boolean; rating: number | null; review: string | null; customCoverUrl: string | null; diaryId: string | null; diaryWatchedAt: string | null; diaryIsRewatch: boolean | null; bookmarked: boolean } }>(
       `/media/${id}/state`
     ),
 
