@@ -19,6 +19,8 @@ import {
   UserX,
   ChevronUp,
   ChevronDown,
+  Tag,
+  Plus,
 } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "@/lib/auth-client";
@@ -94,6 +96,13 @@ export function ClubSettingsClient({ slug }: { slug: string }) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Flairs state
+  const [flairs, setFlairs] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [flairsLoaded, setFlairsLoaded] = useState(false);
+  const [newFlairName, setNewFlairName] = useState("");
+  const [newFlairColor, setNewFlairColor] = useState("#7c3aed");
+  const [flairSaving, setFlairSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -228,6 +237,47 @@ export function ClubSettingsClient({ slug }: { slug: string }) {
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Error deleting");
       setDeleting(false);
+    }
+  }
+
+  // ── Flair handlers ───────────────────────────────────────────────────────────
+
+  async function loadFlairs() {
+    if (!club || flairsLoaded) return;
+    try {
+      const data = await apiFetch(`/clubs/${club.id}/flairs`);
+      setFlairs(data.data ?? []);
+    } catch { /* ignore */ }
+    setFlairsLoaded(true);
+  }
+
+  async function handleAddFlair(e: React.FormEvent) {
+    e.preventDefault();
+    if (!club || !newFlairName.trim()) return;
+    setFlairSaving(true);
+    try {
+      const data = await apiFetch(`/clubs/${club.id}/flairs`, {
+        method: "POST",
+        body: JSON.stringify({ name: newFlairName.trim(), color: newFlairColor }),
+      });
+      setFlairs((prev) => [...prev, data.data]);
+      setNewFlairName("");
+      toast.success("Flair created!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Error creating flair");
+    } finally {
+      setFlairSaving(false);
+    }
+  }
+
+  async function handleDeleteFlair(flairId: string) {
+    if (!club) return;
+    try {
+      await apiFetch(`/clubs/${club.id}/flairs/${flairId}`, { method: "DELETE" });
+      setFlairs((prev) => prev.filter((f) => f.id !== flairId));
+      toast.success("Flair deleted.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Error deleting flair");
     }
   }
 
@@ -507,6 +557,73 @@ export function ClubSettingsClient({ slug }: { slug: string }) {
             </button>
           </div>
         </form>
+
+        {/* ── Post Flairs ────────────────────────────────────────────────────── */}
+        <div className={cardCls + " p-8 space-y-6"} onClick={flairsLoaded ? undefined : loadFlairs}>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
+            <Tag className="h-4 w-4" /> Post Flairs
+          </h2>
+
+          {!flairsLoaded ? (
+            <button
+              type="button"
+              onClick={loadFlairs}
+              className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              Load flairs
+            </button>
+          ) : (
+            <div className="space-y-4">
+              {flairs.length === 0 ? (
+                <p className="text-xs text-zinc-600">No flairs yet. Create one below.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {flairs.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-semibold"
+                      style={{ backgroundColor: f.color + "22", color: f.color, border: `1px solid ${f.color}44` }}
+                    >
+                      {f.name}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFlair(f.id)}
+                        className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleAddFlair} className="flex items-center gap-3">
+                <input
+                  value={newFlairName}
+                  onChange={(e) => setNewFlairName(e.target.value)}
+                  maxLength={50}
+                  placeholder="Flair name"
+                  className="flex-1 bg-zinc-950/50 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500/30 transition-all font-medium"
+                />
+                <input
+                  type="color"
+                  value={newFlairColor}
+                  onChange={(e) => setNewFlairColor(e.target.value)}
+                  className="w-10 h-10 rounded-xl border border-white/10 cursor-pointer bg-transparent"
+                  title="Pick color"
+                />
+                <button
+                  type="submit"
+                  disabled={flairSaving || !newFlairName.trim()}
+                  className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                >
+                  {flairSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  Add
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
 
         {/* ── Danger Zone ────────────────────────────────────────────────────── */}
         {isOwner && (

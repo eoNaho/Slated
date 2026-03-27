@@ -275,6 +275,11 @@ export const clubPosts = pgTable(
     content: text("content").notNull(),
     isPinned: boolean("is_pinned").default(false).notNull(),
     commentsCount: integer("comments_count").default(0).notNull(),
+    score: integer("score").default(0).notNull(),
+    upvoteCount: integer("upvote_count").default(0).notNull(),
+    downvoteCount: integer("downvote_count").default(0).notNull(),
+    flair: text("flair"),
+    flairColor: text("flair_color"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
@@ -295,10 +300,18 @@ export const clubPostComments = pgTable(
     userId: uuid("user_id")
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
+    parentId: uuid("parent_id"),
     content: text("content").notNull(),
+    score: integer("score").default(0).notNull(),
+    upvoteCount: integer("upvote_count").default(0).notNull(),
+    downvoteCount: integer("downvote_count").default(0).notNull(),
+    depth: integer("depth").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => [index("idx_post_comments_post").on(table.postId)],
+  (table) => [
+    index("idx_post_comments_post").on(table.postId),
+    index("idx_post_comments_parent").on(table.parentId),
+  ],
 );
 
 // ─── Club polls ───────────────────────────────────────────────────────────────
@@ -357,5 +370,66 @@ export const clubPollVotes = pgTable(
   (table) => [
     unique("unique_poll_vote").on(table.pollId, table.userId),
     index("idx_poll_votes_poll").on(table.pollId),
+  ],
+);
+
+// ─── Club post votes (upvote/downvote on posts) ───────────────────────────────
+
+export const clubPostVotes = pgTable(
+  "club_post_votes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .references(() => clubPosts.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    value: integer("value").notNull(), // 1 = upvote, -1 = downvote
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    unique("unique_post_vote").on(table.postId, table.userId),
+    index("idx_post_votes_post").on(table.postId),
+  ],
+);
+
+// ─── Club comment votes (upvote/downvote on comments) ────────────────────────
+
+export const clubCommentVotes = pgTable(
+  "club_comment_votes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    commentId: uuid("comment_id")
+      .references(() => clubPostComments.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    value: integer("value").notNull(), // 1 = upvote, -1 = downvote
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    unique("unique_comment_vote").on(table.commentId, table.userId),
+    index("idx_comment_votes_comment").on(table.commentId),
+  ],
+);
+
+// ─── Club flairs ──────────────────────────────────────────────────────────────
+
+export const clubFlairs = pgTable(
+  "club_flairs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clubId: uuid("club_id")
+      .references(() => clubs.id, { onDelete: "cascade" })
+      .notNull(),
+    name: text("name").notNull(),
+    color: text("color").notNull(), // hex color, e.g. "#ef4444"
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    unique("unique_club_flair").on(table.clubId, table.name),
+    index("idx_club_flairs_club").on(table.clubId),
   ],
 );

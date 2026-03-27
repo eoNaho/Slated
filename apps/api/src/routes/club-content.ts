@@ -12,11 +12,15 @@ import {
   clubPolls,
   clubPollOptions,
   clubPollVotes,
+  clubPostVotes,
+  clubCommentVotes,
+  clubFlairs,
   eq,
   and,
   desc,
   asc,
   count,
+  inArray,
   or,
   sql,
 } from "../db";
@@ -556,9 +560,37 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       const limit = Math.min(Number(query?.limit) || 20, 50);
       const offset = (page - 1) * limit;
       const pinned = query?.pinned === "true";
+      const sort = query?.sort ?? "hot"; // hot | new | top
+      const timeframe = query?.timeframe ?? "week"; // day | week | month | year | all
 
       const conditions: any[] = [eq(clubPosts.clubId, params.id)];
       if (pinned) conditions.push(eq(clubPosts.isPinned, true));
+
+      // Timeframe filter (only for sort=top)
+      if (sort === "top" && timeframe !== "all") {
+        const intervals: Record<string, string> = {
+          day: "1 day",
+          week: "7 days",
+          month: "30 days",
+          year: "365 days",
+        };
+        const interval = intervals[timeframe] ?? "7 days";
+        conditions.push(sql`${clubPosts.createdAt} >= NOW() - INTERVAL ${sql.raw(`'${interval}'`)}`);
+      }
+
+      // Order by sort mode
+      let orderClause: any[];
+      if (sort === "new") {
+        orderClause = [desc(clubPosts.isPinned), desc(clubPosts.createdAt)];
+      } else if (sort === "top") {
+        orderClause = [desc(clubPosts.isPinned), desc(clubPosts.score), desc(clubPosts.createdAt)];
+      } else {
+        // hot: Wilson-like score decay  — score / (hours + 2)^1.5
+        orderClause = [
+          desc(clubPosts.isPinned),
+          sql`(${clubPosts.score}::float / POWER(EXTRACT(EPOCH FROM (NOW() - ${clubPosts.createdAt})) / 3600 + 2, 1.5)) DESC`,
+        ];
+      }
 
       const posts = await db
         .select({
@@ -573,8 +605,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         .from(clubPosts)
         .innerJoin(userTable, eq(clubPosts.userId, userTable.id))
         .where(and(...conditions))
-        // Pinned posts first, then by date
-        .orderBy(desc(clubPosts.isPinned), desc(clubPosts.createdAt))
+        .orderBy(...orderClause)
         .limit(limit)
         .offset(offset);
 
@@ -583,8 +614,20 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         .from(clubPosts)
         .where(and(...conditions));
 
+      // Attach myVote if logged in
+      const authUser = ctx.user;
+      let voteMap: Record<string, number> = {};
+      if (authUser && posts.length > 0) {
+        const postIds = posts.map((p) => p.post.id);
+        const myVotes = await db
+          .select({ postId: clubPostVotes.postId, value: clubPostVotes.value })
+          .from(clubPostVotes)
+          .where(and(inArray(clubPostVotes.postId, postIds), eq(clubPostVotes.userId, authUser.id)));
+        voteMap = Object.fromEntries(myVotes.map((v) => [v.postId, v.value]));
+      }
+
       return {
-        data: posts.map((p) => ({ ...p.post, author: p.author })),
+        data: posts.map((p) => ({ ...p.post, author: p.author, myVote: voteMap[p.post.id] ?? null })),
         total,
         page,
         limit,
@@ -597,6 +640,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         pinned: t.Optional(t.String()),
+        sort: t.Optional(t.String()),
+        timeframe: t.Optional(t.String()),
       }),
     }
   )
@@ -625,6 +670,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
           title: body.title,
           content: body.content,
           isPinned: body.isPinned ?? false,
+          flair: body.flair ?? null,
+          flairColor: body.flairColor ?? null,
         })
         .returning();
 
@@ -639,6 +686,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         mediaId: t.Optional(t.String()),
         mediaTitle: t.Optional(t.String()),
         isPinned: t.Optional(t.Boolean()),
+        flair: t.Optional(t.String({ maxLength: 50 })),
+        flairColor: t.Optional(t.String({ maxLength: 20 })),
       }),
     }
   )
@@ -671,6 +720,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       const updates: any = { updatedAt: new Date() };
       if (body.title !== undefined) updates.title = body.title;
       if (body.content !== undefined) updates.content = body.content;
+      if (body.flair !== undefined) updates.flair = body.flair;
+      if (body.flairColor !== undefined) updates.flairColor = body.flairColor;
 
       const [updated] = await db
         .update(clubPosts)
@@ -686,6 +737,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       body: t.Object({
         title: t.Optional(t.String({ minLength: 3, maxLength: 150 })),
         content: t.Optional(t.String({ minLength: 1, maxLength: 5000 })),
+        flair: t.Optional(t.Nullable(t.String({ maxLength: 50 }))),
+        flairColor: t.Optional(t.Nullable(t.String({ maxLength: 20 }))),
       }),
     }
   )
@@ -756,12 +809,77 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     }
   )
 
+  // ─── Post votes ────────────────────────────────────────────────────────────
+
+  .post(
+    "/:id/posts/:postId/vote",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const m = await requireMember(params.id, user.id, set);
+      if (!m) return { error: "You must be a member to vote" };
+
+      const [post] = await db
+        .select({ id: clubPosts.id, upvoteCount: clubPosts.upvoteCount, downvoteCount: clubPosts.downvoteCount, score: clubPosts.score })
+        .from(clubPosts)
+        .where(and(eq(clubPosts.id, params.postId), eq(clubPosts.clubId, params.id)))
+        .limit(1);
+
+      if (!post) {
+        set.status = 404;
+        return { error: "Post not found" };
+      }
+
+      const [existing] = await db
+        .select()
+        .from(clubPostVotes)
+        .where(and(eq(clubPostVotes.postId, params.postId), eq(clubPostVotes.userId, user.id)))
+        .limit(1);
+
+      const newValue: number = body.value;
+      let upDelta = 0;
+      let downDelta = 0;
+
+      if (existing) {
+        if (existing.value === newValue) {
+          // Same vote — remove it (toggle off)
+          await db.delete(clubPostVotes).where(eq(clubPostVotes.id, existing.id));
+          upDelta = newValue === 1 ? -1 : 0;
+          downDelta = newValue === -1 ? -1 : 0;
+        } else {
+          // Changed vote
+          await db.update(clubPostVotes).set({ value: newValue }).where(eq(clubPostVotes.id, existing.id));
+          upDelta = newValue === 1 ? 1 : -1;
+          downDelta = newValue === -1 ? 1 : -1;
+        }
+      } else {
+        await db.insert(clubPostVotes).values({ postId: params.postId, userId: user.id, value: newValue });
+        upDelta = newValue === 1 ? 1 : 0;
+        downDelta = newValue === -1 ? 1 : 0;
+      }
+
+      const newUp = Math.max(0, post.upvoteCount + upDelta);
+      const newDown = Math.max(0, post.downvoteCount + downDelta);
+      await db
+        .update(clubPosts)
+        .set({ upvoteCount: newUp, downvoteCount: newDown, score: newUp - newDown })
+        .where(eq(clubPosts.id, params.postId));
+
+      return { success: true, upvoteCount: newUp, downvoteCount: newDown, score: newUp - newDown };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String(), postId: t.String() }),
+      body: t.Object({ value: t.Union([t.Literal(1), t.Literal(-1)]) }),
+    }
+  )
+
   // ─── Post comments ─────────────────────────────────────────────────────────
 
   .get(
     "/:id/posts/:postId/comments",
     async (ctx: any) => {
-      const { params, query, set } = ctx;
+      const { params, set } = ctx;
 
       const [post] = await db
         .select({ id: clubPosts.id })
@@ -773,10 +891,6 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         set.status = 404;
         return { error: "Post not found" };
       }
-
-      const page = Math.max(1, Number(query?.page) || 1);
-      const limit = Math.min(Number(query?.limit) || 30, 100);
-      const offset = (page - 1) * limit;
 
       const comments = await db
         .select({
@@ -791,29 +905,26 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         .from(clubPostComments)
         .innerJoin(userTable, eq(clubPostComments.userId, userTable.id))
         .where(eq(clubPostComments.postId, params.postId))
-        .orderBy(asc(clubPostComments.createdAt))
-        .limit(limit)
-        .offset(offset);
+        .orderBy(asc(clubPostComments.createdAt));
 
-      const [{ total }] = await db
-        .select({ total: count() })
-        .from(clubPostComments)
-        .where(eq(clubPostComments.postId, params.postId));
+      // Attach myVote if logged in
+      const authUser = ctx.user;
+      let voteMap: Record<string, number> = {};
+      if (authUser && comments.length > 0) {
+        const commentIds = comments.map((c) => c.comment.id);
+        const myVotes = await db
+          .select({ commentId: clubCommentVotes.commentId, value: clubCommentVotes.value })
+          .from(clubCommentVotes)
+          .where(and(inArray(clubCommentVotes.commentId, commentIds), eq(clubCommentVotes.userId, authUser.id)));
+        voteMap = Object.fromEntries(myVotes.map((v) => [v.commentId, v.value]));
+      }
 
       return {
-        data: comments.map((c) => ({ ...c.comment, author: c.author })),
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        data: comments.map((c) => ({ ...c.comment, author: c.author, myVote: voteMap[c.comment.id] ?? null })),
       };
     },
     {
       params: t.Object({ id: t.String(), postId: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
     }
   )
 
@@ -836,9 +947,31 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
         return { error: "Post not found" };
       }
 
+      // Calculate depth from parent
+      let depth = 0;
+      if (body.parentId) {
+        const [parent] = await db
+          .select({ depth: clubPostComments.depth, postId: clubPostComments.postId })
+          .from(clubPostComments)
+          .where(eq(clubPostComments.id, body.parentId))
+          .limit(1);
+
+        if (!parent || parent.postId !== params.postId) {
+          set.status = 400;
+          return { error: "Invalid parentId" };
+        }
+        depth = Math.min((parent.depth ?? 0) + 1, 5);
+      }
+
       const [comment] = await db
         .insert(clubPostComments)
-        .values({ postId: params.postId, userId: user.id, content: body.content })
+        .values({
+          postId: params.postId,
+          userId: user.id,
+          content: body.content,
+          parentId: body.parentId ?? null,
+          depth,
+        })
         .returning();
 
       // Increment comment counter
@@ -852,7 +985,73 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     {
       requireAuth: true,
       params: t.Object({ id: t.String(), postId: t.String() }),
-      body: t.Object({ content: t.String({ minLength: 1, maxLength: 1000 }) }),
+      body: t.Object({
+        content: t.String({ minLength: 1, maxLength: 1000 }),
+        parentId: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ─── Comment votes ──────────────────────────────────────────────────────────
+
+  .post(
+    "/:id/posts/:postId/comments/:commentId/vote",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const m = await requireMember(params.id, user.id, set);
+      if (!m) return { error: "You must be a member to vote" };
+
+      const [comment] = await db
+        .select({ id: clubPostComments.id, upvoteCount: clubPostComments.upvoteCount, downvoteCount: clubPostComments.downvoteCount })
+        .from(clubPostComments)
+        .where(and(eq(clubPostComments.id, params.commentId), eq(clubPostComments.postId, params.postId)))
+        .limit(1);
+
+      if (!comment) {
+        set.status = 404;
+        return { error: "Comment not found" };
+      }
+
+      const [existing] = await db
+        .select()
+        .from(clubCommentVotes)
+        .where(and(eq(clubCommentVotes.commentId, params.commentId), eq(clubCommentVotes.userId, user.id)))
+        .limit(1);
+
+      const newValue: number = body.value;
+      let upDelta = 0;
+      let downDelta = 0;
+
+      if (existing) {
+        if (existing.value === newValue) {
+          await db.delete(clubCommentVotes).where(eq(clubCommentVotes.id, existing.id));
+          upDelta = newValue === 1 ? -1 : 0;
+          downDelta = newValue === -1 ? -1 : 0;
+        } else {
+          await db.update(clubCommentVotes).set({ value: newValue }).where(eq(clubCommentVotes.id, existing.id));
+          upDelta = newValue === 1 ? 1 : -1;
+          downDelta = newValue === -1 ? 1 : -1;
+        }
+      } else {
+        await db.insert(clubCommentVotes).values({ commentId: params.commentId, userId: user.id, value: newValue });
+        upDelta = newValue === 1 ? 1 : 0;
+        downDelta = newValue === -1 ? 1 : 0;
+      }
+
+      const newUp = Math.max(0, comment.upvoteCount + upDelta);
+      const newDown = Math.max(0, comment.downvoteCount + downDelta);
+      await db
+        .update(clubPostComments)
+        .set({ upvoteCount: newUp, downvoteCount: newDown, score: newUp - newDown })
+        .where(eq(clubPostComments.id, params.commentId));
+
+      return { success: true, upvoteCount: newUp, downvoteCount: newDown, score: newUp - newDown };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String(), postId: t.String(), commentId: t.String() }),
+      body: t.Object({ value: t.Union([t.Literal(1), t.Literal(-1)]) }),
     }
   )
 
@@ -890,6 +1089,79 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     {
       requireAuth: true,
       params: t.Object({ id: t.String(), postId: t.String(), commentId: t.String() }),
+    }
+  )
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  FLAIRS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  .get(
+    "/:id/flairs",
+    async (ctx: any) => {
+      const { params, set } = ctx;
+
+      const club = await getClubOrFail(params.id, set);
+      if (!club) return;
+
+      if (!club.isPublic) {
+        const m = await getMembership(params.id, ctx.user?.id);
+        if (!m) {
+          set.status = 403;
+          return { error: "This club is private" };
+        }
+      }
+
+      const flairs = await db
+        .select()
+        .from(clubFlairs)
+        .where(eq(clubFlairs.clubId, params.id))
+        .orderBy(asc(clubFlairs.name));
+
+      return { data: flairs };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  .post(
+    "/:id/flairs",
+    async (ctx: any) => {
+      const { user, params, body, set } = ctx;
+
+      const m = await requireModOrOwner(params.id, user.id, set);
+      if (!m) return { error: "Only moderators and owners can manage flairs" };
+
+      const [flair] = await db
+        .insert(clubFlairs)
+        .values({ clubId: params.id, name: body.name, color: body.color })
+        .returning();
+
+      return { data: flair };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name: t.String({ minLength: 1, maxLength: 50 }),
+        color: t.String({ minLength: 4, maxLength: 20 }),
+      }),
+    }
+  )
+
+  .delete(
+    "/:id/flairs/:flairId",
+    async (ctx: any) => {
+      const { user, params, set } = ctx;
+
+      const m = await requireModOrOwner(params.id, user.id, set);
+      if (!m) return { error: "Only moderators and owners can manage flairs" };
+
+      await db.delete(clubFlairs).where(and(eq(clubFlairs.id, params.flairId), eq(clubFlairs.clubId, params.id)));
+      return { success: true };
+    },
+    {
+      requireAuth: true,
+      params: t.Object({ id: t.String(), flairId: t.String() }),
     }
   )
 

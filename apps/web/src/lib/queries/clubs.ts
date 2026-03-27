@@ -42,6 +42,12 @@ export interface ClubPost {
   content: string;
   isPinned: boolean;
   commentsCount: number;
+  score: number;
+  upvoteCount: number;
+  downvoteCount: number;
+  flair: string | null;
+  flairColor: string | null;
+  myVote?: 1 | -1 | null;
   createdAt: string;
   updatedAt: string;
   mediaId?: string | null;
@@ -52,6 +58,40 @@ export interface ClubPost {
     displayName: string | null;
     avatarUrl: string | null;
   };
+  author?: {
+    id: string;
+    username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+export interface ClubComment {
+  id: string;
+  postId: string;
+  userId: string;
+  parentId: string | null;
+  content: string;
+  score: number;
+  upvoteCount: number;
+  downvoteCount: number;
+  depth: number;
+  myVote?: 1 | -1 | null;
+  createdAt: string;
+  author?: {
+    id: string;
+    username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+export interface ClubFlair {
+  id: string;
+  clubId: string;
+  name: string;
+  color: string;
+  createdAt: string;
 }
 
 export interface ClubEvent {
@@ -154,4 +194,8 @@ export async function getClubPolls(slug: string): Promise<{ data: ClubPoll[] } |
 
 export async function getClubMembers(slug: string): Promise<{ data: ClubMember[] } | null> {
   return fetchJson(`/clubs/${slug}/members`);
+}
+
+export async function getClubFlairs(clubId: string): Promise<{ data: ClubFlair[] } | null> {
+  return fetchJson(`/clubs/${clubId}/flairs`);
 }
