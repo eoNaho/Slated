@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   stories,
@@ -27,6 +27,17 @@ import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
 import { handleStoryCreated, handleStoryReactionMilestone } from "../services/gamification";
 import { createNotification } from "./notifications";
+import {
+  CreateStoryBody,
+  ListStoriesQuery,
+  StoryReactBody,
+  StoryPollVoteBody,
+  StoryPinBody,
+  StoryArchiveBody,
+  StoryQuizAnswerBody,
+  StoryQuestionResponseBody,
+} from "@pixelreel/validators";
+import { IdParam, UsernameParam } from "@pixelreel/validators";
 
 // ── Content validation helpers ────────────────────────────────────────────────
 
@@ -184,13 +195,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      body: t.Object({
-        type: t.String(),
-        content: t.Any(),
-        expires_at: t.Optional(t.String()),
-        visibility: t.Optional(t.String()), // 'public' | 'followers' | 'close_friends'
-        slides: t.Optional(t.Any()),        // StorySlide[] for multi-slide
-      }),
+      body: CreateStoryBody,
     }
   )
 
@@ -280,17 +285,14 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: ListStoriesQuery,
     }
   )
 
   // ── Stories by username ───────────────────────────────────────────────────
   .get(
     "/user/:username",
-    async ({ params, query, request }) => {
+    async ({ params, query, request }: any) => {
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
@@ -388,18 +390,15 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
       };
     },
     {
-      params: t.Object({ username: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: UsernameParam,
+      query: ListStoriesQuery,
     }
   )
 
   // ── Get single story ─────────────────────────────────────────────────────
   .get(
     "/:id",
-    async ({ params, request, set }) => {
+    async ({ params, request, set }: any) => {
       const [result] = await db
         .select({
           story: stories,
@@ -488,9 +487,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
         },
       };
     },
-    {
-      params: t.Object({ id: t.String() }),
-    }
+    { params: IdParam }
   )
 
   // ── Delete story ──────────────────────────────────────────────────────────
@@ -527,7 +524,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -535,7 +532,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
   .post(
     "/:id/view",
     async (ctx: any) => {
-      const { user, params, set } = ctx;
+      const { user, params } = ctx;
 
       await db
         .insert(storyViews)
@@ -550,7 +547,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -626,11 +623,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        reaction: t.String(), // 'agree' | 'disagree' | emoji
-        text_reply: t.Optional(t.String({ maxLength: 500 })),
-      }),
+      params: IdParam,
+      body: StoryReactBody,
     }
   )
 
@@ -654,7 +648,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -724,10 +718,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        option_index: t.Number({ minimum: 0, maximum: 3 }),
-      }),
+      params: IdParam,
+      body: StoryPollVoteBody,
     }
   )
 
@@ -790,10 +782,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        pinned: t.Optional(t.Boolean()),
-      }),
+      params: IdParam,
+      body: StoryPinBody,
     }
   )
 
@@ -863,10 +853,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        image: t.File({ maxSize: "10m" }),
-      }),
+      params: IdParam,
+      body: { image: { type: "file", maxSize: "10m" } } as any,
     }
   )
 
@@ -923,11 +911,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: ListStoriesQuery,
     }
   )
 
@@ -981,7 +966,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -1018,10 +1003,7 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: ListStoriesQuery,
     }
   )
 
@@ -1059,10 +1041,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        archived: t.Optional(t.Boolean()),
-      }),
+      params: IdParam,
+      body: StoryArchiveBody,
     }
   )
 
@@ -1120,8 +1100,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ answer_index: t.Number({ minimum: 0, maximum: 3 }) }),
+      params: IdParam,
+      body: StoryQuizAnswerBody,
     }
   )
 
@@ -1153,8 +1133,8 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ response: t.String({ maxLength: 500 }) }),
+      params: IdParam,
+      body: StoryQuestionResponseBody,
     }
   )
 
@@ -1194,6 +1174,6 @@ export const storiesRoutes = new Elysia({ prefix: "/stories", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   );

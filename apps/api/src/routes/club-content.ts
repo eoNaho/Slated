@@ -1,4 +1,29 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  PaginationQuery,
+  ClubItemParams,
+  ClubEventParams,
+  ClubPostParams,
+  ClubPostCommentParams,
+  ClubFlairParams,
+  ClubPollParams,
+  AddClubWatchlistBody,
+  SetWatchedBody,
+  CreateClubEventBody,
+  UpdateClubEventBody,
+  RsvpBody,
+  ListClubPostsQuery,
+  ListClubEventsQuery,
+  CreateClubPostBody,
+  UpdateClubPostBody,
+  PinPostBody,
+  VoteBody,
+  ClubCommentBody,
+  CreateFlairBody,
+  CreateClubPollBody,
+  PollVoteBody,
+} from "@pixelreel/validators";
 import {
   db,
   user as userTable,
@@ -125,11 +150,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: PaginationQuery,
     }
   )
 
@@ -158,14 +180,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        mediaId: t.Optional(t.String()),
-        mediaTitle: t.String({ minLength: 1, maxLength: 200 }),
-        mediaPosterPath: t.Optional(t.String()),
-        mediaType: t.Union([t.Literal("movie"), t.Literal("series")]),
-        note: t.Optional(t.String({ maxLength: 300 })),
-      }),
+      params: IdParam,
+      body: AddClubWatchlistBody,
     }
   )
 
@@ -195,8 +211,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), itemId: t.String() }),
-      body: t.Object({ isWatched: t.Boolean() }),
+      params: ClubItemParams,
+      body: SetWatchedBody,
     }
   )
 
@@ -237,7 +253,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), itemId: t.String() }),
+      params: ClubItemParams,
     }
   )
 
@@ -327,12 +343,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        upcoming: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: ListClubEventsQuery,
     }
   )
 
@@ -364,17 +376,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        title: t.String({ minLength: 3, maxLength: 100 }),
-        description: t.Optional(t.String({ maxLength: 500 })),
-        eventType: t.Union([t.Literal("watch"), t.Literal("discussion")], { default: "watch" }),
-        scheduledAt: t.String(),
-        mediaId: t.Optional(t.String()),
-        mediaTitle: t.Optional(t.String()),
-        mediaPosterPath: t.Optional(t.String()),
-        meetLink: t.Optional(t.String({ maxLength: 300 })),
-      }),
+      params: IdParam,
+      body: CreateClubEventBody,
     }
   )
 
@@ -421,17 +424,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), eventId: t.String() }),
-      body: t.Object({
-        title: t.Optional(t.String({ minLength: 3, maxLength: 100 })),
-        description: t.Optional(t.String({ maxLength: 500 })),
-        eventType: t.Optional(t.Union([t.Literal("watch"), t.Literal("discussion")])),
-        scheduledAt: t.Optional(t.String()),
-        meetLink: t.Optional(t.String({ maxLength: 300 })),
-        mediaId: t.Optional(t.String()),
-        mediaTitle: t.Optional(t.String()),
-        mediaPosterPath: t.Optional(t.String()),
-      }),
+      params: ClubEventParams,
+      body: UpdateClubEventBody,
     }
   )
 
@@ -463,7 +457,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), eventId: t.String() }),
+      params: ClubEventParams,
     }
   )
 
@@ -529,10 +523,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), eventId: t.String() }),
-      body: t.Object({
-        status: t.Union([t.Literal("going"), t.Literal("interested"), t.Literal("not_going")]),
-      }),
+      params: ClubEventParams,
+      body: RsvpBody,
     }
   )
 
@@ -635,14 +627,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        pinned: t.Optional(t.String()),
-        sort: t.Optional(t.String()),
-        timeframe: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: ListClubPostsQuery,
     }
   )
 
@@ -679,16 +665,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        title: t.String({ minLength: 3, maxLength: 150 }),
-        content: t.String({ minLength: 1, maxLength: 5000 }),
-        mediaId: t.Optional(t.String()),
-        mediaTitle: t.Optional(t.String()),
-        isPinned: t.Optional(t.Boolean()),
-        flair: t.Optional(t.String({ maxLength: 50 })),
-        flairColor: t.Optional(t.String({ maxLength: 20 })),
-      }),
+      params: IdParam,
+      body: CreateClubPostBody,
     }
   )
 
@@ -733,13 +711,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String() }),
-      body: t.Object({
-        title: t.Optional(t.String({ minLength: 3, maxLength: 150 })),
-        content: t.Optional(t.String({ minLength: 1, maxLength: 5000 })),
-        flair: t.Optional(t.Nullable(t.String({ maxLength: 50 }))),
-        flairColor: t.Optional(t.Nullable(t.String({ maxLength: 20 }))),
-      }),
+      params: ClubPostParams,
+      body: UpdateClubPostBody,
     }
   )
 
@@ -771,7 +744,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String() }),
+      params: ClubPostParams,
     }
   )
 
@@ -804,8 +777,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String() }),
-      body: t.Object({ pinned: t.Boolean() }),
+      params: ClubPostParams,
+      body: PinPostBody,
     }
   )
 
@@ -869,8 +842,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String() }),
-      body: t.Object({ value: t.Union([t.Literal(1), t.Literal(-1)]) }),
+      params: ClubPostParams,
+      body: VoteBody,
     }
   )
 
@@ -924,7 +897,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       };
     },
     {
-      params: t.Object({ id: t.String(), postId: t.String() }),
+      params: ClubPostParams,
     }
   )
 
@@ -984,11 +957,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String() }),
-      body: t.Object({
-        content: t.String({ minLength: 1, maxLength: 1000 }),
-        parentId: t.Optional(t.String()),
-      }),
+      params: ClubPostParams,
+      body: ClubCommentBody,
     }
   )
 
@@ -1050,8 +1020,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String(), commentId: t.String() }),
-      body: t.Object({ value: t.Union([t.Literal(1), t.Literal(-1)]) }),
+      params: ClubPostCommentParams,
+      body: VoteBody,
     }
   )
 
@@ -1088,7 +1058,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), postId: t.String(), commentId: t.String() }),
+      params: ClubPostCommentParams,
     }
   )
 
@@ -1120,7 +1090,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
 
       return { data: flairs };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   .post(
@@ -1140,11 +1110,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.String({ minLength: 1, maxLength: 50 }),
-        color: t.String({ minLength: 4, maxLength: 20 }),
-      }),
+      params: IdParam,
+      body: CreateFlairBody,
     }
   )
 
@@ -1161,7 +1128,7 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), flairId: t.String() }),
+      params: ClubFlairParams,
     }
   )
 
@@ -1261,11 +1228,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: PaginationQuery,
     }
   )
 
@@ -1308,19 +1272,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        question: t.String({ minLength: 5, maxLength: 300 }),
-        expiresAt: t.Optional(t.String()),
-        options: t.Array(
-          t.Object({
-            text: t.String({ minLength: 1, maxLength: 100 }),
-            mediaId: t.Optional(t.String()),
-            mediaPosterPath: t.Optional(t.String()),
-          }),
-          { minItems: 2, maxItems: 10 }
-        ),
-      }),
+      params: IdParam,
+      body: CreateClubPollBody,
     }
   )
 
@@ -1406,8 +1359,8 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), pollId: t.String() }),
-      body: t.Object({ optionId: t.String() }),
+      params: ClubPollParams,
+      body: PollVoteBody,
     }
   )
 
@@ -1451,6 +1404,6 @@ export const clubContentRoutes = new Elysia({ prefix: "/clubs", tags: ["Club Con
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), pollId: t.String() }),
+      params: ClubPollParams,
     }
   );

@@ -9,7 +9,15 @@
  *   - On-demand image upload for episode stills
  */
 
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  SeriesSeasonParams,
+  SeriesEpisodeParams,
+  SeriesEpisodeIdParams,
+  EpisodeWatchBody,
+  SeasonRateBody,
+} from "@pixelreel/validators";
 import {
   db,
   media,
@@ -150,7 +158,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
         })),
       };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   /**
@@ -271,7 +279,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
         },
       };
     },
-    { params: t.Object({ id: t.String(), seasonNumber: t.String() }) }
+    { params: SeriesSeasonParams }
   )
 
   /**
@@ -347,7 +355,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
         },
       };
     },
-    { params: t.Object({ id: t.String(), seasonNumber: t.String(), episodeNumber: t.String() }) }
+    { params: SeriesEpisodeParams }
   )
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -379,7 +387,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
 
       return { success: true, message: "Sync started in background" };
     },
-    { requireAuth: true, params: t.Object({ id: t.String() }) }
+    { requireAuth: true, params: IdParam }
   )
 
   /**
@@ -423,10 +431,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
 
       return { success: true, ...result };
     },
-    {
-      requireAuth: true,
-      params: t.Object({ id: t.String(), seasonNumber: t.String() }),
-    }
+    { requireAuth: true, params: SeriesSeasonParams }
   )
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -529,13 +534,8 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), episodeId: t.String() }),
-      body: t.Optional(
-        t.Object({
-          rating: t.Optional(t.Number({ minimum: 0.5, maximum: 5 })),
-          notes:  t.Optional(t.String({ maxLength: 500 })),
-        })
-      ),
+      params: SeriesEpisodeIdParams,
+      body: EpisodeWatchBody,
     }
   )
 
@@ -569,10 +569,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
 
       return { success: true };
     },
-    {
-      requireAuth: true,
-      params: t.Object({ id: t.String(), episodeId: t.String() }),
-    }
+    { requireAuth: true, params: SeriesEpisodeIdParams }
   )
 
   /**
@@ -620,10 +617,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
 
       return { success: true, marked: seasonEpisodes.length };
     },
-    {
-      requireAuth: true,
-      params: t.Object({ id: t.String(), seasonNumber: t.String() }),
-    }
+    { requireAuth: true, params: SeriesSeasonParams }
   )
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -714,14 +708,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
 
       return { data: result };
     },
-    {
-      requireAuth: true,
-      params: t.Object({ id: t.String(), seasonNumber: t.String() }),
-      body: t.Object({
-        rating: t.Number({ minimum: 0.5, maximum: 5 }),
-        notes:  t.Optional(t.String()),
-      }),
-    }
+    { requireAuth: true, params: SeriesSeasonParams, body: SeasonRateBody }
   )
 
   /**
@@ -760,10 +747,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
 
       return { success: true };
     },
-    {
-      requireAuth: true,
-      params: t.Object({ id: t.String(), seasonNumber: t.String() }),
-    }
+    { requireAuth: true, params: SeriesSeasonParams }
   )
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -858,7 +842,7 @@ export const seriesRoutes = new Elysia({ prefix: "/series", tags: ["Series"] })
         },
       };
     },
-    { requireAuth: true, params: t.Object({ id: t.String() }) }
+    { requireAuth: true, params: IdParam }
   );
 
 // ── Internal helpers ───────────────────────────────────────────────────────

@@ -1,10 +1,12 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { db, eq, desc, and, count, sql, notInArray, isNull, or, gte } from "../db";
 import { notifications } from "../db/schema/security";
 import { betterAuthPlugin } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
 import { sendToUser } from "../services/ws-manager";
 import { encrypt, decrypt } from "../services/crypto";
+import { ListNotificationsQuery, IdParam } from "@pixelreel/validators";
+import { ok } from "../utils/response";
 
 // Notification types that carry private message content — encrypt message preview
 const ENCRYPTED_TYPES = new Set(["dm", "story_reply"]);
@@ -15,8 +17,8 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
   // Get user notifications
   .get(
     "/",
-    async (ctx: any) => {
-      const { user, query } = ctx;
+    async ({ query, ...ctx }) => {
+      const user = (ctx as any).user;
 
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
@@ -26,12 +28,11 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
       const blockedSub = blockedUserIds(user.id);
       const baseConditions = [eq(notifications.userId, user.id)];
       if (unreadOnly) baseConditions.push(eq(notifications.isRead, false));
-      // Exclude notifications from blocked users; system notifs (fromUserId=null) always pass
       baseConditions.push(
         or(
           isNull(notifications.fromUserId),
-          notInArray(notifications.fromUserId, blockedSub) as any
-        ) as any
+          notInArray(notifications.fromUserId, blockedSub) as any,
+        ) as any,
       );
       const where = and(...baseConditions);
 
@@ -65,11 +66,11 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
             try {
               message = await decrypt(message, parsedData.conversationId);
             } catch {
-              message = null; // Decryption failed — don't expose ciphertext
+              message = null;
             }
           }
           return { ...n, message, data: parsedData };
-        })
+        }),
       );
 
       return {
@@ -84,19 +85,15 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        unread: t.Optional(t.String()),
-      }),
+      query: ListNotificationsQuery,
     },
   )
 
   // Mark notification as read
   .patch(
     "/:id/read",
-    async (ctx: any) => {
-      const { user, params, set } = ctx;
+    async ({ params, set, ...ctx }) => {
+      const user = (ctx as any).user;
 
       const [updated] = await db
         .update(notifications)
@@ -109,19 +106,19 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
         return { error: "Notification not found" };
       }
 
-      return { data: { id: updated.id, isRead: true } };
+      return ok({ id: updated.id, isRead: true });
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   )
 
   // Mark all as read
   .post(
     "/read-all",
-    async (ctx: any) => {
-      const { user } = ctx;
+    async ({ ...ctx }) => {
+      const user = (ctx as any).user;
 
       const result = await db
         .update(notifications)
@@ -129,7 +126,7 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
         .where(and(eq(notifications.userId, user.id), eq(notifications.isRead, false)))
         .returning({ id: notifications.id });
 
-      return { data: { updated: result.length } };
+      return ok({ updated: result.length });
     },
     { requireAuth: true },
   )
@@ -137,15 +134,15 @@ export const notificationsRoutes = new Elysia({ prefix: "/notifications", tags: 
   // Get unread count
   .get(
     "/unread-count",
-    async (ctx: any) => {
-      const { user } = ctx;
+    async ({ ...ctx }) => {
+      const user = (ctx as any).user;
 
       const [{ total }] = await db
         .select({ total: count() })
         .from(notifications)
         .where(and(eq(notifications.userId, user.id), eq(notifications.isRead, false)));
 
-      return { data: { count: Number(total) } };
+      return ok({ count: Number(total) });
     },
     { requireAuth: true },
   );
@@ -160,7 +157,6 @@ export const createNotification = async (
   fromUserId?: string,
 ) => {
   try {
-    // Deduplication: skip if an identical notification was created in the last 5 minutes
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const conditions = [
       eq(notifications.userId, userId),
@@ -177,7 +173,6 @@ export const createNotification = async (
 
     if (existing) return;
 
-    // Encrypt message preview for private conversation types
     let storedMessage = message;
     const conversationId = data?.conversationId as string | undefined;
     if (ENCRYPTED_TYPES.has(type) && conversationId && message) {
@@ -193,7 +188,6 @@ export const createNotification = async (
       data: data ? JSON.stringify(data) : null,
     }).returning();
 
-    // Real-time push via WebSocket
     sendToUser(userId, {
       type: "notification",
       notification: {

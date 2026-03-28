@@ -1,4 +1,38 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  PaginationQuery,
+  AdminPeriodQuery,
+  AdminDaysQuery,
+  AdminSearchQuery,
+  AdminReportsQuery,
+  AdminContentQuery,
+  AdminClubsQuery,
+  AdminMediaQuery,
+  AdminSubscriptionsQuery,
+  AdminBlocklistQuery,
+  AdminAuditLogsQuery,
+  AdminDiscussionsQuery,
+  AdminUpdateReportBody,
+  AdminResolveReportBody,
+  AdminReportActionBody,
+  AdminUserStatusBody,
+  AdminUserRoleBody,
+  AdminUpdateReviewBody,
+  AdminUpdateCommentBody,
+  AdminUpdateUserBody,
+  AdminCreateMediaBody,
+  AdminUpdateMediaBody,
+  AdminUpdateClubBody,
+  AdminClubOwnerBody,
+  AdminGrantSubscriptionBody,
+  AdminFeatureFlagBody,
+  AdminAddBlocklistBody,
+  AdminUpdateBlocklistBody,
+  AdminImportBlocklistBody,
+  AdminCreateAnnouncementBody,
+  AdminUpdateAnnouncementBody,
+} from "@pixelreel/validators";
 import {
   db,
   user,
@@ -127,11 +161,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: rows };
     },
-    {
-      query: t.Object({
-        period: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminPeriodQuery }
   )
 
   // ── Stats: content activity time-series ───────────────────────────────────
@@ -201,11 +231,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: merged };
     },
-    {
-      query: t.Object({
-        days: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminDaysQuery }
   )
 
   // ── Stats: reports analytics ───────────────────────────────────────────────
@@ -330,13 +356,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: results, total, page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminSearchQuery }
   )
 
   // ── User detail ────────────────────────────────────────────────────────────
@@ -354,7 +374,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { ...target, stats: { reviews: reviewCount, lists: listCount, reportsFiled: reportCount } } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Reports — list ────────────────────────────────────────────────────────
@@ -392,15 +412,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: results, total, page, limit };
     },
-    {
-      query: t.Object({
-        status: t.Optional(t.String()),
-        targetType: t.Optional(t.String()),
-        priority: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminReportsQuery }
   )
 
   // ── Report detail ──────────────────────────────────────────────────────────
@@ -439,7 +451,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { ...row, content } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Report update (status / priority / assignedTo) ─────────────────────────
@@ -471,17 +483,8 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        status: t.Optional(t.Union([
-          t.Literal("pending"), t.Literal("investigating"),
-          t.Literal("resolved"), t.Literal("dismissed"),
-        ])),
-        priority: t.Optional(t.Union([
-          t.Literal("low"), t.Literal("medium"), t.Literal("high"), t.Literal("critical"),
-        ])),
-        assignedTo: t.Optional(t.Nullable(t.String())),
-      }),
+      params: IdParam,
+      body: AdminUpdateReportBody,
     }
   )
 
@@ -508,10 +511,8 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        status: t.Union([t.Literal("resolved"), t.Literal("dismissed")]),
-      }),
+      params: IdParam,
+      body: AdminResolveReportBody,
     }
   )
 
@@ -558,10 +559,8 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        action: t.Union([t.Literal("ban_user"), t.Literal("delete_content"), t.Literal("warn_user")]),
-      }),
+      params: IdParam,
+      body: AdminReportActionBody,
     }
   )
 
@@ -581,7 +580,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: results, total, page, limit };
     },
-    { query: t.Object({ page: t.Optional(t.String()), limit: t.Optional(t.String()), userId: t.Optional(t.String()) }) }
+    { query: AdminContentQuery }
   )
 
   .delete(
@@ -602,7 +601,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Comments moderation ────────────────────────────────────────────────────
@@ -621,7 +620,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: results, total, page, limit };
     },
-    { query: t.Object({ page: t.Optional(t.String()), limit: t.Optional(t.String()), userId: t.Optional(t.String()) }) }
+    { query: AdminContentQuery }
   )
 
   .delete(
@@ -642,7 +641,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Stories moderation ─────────────────────────────────────────────────────
@@ -664,7 +663,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Clubs ──────────────────────────────────────────────────────────────────
@@ -686,13 +685,7 @@ const staffRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: rows, total, page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        search: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminClubsQuery }
   );
 
 // ── Admin-only routes ──────────────────────────────────────────────────────────
@@ -723,10 +716,8 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        status: t.Union([t.Literal("active"), t.Literal("suspended"), t.Literal("banned")]),
-      }),
+      params: IdParam,
+      body: AdminUserStatusBody,
     }
   )
 
@@ -771,10 +762,8 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        role: t.Union([t.Literal("user"), t.Literal("moderator"), t.Literal("admin")]),
-      }),
+      params: IdParam,
+      body: AdminUserRoleBody,
     }
   )
 
@@ -791,7 +780,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: rows };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Lists moderation (admin-only) ──────────────────────────────────────────
@@ -813,7 +802,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Feature Flags ──────────────────────────────────────────────────────────
@@ -847,13 +836,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: updated };
     },
-    {
-      body: t.Object({
-        featureKey: t.String(),
-        plan: t.Union([t.Literal("free"), t.Literal("pro"), t.Literal("ultra")]),
-        enabled: t.Boolean(),
-      }),
-    }
+    { body: AdminFeatureFlagBody }
   )
 
   // ── Audit Logs ────────────────────────────────────────────────────────────
@@ -888,15 +871,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: rows, total, page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        action: t.Optional(t.String()),
-        userId: t.Optional(t.String()),
-        from: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminAuditLogsQuery }
   )
 
   // ── Blocklist ──────────────────────────────────────────────────────────────
@@ -915,13 +890,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: rows, total: Number(total), page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminBlocklistQuery }
   )
 
   .post(
@@ -950,14 +919,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: created };
     },
-    {
-      body: t.Object({
-        word: t.String({ minLength: 1 }),
-        matchType: t.Optional(t.Union([t.Literal("exact"), t.Literal("contains"), t.Literal("regex")])),
-        severity: t.Optional(t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high")])),
-        category: t.Optional(t.Union([t.Literal("profanity"), t.Literal("slur"), t.Literal("spam"), t.Literal("custom")])),
-      }),
-    }
+    { body: AdminAddBlocklistBody }
   )
 
   .patch(
@@ -986,14 +948,8 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        word: t.Optional(t.String({ minLength: 1 })),
-        matchType: t.Optional(t.Union([t.Literal("exact"), t.Literal("contains"), t.Literal("regex")])),
-        severity: t.Optional(t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high")])),
-        category: t.Optional(t.Union([t.Literal("profanity"), t.Literal("slur"), t.Literal("spam"), t.Literal("custom")])),
-        isActive: t.Optional(t.Boolean()),
-      }),
+      params: IdParam,
+      body: AdminUpdateBlocklistBody,
     }
   )
 
@@ -1015,7 +971,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   .post(
@@ -1041,16 +997,7 @@ const adminOnlyRoutes = new Elysia({ prefix: "/admin" })
 
       return { data: { inserted: inserted.length } };
     },
-    {
-      body: t.Object({
-        words: t.Array(t.Object({
-          word: t.String(),
-          matchType: t.Optional(t.String()),
-          severity: t.Optional(t.String()),
-          category: t.Optional(t.String()),
-        }), { minItems: 1 }),
-      }),
-    }
+    { body: AdminImportBlocklistBody }
   );
 
 // ── Announcements CRUD ──────────────────────────────────────────────────────────
@@ -1085,21 +1032,7 @@ adminOnlyRoutes
     }).returning();
     set.status = 201;
     return { data: row };
-  }, {
-    body: t.Object({
-      title: t.String({ minLength: 1 }),
-      message: t.String({ minLength: 1 }),
-      type: t.Optional(t.String()),
-      imageUrl: t.Optional(t.Nullable(t.String())),
-      actionLabel: t.Optional(t.Nullable(t.String())),
-      actionUrl: t.Optional(t.Nullable(t.String())),
-      isActive: t.Optional(t.Boolean()),
-      dismissible: t.Optional(t.Boolean()),
-      targetAudience: t.Optional(t.String()),
-      startAt: t.Optional(t.Nullable(t.String())),
-      endAt: t.Optional(t.Nullable(t.String())),
-    }),
-  })
+  }, { body: AdminCreateAnnouncementBody })
 
   .patch("/announcements/:id", async ({ params, body, set }: any) => {
     const updates: Record<string, unknown> = {};
@@ -1120,19 +1053,8 @@ adminOnlyRoutes
     if (!row) { set.status = 404; return { error: "Not found" }; }
     return { data: row };
   }, {
-    body: t.Object({
-      title: t.Optional(t.String()),
-      message: t.Optional(t.String()),
-      type: t.Optional(t.String()),
-      imageUrl: t.Optional(t.Nullable(t.String())),
-      actionLabel: t.Optional(t.Nullable(t.String())),
-      actionUrl: t.Optional(t.Nullable(t.String())),
-      isActive: t.Optional(t.Boolean()),
-      dismissible: t.Optional(t.Boolean()),
-      targetAudience: t.Optional(t.String()),
-      startAt: t.Optional(t.Nullable(t.String())),
-      endAt: t.Optional(t.Nullable(t.String())),
-    }),
+    params: IdParam,
+    body: AdminUpdateAnnouncementBody,
   })
 
   .delete("/announcements/:id", async ({ params, set }: any) => {
@@ -1187,13 +1109,7 @@ staffRoutes
 
       return { data: results, total: Number(total), page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminDiscussionsQuery }
   )
 
   .patch(
@@ -1221,13 +1137,8 @@ staffRoutes
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        content: t.Optional(t.String({ minLength: 1 })),
-        containsSpoilers: t.Optional(t.Boolean()),
-        isHidden: t.Optional(t.Boolean()),
-        hiddenReason: t.Optional(t.Nullable(t.String())),
-      }),
+      params: IdParam,
+      body: AdminUpdateReviewBody,
     }
   )
 
@@ -1259,12 +1170,8 @@ staffRoutes
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        content: t.Optional(t.String({ minLength: 1 })),
-        isHidden: t.Optional(t.Boolean()),
-        hiddenReason: t.Optional(t.Nullable(t.String())),
-      }),
+      params: IdParam,
+      body: AdminUpdateCommentBody,
     }
   )
 
@@ -1318,14 +1225,7 @@ staffRoutes
 
       return { data: results, total: Number(total), page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminMediaQuery }
   );
 
 // ── Admin-only extended routes ─────────────────────────────────────────────────
@@ -1378,14 +1278,8 @@ adminOnlyRoutes
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        displayName: t.Optional(t.Nullable(t.String())),
-        username: t.Optional(t.String({ minLength: 2, maxLength: 30 })),
-        email: t.Optional(t.String({ format: "email" })),
-        bio: t.Optional(t.Nullable(t.String())),
-        avatarUrl: t.Optional(t.Nullable(t.String())),
-      }),
+      params: IdParam,
+      body: AdminUpdateUserBody,
     }
   )
 
@@ -1417,7 +1311,7 @@ adminOnlyRoutes
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Media — create manually ────────────────────────────────────────────────
@@ -1458,21 +1352,7 @@ adminOnlyRoutes
         return { error: "Failed to create media" };
       }
     },
-    {
-      body: t.Object({
-        title: t.String({ minLength: 1 }),
-        type: t.Union([t.Literal("movie"), t.Literal("tv")]),
-        tmdbId: t.Optional(t.Integer()),
-        originalTitle: t.Optional(t.Nullable(t.String())),
-        tagline: t.Optional(t.Nullable(t.String())),
-        overview: t.Optional(t.Nullable(t.String())),
-        posterPath: t.Optional(t.Nullable(t.String())),
-        backdropPath: t.Optional(t.Nullable(t.String())),
-        releaseDate: t.Optional(t.Nullable(t.String())),
-        runtime: t.Optional(t.Nullable(t.Integer())),
-        status: t.Optional(t.String()),
-      }),
-    }
+    { body: AdminCreateMediaBody }
   )
 
   // ── Media — patch metadata ─────────────────────────────────────────────────
@@ -1506,25 +1386,8 @@ adminOnlyRoutes
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        title: t.Optional(t.String({ minLength: 1 })),
-        originalTitle: t.Optional(t.Nullable(t.String())),
-        tagline: t.Optional(t.Nullable(t.String())),
-        overview: t.Optional(t.Nullable(t.String())),
-        posterPath: t.Optional(t.Nullable(t.String())),
-        backdropPath: t.Optional(t.Nullable(t.String())),
-        releaseDate: t.Optional(t.Nullable(t.String())),
-        runtime: t.Optional(t.Nullable(t.Integer())),
-        status: t.Optional(t.String()),
-        homepage: t.Optional(t.Nullable(t.String())),
-        trailerUrl: t.Optional(t.Nullable(t.String())),
-        imdbId: t.Optional(t.Nullable(t.String())),
-        imdbRating: t.Optional(t.Nullable(t.Number())),
-        imdbVotes: t.Optional(t.Nullable(t.Integer())),
-        metacriticScore: t.Optional(t.Nullable(t.Integer())),
-        rottenTomatoesScore: t.Optional(t.Nullable(t.Integer())),
-      }),
+      params: IdParam,
+      body: AdminUpdateMediaBody,
     }
   )
 
@@ -1547,7 +1410,7 @@ adminOnlyRoutes
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Clubs — edit ───────────────────────────────────────────────────────────
@@ -1576,13 +1439,8 @@ adminOnlyRoutes
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String({ minLength: 2 })),
-        description: t.Optional(t.Nullable(t.String())),
-        isPrivate: t.Optional(t.Boolean()),
-        isArchived: t.Optional(t.Boolean()),
-      }),
+      params: IdParam,
+      body: AdminUpdateClubBody,
     }
   )
 
@@ -1605,7 +1463,7 @@ adminOnlyRoutes
 
       return { data: { deleted: true } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ── Clubs — transfer ownership ─────────────────────────────────────────────
@@ -1635,8 +1493,8 @@ adminOnlyRoutes
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ newOwnerId: t.String() }),
+      params: IdParam,
+      body: AdminClubOwnerBody,
     }
   )
 
@@ -1680,13 +1538,7 @@ adminOnlyRoutes
 
       return { data: rows, total: Number(total), page, limit };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        status: t.Optional(t.String()),
-      }),
-    }
+    { query: AdminSubscriptionsQuery }
   )
 
   // ── Subscriptions — grant premium manually ─────────────────────────────────
@@ -1738,12 +1590,7 @@ adminOnlyRoutes
 
       return { data: result };
     },
-    {
-      body: t.Object({
-        userId: t.String(),
-        expiresAt: t.Optional(t.Nullable(t.String())),
-      }),
-    }
+    { body: AdminGrantSubscriptionBody }
   )
 
   // ── Subscriptions — revoke premium ─────────────────────────────────────────
@@ -1769,7 +1616,7 @@ adminOnlyRoutes
 
       return { data: updated };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   );
 
 // ── Compose ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   userBlocks,
@@ -11,6 +11,8 @@ import {
   count,
 } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { BlockUserBody, UserIdParam, PaginationQuery } from "@pixelreel/validators";
+import { paginated } from "../utils/response";
 
 export const blocksRoutes = new Elysia({ prefix: "/blocks", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -18,9 +20,9 @@ export const blocksRoutes = new Elysia({ prefix: "/blocks", tags: ["Social"] })
   // Block a user
   .post(
     "/",
-    async (ctx: any) => {
-      const { user: authUser, body, set } = ctx;
-      const { userId: targetId } = body;
+    async ({ body, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
+      const targetId = body.userId;
 
       if (targetId === authUser.id) {
         set.status = 400;
@@ -50,37 +52,36 @@ export const blocksRoutes = new Elysia({ prefix: "/blocks", tags: ["Social"] })
         throw e;
       }
 
-      // Remove follow relationships in both directions
       await db
         .delete(follows)
         .where(
           or(
             and(eq(follows.followerId, authUser.id), eq(follows.followingId, targetId)),
-            and(eq(follows.followerId, targetId), eq(follows.followingId, authUser.id))
-          )
+            and(eq(follows.followerId, targetId), eq(follows.followingId, authUser.id)),
+          ),
         );
 
       return { success: true };
     },
     {
       requireAuth: true,
-      body: t.Object({ userId: t.String() }),
-    }
+      body: BlockUserBody,
+    },
   )
 
   // Unblock a user
   .delete(
     "/:userId",
-    async (ctx: any) => {
-      const { user: authUser, params, set } = ctx;
+    async ({ params, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const result = await db
         .delete(userBlocks)
         .where(
           and(
             eq(userBlocks.blockerId, authUser.id),
-            eq(userBlocks.blockedId, params.userId)
-          )
+            eq(userBlocks.blockedId, params.userId),
+          ),
         )
         .returning();
 
@@ -93,15 +94,15 @@ export const blocksRoutes = new Elysia({ prefix: "/blocks", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ userId: t.String() }),
-    }
+      params: UserIdParam,
+    },
   )
 
   // List blocked users
   .get(
     "/",
-    async (ctx: any) => {
-      const { user: authUser, query } = ctx;
+    async ({ query, ...ctx }) => {
+      const authUser = (ctx as any).user;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
@@ -128,27 +129,24 @@ export const blocksRoutes = new Elysia({ prefix: "/blocks", tags: ["Social"] })
         .from(userBlocks)
         .where(eq(userBlocks.blockerId, authUser.id));
 
-      return {
-        data: rows.map((r) => ({ ...r.blocked, blockedAt: r.block.createdAt })),
-        total: Number(total),
+      return paginated(
+        rows.map((r) => ({ ...r.blocked, blockedAt: r.block.createdAt })),
+        Number(total),
         page,
         limit,
-      };
+      );
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+      query: PaginationQuery,
+    },
   )
 
   // Check if a user is blocked
   .get(
     "/check/:userId",
-    async (ctx: any) => {
-      const { user: authUser, params } = ctx;
+    async ({ params, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const [row] = await db
         .select({ id: userBlocks.id })
@@ -156,14 +154,14 @@ export const blocksRoutes = new Elysia({ prefix: "/blocks", tags: ["Social"] })
         .where(
           and(
             eq(userBlocks.blockerId, authUser.id),
-            eq(userBlocks.blockedId, params.userId)
-          )
+            eq(userBlocks.blockedId, params.userId),
+          ),
         );
 
       return { blocked: !!row };
     },
     {
       requireAuth: true,
-      params: t.Object({ userId: t.String() }),
-    }
+      params: UserIdParam,
+    },
   );

@@ -1,10 +1,11 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { db, user, media, lists, ilike, or, desc, and, eq, inArray, notInArray } from "../db";
 import { metadataService } from "../services/metadata.service";
 import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
 import { getOptionalSession } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
+import { SearchMediaQuery } from "@pixelreel/validators";
 
 function resolveImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
@@ -72,14 +73,7 @@ export const searchRoutes = new Elysia({ prefix: "/search", tags: ["Search"] })
         return { error: "Search failed" };
       }
     },
-    {
-      query: t.Object({
-        q:     t.Optional(t.String()),
-        type:  t.Optional(t.String()),
-        page:  t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    },
+    { query: SearchMediaQuery },
   );
 
 // ─── Media ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,18 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  DiscoverMediaQuery,
+  TrendingQuery,
+  MediaTypePageQuery,
+  MediaTypeQuery,
+  TmdbIdParam,
+  ImportMediaBody,
+  BatchImportBody,
+  ListMediaQuery,
+  MediaSlugParam,
+  IdParam,
+  MediaReviewsQuery,
+  PaginationQuery,
+} from "@pixelreel/validators";
 import {
   db,
   media,
@@ -86,24 +100,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to discover media" };
       }
     },
-    {
-      query: t.Object({
-        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
-        genre: t.Optional(t.String()),
-        year: t.Optional(t.String()),
-        sortBy: t.Optional(
-          t.Union([
-            t.Literal("popularity"),
-            t.Literal("rating"),
-            t.Literal("release_date"),
-            t.Literal("revenue"),
-            t.Literal("vote_count"),
-          ]),
-        ),
-        page: t.Optional(t.String()),
-        language: t.Optional(t.String()),
-      }),
-    },
+    { query: DiscoverMediaQuery },
   )
 
   // ==========================================================================
@@ -143,15 +140,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get trending media" };
       }
     },
-    {
-      query: t.Object({
-        timeWindow: t.Optional(t.Union([t.Literal("day"), t.Literal("week")])),
-        type: t.Optional(
-          t.Union([t.Literal("movie"), t.Literal("series"), t.Literal("all")]),
-        ),
-        page: t.Optional(t.String()),
-      }),
-    },
+    { query: TrendingQuery },
   )
 
   /**
@@ -183,12 +172,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get popular media" };
       }
     },
-    {
-      query: t.Object({
-        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
-        page: t.Optional(t.String()),
-      }),
-    },
+    { query: MediaTypePageQuery },
   )
 
   /**
@@ -220,12 +204,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get top rated media" };
       }
     },
-    {
-      query: t.Object({
-        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
-        page: t.Optional(t.String()),
-      }),
-    },
+    { query: MediaTypePageQuery },
   )
 
   /**
@@ -256,11 +235,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get upcoming movies" };
       }
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-      }),
-    },
+    { query: PaginationQuery },
   )
 
   // ==========================================================================
@@ -294,14 +269,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get media preview" };
       }
     },
-    {
-      params: t.Object({
-        tmdbId: t.String(),
-      }),
-      query: t.Object({
-        type: t.Union([t.Literal("movie"), t.Literal("series")]),
-      }),
-    },
+    { params: TmdbIdParam, query: MediaTypeQuery },
   )
 
   /**
@@ -371,13 +339,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to import media" };
       }
     },
-    {
-      requireAuth: true,
-      body: t.Object({
-        tmdbId: t.Number(),
-        type: t.Union([t.Literal("movie"), t.Literal("series")]),
-      }),
-    },
+    { requireAuth: true, body: ImportMediaBody },
   )
 
   /**
@@ -443,17 +405,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         },
       };
     },
-    {
-      requireAuth: true,
-      body: t.Object({
-        items: t.Array(
-          t.Object({
-            tmdbId: t.Number(),
-            type: t.Union([t.Literal("movie"), t.Literal("series")]),
-          }),
-        ),
-      }),
-    },
+    { requireAuth: true, body: BatchImportBody },
   )
 
   // ==========================================================================
@@ -501,15 +453,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         hasPrev: page > 1,
       };
     },
-    {
-      query: t.Object({
-        type: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        sortBy: t.Optional(t.String()),
-      }),
-    },
+    { query: ListMediaQuery },
   )
 
   /**
@@ -600,7 +544,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Media not found" };
       }
     },
-    { params: t.Object({ slug: t.String() }) },
+    { params: MediaSlugParam },
   )
 
   /**
@@ -659,9 +603,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         },
       };
     },
-    {
-      params: t.Object({ id: t.String({ format: "uuid" }) }),
-    },
+    { params: IdParam },
   )
 
   /**
@@ -714,10 +656,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         },
       };
     },
-    {
-      requireAuth: true,
-      params: t.Object({ id: t.String({ format: "uuid" }) }),
-    }
+    { requireAuth: true, params: IdParam }
   )
 
   /**
@@ -752,15 +691,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get recommendations" };
       }
     },
-    {
-      params: t.Object({
-        tmdbId: t.String(),
-      }),
-      query: t.Object({
-        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
-        page: t.Optional(t.String()),
-      }),
-    },
+    { params: TmdbIdParam, query: MediaTypePageQuery },
   )
 
   /**
@@ -792,15 +723,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         return { error: "Failed to get similar media" };
       }
     },
-    {
-      params: t.Object({
-        tmdbId: t.String(),
-      }),
-      query: t.Object({
-        type: t.Optional(t.Union([t.Literal("movie"), t.Literal("series")])),
-        page: t.Optional(t.String()),
-      }),
-    },
+    { params: TmdbIdParam, query: MediaTypePageQuery },
   )
 
   /**
@@ -887,9 +810,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         },
       };
     },
-    {
-      params: t.Object({ id: t.String({ format: "uuid" }) }),
-    },
+    { params: IdParam },
   )
 
   /**
@@ -944,14 +865,7 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         totalPages: Math.ceil(total / limit),
       };
     },
-    {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        sort: t.Optional(t.String()),
-      }),
-    },
+    { params: IdParam, query: MediaReviewsQuery },
   )
 
   /**
@@ -1002,11 +916,5 @@ export const mediaRoutes = new Elysia({ prefix: "/media", tags: ["Media"] })
         totalPages: Math.ceil(total / limit),
       };
     },
-    {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    },
+    { params: IdParam, query: PaginationQuery },
   );

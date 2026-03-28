@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   comments,
@@ -21,6 +21,13 @@ import { blockedUserIds } from "../lib/block-filter";
 import { contentFilterService } from "../services/content-filter";
 import { checkContentVelocity } from "../lib/moderation-escalation";
 import { createNotification } from "./notifications";
+import {
+  ListCommentsQuery,
+  ListRepliesQuery,
+  CreateCommentBody,
+  IdParam,
+} from "@pixelreel/validators";
+import { ok, paginated } from "../utils/response";
 
 export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -28,9 +35,8 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
   // Get comments for a target (review or list)
   .get(
     "/",
-    async (ctx: any) => {
-      const { query } = ctx;
-      const authUser = ctx.user ?? null;
+    async ({ query, ...ctx }) => {
+      const authUser = (ctx as any).user ?? null;
       const targetType = query.target_type as "review" | "list";
       const targetId = query.target_id;
       const page = Number(query.page) || 1;
@@ -62,7 +68,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         .limit(limit)
         .offset(offset);
 
-      // Batch-fetch reply counts for all comments in one query
       const commentIds = results.map((r) => r.comment.id);
       const replyCountRows = commentIds.length > 0
         ? await db
@@ -85,23 +90,9 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         .from(comments)
         .where(and(...conditions));
 
-      return {
-        data: commentsWithReplies,
-        total,
-        page,
-        limit,
-        hasNext: offset + limit < total,
-        hasPrev: page > 1,
-      };
+      return paginated(commentsWithReplies, total, page, limit);
     },
-    {
-      query: t.Object({
-        target_type: t.Union([t.Literal("review"), t.Literal("list")]),
-        target_id: t.String(),
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+    { query: ListCommentsQuery },
   )
 
   // Get replies to a comment
@@ -126,21 +117,19 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         .orderBy(comments.createdAt)
         .limit(limit);
 
-      return {
-        data: replies.map((r) => ({ ...r.comment, user: r.user })),
-      };
+      return ok(replies.map((r) => ({ ...r.comment, user: r.user })));
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({ limit: t.Optional(t.String()) }),
-    }
+      params: IdParam,
+      query: ListRepliesQuery,
+    },
   )
 
   // Create comment
   .post(
     "/",
-    async (ctx: any) => {
-      const { user: authUser, body } = ctx;
+    async ({ body, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const [filterResult] = await Promise.all([
         contentFilterService.check(body.content),
@@ -172,7 +161,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         });
       }
 
-      // Update comment count on target
       if (body.target_type === "review") {
         await db
           .update(reviews)
@@ -180,7 +168,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
           .where(eq(reviews.id, body.target_id));
       }
 
-      // Notify target owner (review or list) — skip if self-comment or hidden
       if (!filterResult.shouldAutoHide) {
         const [commenter] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, authUser.id)).limit(1);
         const name = commenter?.displayName || commenter?.username || "Someone";
@@ -200,7 +187,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
           }
         }
 
-        // Notify parent comment author on reply
         if (body.parent_id) {
           const [parentComment] = await db.select({ userId: comments.userId }).from(comments).where(eq(comments.id, body.parent_id)).limit(1);
           if (parentComment && parentComment.userId !== authUser.id) {
@@ -210,24 +196,19 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
         }
       }
 
-      return { data: newComment };
+      return ok(newComment);
     },
     {
       requireAuth: true,
-      body: t.Object({
-        target_type: t.Union([t.Literal("review"), t.Literal("list")]),
-        target_id: t.String(),
-        parent_id: t.Optional(t.String()),
-        content: t.String({ minLength: 1, maxLength: 2000 }),
-      }),
-    }
+      body: CreateCommentBody,
+    },
   )
 
   // Delete comment
   .delete(
     "/:id",
-    async (ctx: any) => {
-      const { user: authUser, params, set } = ctx;
+    async ({ params, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const [comment] = await db
         .select()
@@ -246,7 +227,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
 
       await db.delete(comments).where(eq(comments.id, params.id));
 
-      // Decrement count
       if (comment.targetType === "review") {
         await db
           .update(reviews)
@@ -258,15 +238,15 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-    }
+      params: IdParam,
+    },
   )
 
   // Like comment
   .post(
     "/:id/like",
-    async (ctx: any) => {
-      const { user: authUser, params, set } = ctx;
+    async ({ params, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       try {
         await db.insert(likes).values({
@@ -281,7 +261,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
           .where(eq(comments.id, params.id))
           .returning({ userId: comments.userId, targetType: comments.targetType, targetId: comments.targetId });
 
-        // Notify comment author
         if (updated && updated.userId !== authUser.id) {
           const [liker] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, authUser.id)).limit(1);
           const name = liker?.displayName || liker?.username || "Someone";
@@ -300,6 +279,6 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-    }
+      params: IdParam,
+    },
   );

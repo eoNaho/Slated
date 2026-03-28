@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   lists,
@@ -17,6 +17,15 @@ import {
 import { storageService } from "../services/storage";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { canViewSection } from "../lib/privacy";
+import {
+  ListListsQuery,
+  UsernameSlugParams,
+  CreateListBody,
+  UpdateListBody,
+  AddListItemBody,
+  ListItemParams,
+} from "@pixelreel/validators";
+import { IdParam } from "@pixelreel/validators";
 
 export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -130,12 +139,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
       };
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        user_id: t.Optional(t.String()),
-        membership_media_id: t.Optional(t.String()),
-      }),
+      query: ListListsQuery,
     },
   )
 
@@ -188,9 +192,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         },
       };
     },
-    {
-      params: t.Object({ id: t.String() }),
-    },
+    { params: IdParam },
   )
 
   // Get list by username and slug
@@ -249,12 +251,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
         },
       };
     },
-    {
-      params: t.Object({
-        username: t.String(),
-        slug: t.String(),
-      }),
-    },
+    { params: UsernameSlugParams },
   )
 
   // Create list
@@ -327,13 +324,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        name: t.String({ minLength: 3 }),
-        description: t.Optional(t.String()),
-        is_public: t.Optional(t.Boolean()),
-        is_ranked: t.Optional(t.Boolean()),
-        item_ids: t.Optional(t.Array(t.String())),
-      }),
+      body: CreateListBody,
     },
   )
 
@@ -375,13 +366,8 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String({ minLength: 3 })),
-        description: t.Optional(t.String()),
-        is_public: t.Optional(t.Boolean()),
-        is_ranked: t.Optional(t.Boolean()),
-      }),
+      params: IdParam,
+      body: UpdateListBody,
     },
   )
 
@@ -414,7 +400,7 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   )
 
@@ -478,11 +464,8 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        media_id: t.String(),
-        note: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      body: AddListItemBody,
     },
   )
 
@@ -534,6 +517,6 @@ export const listsRoutes = new Elysia({ prefix: "/lists", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), mediaId: t.String() }),
+      params: ListItemParams,
     },
   );

@@ -1,6 +1,7 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { db, diary, reviews, media, eq, and, desc, count, isNull } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { PaginationQuery, IdParam, CreateDiaryEntryBody, UpdateDiaryEntryBody } from "@pixelreel/validators";
 import { tasteProfileService } from "../services/recommendation.service";
 import { recommendationFeedback } from "../db/schema/recommendations";
 
@@ -52,10 +53,7 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: PaginationQuery,
     }
   )
 
@@ -166,15 +164,7 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        media_id: t.String(),
-        watched_at: t.Optional(t.String()), // YYYY-MM-DD
-        rating: t.Optional(t.Number({ minimum: 0.5, maximum: 5 })),
-        is_rewatch: t.Optional(t.Boolean()),
-        notes: t.Optional(t.String()),
-        review_title: t.Optional(t.String()),
-        contains_spoilers: t.Optional(t.Boolean()),
-      }),
+      body: CreateDiaryEntryBody,
     }
   )
 
@@ -211,13 +201,8 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        watched_at: t.Optional(t.String()),
-        rating: t.Optional(t.Nullable(t.Number({ minimum: 0.5, maximum: 5 }))),
-        is_rewatch: t.Optional(t.Boolean()),
-        notes: t.Optional(t.Nullable(t.String())),
-      }),
+      params: IdParam,
+      body: UpdateDiaryEntryBody,
     }
   )
 
@@ -244,6 +229,6 @@ export const diaryRoutes = new Elysia({ prefix: "/diary", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   );

@@ -1,4 +1,10 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  DiscoverMediaQuery,
+  DiscoverFiltersQuery,
+  DiscoverStreamingQuery,
+  DiscoverTypeLimitQuery,
+} from "@pixelreel/validators";
 import {
   db,
   media,
@@ -149,23 +155,7 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         filters: { genre: genreId, year, yearFrom, yearTo, type, ratingMin, ratingMax, sortBy, sortOrder, streaming: streamingService, language },
       };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        genre: t.Optional(t.String()),
-        year: t.Optional(t.String()),
-        yearFrom: t.Optional(t.String()),
-        yearTo: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-        ratingMin: t.Optional(t.String()),
-        ratingMax: t.Optional(t.String()),
-        sortBy: t.Optional(t.String()),
-        sortOrder: t.Optional(t.String()),
-        streaming: t.Optional(t.String()),
-        language: t.Optional(t.String()),
-      }),
-    }
+    { query: DiscoverMediaQuery }
   )
 
   // ==========================================================================
@@ -270,13 +260,7 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         };
       });
     },
-    {
-      query: t.Object({
-        period: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+    { query: DiscoverFiltersQuery }
   )
 
   .get(
@@ -344,15 +328,7 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
 
       return { data };
     },
-    {
-      query: t.Object({
-        limit: t.Optional(t.String()),
-        genre: t.Optional(t.String()),
-        year: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-        streaming: t.Optional(t.String()),
-      }),
-    }
+    { query: DiscoverStreamingQuery }
   )
 
   // ==========================================================================
@@ -440,12 +416,7 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         };
       });
     },
-    {
-      query: t.Object({
-        type: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+    { query: DiscoverTypeLimitQuery }
   )
 
   // ==========================================================================
@@ -543,12 +514,6 @@ export const discoverRoutes = new Elysia({ prefix: "/discover", tags: ["Media"] 
         }
       });
     },
-    {
-      requireAuth: true,
-      query: t.Object({
-        type: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+    { requireAuth: true, query: DiscoverTypeLimitQuery }
   );
 

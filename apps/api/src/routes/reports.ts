@@ -1,4 +1,8 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  PaginationQuery,
+  CreateReportBody,
+} from "@pixelreel/validators";
 import {
   db,
   user,
@@ -93,28 +97,7 @@ export const reportsRoutes = new Elysia({ prefix: "/reports", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      body: t.Object({
-        targetType: t.Union([
-          t.Literal("user"),
-          t.Literal("review"),
-          t.Literal("comment"),
-          t.Literal("list"),
-          t.Literal("story"),
-        ]),
-        targetId: t.String(),
-        reason: t.Union([
-          t.Literal("spam"),
-          t.Literal("harassment"),
-          t.Literal("inappropriate"),
-          t.Literal("copyright"),
-          t.Literal("hate_speech"),
-          t.Literal("misinformation"),
-          t.Literal("impersonation"),
-          t.Literal("self_harm"),
-          t.Literal("other"),
-        ]),
-        description: t.Optional(t.String({ maxLength: 2000 })),
-      }),
+      body: CreateReportBody,
     }
   )
 
@@ -139,9 +122,6 @@ export const reportsRoutes = new Elysia({ prefix: "/reports", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: PaginationQuery,
     }
   );

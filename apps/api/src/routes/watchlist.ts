@@ -1,6 +1,7 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { db, watchlist, media, eq, and, desc, count } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
+import { PaginationQuery, MediaIdParam, AddWatchlistBody } from "@pixelreel/validators";
 
 export const watchlistRoutes = new Elysia({ prefix: "/watchlist", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -51,10 +52,7 @@ export const watchlistRoutes = new Elysia({ prefix: "/watchlist", tags: ["Social
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: PaginationQuery,
     }
   )
 
@@ -85,9 +83,7 @@ export const watchlistRoutes = new Elysia({ prefix: "/watchlist", tags: ["Social
     },
     {
       requireAuth: true,
-      body: t.Object({
-        media_id: t.String(),
-      }),
+      body: AddWatchlistBody,
     }
   )
 
@@ -110,6 +106,6 @@ export const watchlistRoutes = new Elysia({ prefix: "/watchlist", tags: ["Social
     },
     {
       requireAuth: true,
-      params: t.Object({ mediaId: t.String() }),
+      params: MediaIdParam,
     }
   );

@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   user as userTable,
@@ -26,6 +26,16 @@ import { cached, invalidate, TTL } from "../lib/cache";
 import { storageService } from "../services/storage";
 import { getUserPlanTier } from "../lib/feature-gate";
 import { checkProfileAccess } from "../lib/privacy";
+import {
+  SearchUsersQuery,
+  UpdateProfileBody,
+  UpdateSocialLinksBody,
+  UpdatePrivacyBody,
+  UsernameParam,
+  UserIdParam,
+  RequesterIdParam,
+  ListFollowersQuery,
+} from "@pixelreel/validators";
 
 function resolveImageUrl(path: string | null): string | null {
   if (!path) return null;
@@ -96,6 +106,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         })),
       };
     },
+    { query: SearchUsersQuery },
   )
 
   // Get user by username (public, isFollowing included when authenticated)
@@ -185,7 +196,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         },
       };
     },
-    { params: t.Object({ username: t.String() }) },
+    { params: UsernameParam },
   )
 
   // Update current user profile
@@ -235,62 +246,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        displayName: t.Optional(t.String()),
-        bio: t.Optional(t.String()),
-        location: t.Optional(t.String()),
-        website: t.Optional(t.String()),
-        avatarUrl: t.Optional(t.String()),
-        coverUrl: t.Optional(t.String()),
-        coverPosition: t.Optional(t.String()),
-        coverZoom: t.Optional(t.String()),
-        bioExtended: t.Optional(
-          t.Nullable(
-            t.Object({
-              headline: t.Optional(t.String()),
-              location: t.Optional(t.String()),
-              website: t.Optional(t.String()),
-              links: t.Optional(
-                t.Array(
-                  t.Object({
-                    label: t.String(),
-                    url: t.String(),
-                    icon: t.Optional(t.String()),
-                  })
-                )
-              ),
-              quote: t.Optional(
-                t.Nullable(
-                  t.Object({
-                    text: t.String(),
-                    author: t.Optional(t.String()),
-                    source: t.Optional(t.String()),
-                  })
-                )
-              ),
-              moods: t.Optional(t.Array(t.String())),
-              currentlyWatching: t.Optional(
-                t.Nullable(
-                  t.Object({
-                    mediaId: t.String(),
-                    note: t.Optional(t.String()),
-                    startedAt: t.Optional(t.String()),
-                    progress: t.Optional(t.Number()),
-                  })
-                )
-              ),
-              sections: t.Optional(
-                t.Array(
-                  t.Object({
-                    title: t.String(),
-                    content: t.String(),
-                  })
-                )
-              ),
-            })
-          )
-        ),
-      }),
+      body: UpdateProfileBody,
     },
   )
 
@@ -326,12 +282,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        twitter: t.Optional(t.Nullable(t.String())),
-        instagram: t.Optional(t.Nullable(t.String())),
-        letterboxd: t.Optional(t.Nullable(t.String())),
-        imdb: t.Optional(t.Nullable(t.String())),
-      }),
+      body: UpdateSocialLinksBody,
     },
   )
 
@@ -582,7 +533,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       };
       }); // end cached
     },
-    { params: t.Object({ username: t.String() }) },
+    { params: UsernameParam },
   )
 
   // Get user's followers
@@ -634,11 +585,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       };
     },
     {
-      params: t.Object({ username: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: UsernameParam,
+      query: ListFollowersQuery,
     },
   )
 
@@ -691,11 +639,8 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       };
     },
     {
-      params: t.Object({ username: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: UsernameParam,
+      query: ListFollowersQuery,
     },
   )
 
@@ -761,7 +706,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         throw e;
       }
     },
-    { requireAuth: true, params: t.Object({ userId: t.String() }) },
+    { requireAuth: true, params: UserIdParam },
   )
 
   // Get clubs a user belongs to (by username)
@@ -825,7 +770,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         })),
       };
     },
-    { params: t.Object({ username: t.String() }) },
+    { params: UsernameParam },
   )
 
   // Unfollow a user
@@ -858,7 +803,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch((err) => console.warn({ err }, "failed to invalidate stats cache after unfollow"));
       return { message: "Unfollowed successfully" };
     },
-    { requireAuth: true, params: t.Object({ userId: t.String() }) },
+    { requireAuth: true, params: UserIdParam },
   )
 
   // Get all custom covers for a user (public — used to display their profile)
@@ -888,7 +833,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       }
       return { data: map };
     },
-    { params: t.Object({ username: t.String() }) },
+    { params: UsernameParam },
   )
 
   // ── Privacy Settings ─────────────────────────────────────────────────────
@@ -975,15 +920,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        isPrivate: t.Optional(t.Boolean()),
-        visibilityDiary: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
-        visibilityWatchlist: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
-        visibilityActivity: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
-        visibilityReviews: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
-        visibilityLists: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
-        visibilityLikes: t.Optional(t.Union([t.Literal("public"), t.Literal("followers"), t.Literal("private")])),
-      }),
+      body: UpdatePrivacyBody,
     },
   )
 
@@ -1050,7 +987,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
       return { message: "Follow request accepted" };
     },
-    { requireAuth: true, params: t.Object({ requesterId: t.String() }) },
+    { requireAuth: true, params: RequesterIdParam },
   )
 
   // Reject a follow request
@@ -1077,5 +1014,5 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
 
       return { message: "Follow request rejected" };
     },
-    { requireAuth: true, params: t.Object({ requesterId: t.String() }) },
+    { requireAuth: true, params: RequesterIdParam },
   );

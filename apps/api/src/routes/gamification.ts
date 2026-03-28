@@ -1,4 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { LimitQuery } from "@pixelreel/validators";
 import {
   db,
   achievements,
@@ -65,9 +66,7 @@ export const gamificationRoutes = new Elysia({ prefix: "/gamification", tags: ["
     },
     {
       requireAuth: true,
-      query: t.Object({
-        limit: t.Optional(t.String()),
-      }),
+      query: LimitQuery,
     }
   )
 
@@ -96,8 +95,6 @@ export const gamificationRoutes = new Elysia({ prefix: "/gamification", tags: ["
       return { data: topUsers };
     },
     {
-      query: t.Object({
-        limit: t.Optional(t.String()),
-      }),
+      query: LimitQuery,
     }
   );

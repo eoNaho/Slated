@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   activities,
@@ -18,6 +18,7 @@ import {
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
 import { canViewSection } from "../lib/privacy";
+import { PaginationQuery, UserIdParam } from "@pixelreel/validators";
 
 function parseMetadata(raw: string | null | unknown): Record<string, unknown> {
   try {
@@ -223,10 +224,7 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: PaginationQuery,
     }
   )
 
@@ -279,12 +277,7 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
         hasPrev: page > 1,
       };
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
-    }
+    { query: PaginationQuery }
   )
 
   // Get user-specific feed
@@ -339,10 +332,7 @@ export const feedRoutes = new Elysia({ prefix: "/feed", tags: ["Social"] })
       };
     },
     {
-      params: t.Object({ userId: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: UserIdParam,
+      query: PaginationQuery,
     }
   );

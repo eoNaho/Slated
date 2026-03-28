@@ -1,4 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { CheckoutBody } from "@pixelreel/validators";
 import { db, user as userTable, subscriptions, payments, eq, and } from "../db";
 import { notifications } from "../db/schema/security";
 import { profileTitles, userTitles } from "../db/schema/identity";
@@ -53,10 +54,7 @@ export const stripeRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({
-        priceId: t.String(),
-        plan: t.Optional(t.Union([t.Literal("pro"), t.Literal("ultra")])),
-      }),
+      body: CheckoutBody,
     },
   )
 

@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   reviews,
@@ -21,6 +21,13 @@ import { canViewSection } from "../lib/privacy";
 import { contentFilterService } from "../services/content-filter";
 import { checkContentVelocity } from "../lib/moderation-escalation";
 import { notifyTasteMatchReview } from "../services/recommendation-notifications";
+import {
+  ListReviewsQuery,
+  CreateReviewBody,
+  UpdateReviewBody,
+  IdParam,
+} from "@pixelreel/validators";
+import { ok, paginated } from "../utils/response";
 
 export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -28,9 +35,8 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
   // Get recent reviews
   .get(
     "/",
-    async (ctx: any) => {
-      const { query, request, set } = ctx;
-      const authUser = ctx.user ?? null;
+    async ({ query, request, set, ...ctx }) => {
+      const authUser = (ctx as any).user ?? null;
       const page = Number(query.page) || 1;
       const limit = Math.min(Number(query.limit) || 20, 50);
       const offset = (page - 1) * limit;
@@ -48,11 +54,11 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
 
       const conditions: ReturnType<typeof eq>[] = [];
       conditions.push(eq(reviews.isHidden, false));
-      if (query.media_id)  conditions.push(eq(reviews.mediaId, query.media_id));
-      if (query.user_id)   conditions.push(eq(reviews.userId, query.user_id));
-      if (query.season_id) conditions.push(eq(reviews.seasonId, query.season_id));
+      if (query.media_id)   conditions.push(eq(reviews.mediaId, query.media_id));
+      if (query.user_id)    conditions.push(eq(reviews.userId, query.user_id));
+      if (query.season_id)  conditions.push(eq(reviews.seasonId, query.season_id));
       if (query.episode_id) conditions.push(eq(reviews.episodeId, query.episode_id));
-      if (query.source)    conditions.push(eq(reviews.source, query.source));
+      if (query.source)     conditions.push(eq(reviews.source, query.source));
       if (authUser) conditions.push(notInArray(reviews.userId, blockedUserIds(authUser.id)) as any);
       const whereClause = and(...conditions);
 
@@ -86,37 +92,19 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         .from(reviews)
         .where(whereClause);
 
-      return {
-        data: results.map((r) => ({
-          ...r.review,
-          user: r.user,
-          media: r.media,
-        })),
+      return paginated(
+        results.map((r) => ({ ...r.review, user: r.user, media: r.media })),
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
-        hasNext: offset + limit < total,
-        hasPrev: page > 1,
-      };
+      );
     },
-    {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        media_id: t.Optional(t.String()),
-        user_id: t.Optional(t.String()),
-        season_id: t.Optional(t.String()),
-        episode_id: t.Optional(t.String()),
-        source: t.Optional(t.String()),
-      }),
-    },
+    { query: ListReviewsQuery },
   )
 
   // Get single review
-  .get("/:id", async (ctx: any) => {
-    const { params, set } = ctx;
-    const authUser = ctx.user ?? null;
+  .get("/:id", async ({ params, set, ...ctx }) => {
+    const authUser = (ctx as any).user ?? null;
 
     const [result] = await db
       .select({
@@ -153,16 +141,14 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
       return { error: "Review not found" };
     }
 
-    return {
-      data: { ...result.review, user: result.user, media: result.media },
-    };
+    return ok({ ...result.review, user: result.user, media: result.media });
   })
 
   // Create review
   .post(
     "/",
-    async (ctx: any) => {
-      const { user: authUser, body } = ctx;
+    async ({ body, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const [filterResult] = await Promise.all([
         contentFilterService.check(body.content ?? ""),
@@ -198,7 +184,6 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         });
       }
 
-      // Create activity
       await db.insert(activities).values({
         userId: authUser.id,
         type: "review",
@@ -211,30 +196,21 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         }),
       });
 
-      // Notify taste-match users about this review (fire-and-forget)
       notifyTasteMatchReview(authUser.id, body.media_id).catch(() => {});
 
-      return { data: newReview };
+      return ok(newReview);
     },
     {
       requireAuth: true,
-      body: t.Object({
-        media_id: t.String(),
-        season_id: t.Optional(t.String()),
-        episode_id: t.Optional(t.String()),
-        content: t.String({ minLength: 10 }),
-        rating: t.Optional(t.Number({ minimum: 0.5, maximum: 5 })),
-        contains_spoilers: t.Optional(t.Boolean()),
-        title: t.Optional(t.String()),
-      }),
+      body: CreateReviewBody,
     },
   )
 
   // Update review
   .patch(
     "/:id",
-    async (ctx: any) => {
-      const { user: authUser, params, body, set } = ctx;
+    async ({ params, body, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const [existing] = await db
         .select()
@@ -284,25 +260,20 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         .where(eq(reviews.id, params.id))
         .returning();
 
-      return { data: updated };
+      return ok(updated);
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        content: t.Optional(t.String({ minLength: 10 })),
-        rating: t.Optional(t.Number({ minimum: 0.5, maximum: 5 })),
-        contains_spoilers: t.Optional(t.Boolean()),
-        title: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      body: UpdateReviewBody,
     },
   )
 
   // Delete review
   .delete(
     "/:id",
-    async (ctx: any) => {
-      const { user: authUser, params, set } = ctx;
+    async ({ params, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const [existing] = await db
         .select()
@@ -327,15 +298,15 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   )
 
   // Like Review
   .post(
     "/:id/like",
-    async (ctx: any) => {
-      const { user: authUser, params, set } = ctx;
+    async ({ params, set, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       try {
         await db.insert(likes).values({
@@ -344,14 +315,12 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
           targetId: params.id,
         });
 
-        // Update review likes count
         const [updatedReview] = await db
           .update(reviews)
           .set({ likesCount: sql`${reviews.likesCount} + 1` })
           .where(eq(reviews.id, params.id))
           .returning({ userId: reviews.userId });
 
-        // Notify review author
         if (updatedReview && updatedReview.userId !== authUser.id) {
           const [liker] = await db.select({ displayName: user.displayName, username: user.username }).from(user).where(eq(user.id, authUser.id)).limit(1);
           const name = liker?.displayName || liker?.username || "Someone";
@@ -369,15 +338,15 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   )
 
   // Unlike Review
   .delete(
     "/:id/like",
-    async (ctx: any) => {
-      const { user: authUser, params } = ctx;
+    async ({ params, ...ctx }) => {
+      const authUser = (ctx as any).user;
 
       const deleted = await db
         .delete(likes)
@@ -391,7 +360,6 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         .returning();
 
       if (deleted.length > 0) {
-        // Decrement likes count
         await db
           .update(reviews)
           .set({ likesCount: sql`${reviews.likesCount} - 1` })
@@ -402,6 +370,6 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   );

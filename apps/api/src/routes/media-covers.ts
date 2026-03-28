@@ -1,4 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { IdParam, GalleryImageBody } from "@pixelreel/validators";
 import { db, media as mediaTable, eq, and } from "../db";
 import { mediaCustomCovers } from "../db/schema/identity";
 import { betterAuthPlugin } from "../lib/auth";
@@ -100,7 +101,7 @@ export const mediaCoversRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   )
 
@@ -171,8 +172,8 @@ export const mediaCoversRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ filePath: t.String() }),
+      params: IdParam,
+      body: GalleryImageBody,
     },
   )
 
@@ -215,6 +216,6 @@ export const mediaCoversRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     },
   )

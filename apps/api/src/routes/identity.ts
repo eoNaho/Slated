@@ -1,4 +1,11 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  UsernameParam,
+  SetFrameBody,
+  SetTitleBody,
+  UpdateAppearanceBody,
+} from "@pixelreel/validators";
 import {
   db,
   user as userTable,
@@ -205,7 +212,7 @@ export const identityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({ frameId: t.Nullable(t.String()) }),
+      body: SetFrameBody,
     }
   )
 
@@ -275,7 +282,7 @@ export const identityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({ titleId: t.Nullable(t.String()) }),
+      body: SetTitleBody,
     }
   )
 
@@ -315,11 +322,7 @@ export const identityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({
-        accentColor: t.Optional(t.Nullable(t.String())),
-        profileTheme: t.Optional(t.Nullable(t.String())),
-        showcasedBadges: t.Optional(t.Array(t.String())),
-      }),
+      body: UpdateAppearanceBody,
     }
   )
 
@@ -403,7 +406,7 @@ export const identityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -477,5 +480,5 @@ export const identityRoutes = new Elysia({
         },
       };
     },
-    { params: t.Object({ username: t.String() }) }
+    { params: UsernameParam }
   );

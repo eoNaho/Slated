@@ -1,21 +1,20 @@
-import { Elysia, t } from "elysia";
-import { db, likes, activities, media, reviews, lists, comments, user as userTable, eq, and, inArray, desc } from "../db";
+import { Elysia } from "elysia";
+import { db, likes, activities, media, reviews, lists, user as userTable, eq, and, inArray, desc } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { canViewSection } from "../lib/privacy";
 import { tasteProfileService } from "../services/recommendation.service";
 import { createNotification } from "./notifications";
+import { LikeBody, LikeParams, LikedMediaQuery, UserIdParam } from "@pixelreel/validators";
+import { ok } from "../utils/response";
 
 export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
   .use(betterAuthPlugin)
 
-  /**
-   * POST /likes
-   * Like a target (media, review, list)
-   */
+  // POST /likes — like a target (media, review, list)
   .post(
     "/",
-    async (ctx: any) => {
-      const { user, body, set } = ctx;
+    async ({ body, set, ...ctx }) => {
+      const user = (ctx as any).user;
 
       try {
         const [existing] = await db
@@ -25,8 +24,8 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
             and(
               eq(likes.userId, user.id),
               eq(likes.targetType, body.targetType),
-              eq(likes.targetId, body.targetId)
-            )
+              eq(likes.targetId, body.targetId),
+            ),
           )
           .limit(1);
 
@@ -43,7 +42,6 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
           })
           .returning();
 
-        // Create activity
         await db.insert(activities).values({
           userId: user.id,
           type: "like",
@@ -51,20 +49,16 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
           targetId: body.targetId,
         });
 
-        // Depending on targetType, we might want to increment likesCount 
-        // using the increment_likes function from DB trigger/rpc, but we'll leave that to the DB trigger or do it manually if needed.
-        // There is a RPC `increment_likes` in the 0001_security_and_triggers.sql but not accessible via Drizzle directly without sql``.
         if (body.targetType === "review") {
-            const { reviews } = await import("../db");
-            const { sql } = await import("drizzle-orm");
-            await db.update(reviews).set({ likesCount: sql`${reviews.likesCount} + 1` }).where(eq(reviews.id, body.targetId));
+          const { reviews } = await import("../db");
+          const { sql } = await import("drizzle-orm");
+          await db.update(reviews).set({ likesCount: sql`${reviews.likesCount} + 1` }).where(eq(reviews.id, body.targetId));
         } else if (body.targetType === "list") {
-            const { lists } = await import("../db");
-            const { sql } = await import("drizzle-orm");
-            await db.update(lists).set({ likesCount: sql`${lists.likesCount} + 1` }).where(eq(lists.id, body.targetId));
+          const { lists } = await import("../db");
+          const { sql } = await import("drizzle-orm");
+          await db.update(lists).set({ likesCount: sql`${lists.likesCount} + 1` }).where(eq(lists.id, body.targetId));
         }
 
-        // Notify target owner (review or list)
         if (body.targetType === "review") {
           const [review] = await db.select({ userId: reviews.userId, id: reviews.id }).from(reviews).where(eq(reviews.id, body.targetId)).limit(1);
           if (review && review.userId !== user.id) {
@@ -81,14 +75,13 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
           }
         }
 
-        // Invalidate taste profile cache when user likes a media item
         if (body.targetType === "media") {
           tasteProfileService.invalidate(user.id).catch(() => null);
         }
 
         return { data: newLike, isNew: true };
       } catch (e: any) {
-        if (e.code === "23505") { // unique violation
+        if (e.code === "23505") {
           set.status = 400;
           return { error: "Already liked" };
         }
@@ -97,21 +90,14 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        targetType: t.Union([t.Literal("media"), t.Literal("review"), t.Literal("list")]),
-        targetId: t.String(),
-      }),
-    }
+      body: LikeBody,
+    },
   )
 
-  /**
-   * GET /likes/media/user/:userId
-   * Get a user's liked media (public). Returns liked media items with media details.
-   */
+  // GET /likes/media/user/:userId — liked media by a user
   .get(
     "/media/user/:userId",
-    async (ctx: any) => {
-      const { params, query, request, set } = ctx;
+    async ({ params, query, request, set }) => {
       const session = await getOptionalSession(request.headers);
       const viewerId = session?.user?.id ?? null;
 
@@ -136,7 +122,7 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
         .limit(limit)
         .offset(offset);
 
-      if (likedRows.length === 0) return { data: [] };
+      if (likedRows.length === 0) return ok([]);
 
       const mediaIds = likedRows.map((r) => r.mediaId);
       const mediaItems = await db
@@ -152,30 +138,23 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
         .where(inArray(media.id, mediaIds));
 
       const mediaMap = Object.fromEntries(mediaItems.map((m) => [m.id, m]));
-
       const data = likedRows
         .map((r) => ({ id: r.id, createdAt: r.createdAt, media: mediaMap[r.mediaId] }))
         .filter((r) => !!r.media);
 
-      return { data };
+      return ok(data);
     },
     {
-      params: t.Object({ userId: t.String() }),
-      query: t.Object({
-        limit: t.Optional(t.String()),
-        offset: t.Optional(t.String()),
-      }),
-    }
+      params: UserIdParam,
+      query: LikedMediaQuery,
+    },
   )
 
-  /**
-   * DELETE /likes/:targetType/:targetId
-   * Unlike a target
-   */
+  // DELETE /likes/:targetType/:targetId — unlike a target
   .delete(
     "/:targetType/:targetId",
-    async (ctx: any) => {
-      const { user, params } = ctx;
+    async ({ params, ...ctx }) => {
+      const user = (ctx as any).user;
 
       await db
         .delete(likes)
@@ -183,22 +162,20 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
           and(
             eq(likes.userId, user.id),
             eq(likes.targetType, params.targetType),
-            eq(likes.targetId, params.targetId)
-          )
+            eq(likes.targetId, params.targetId),
+          ),
         );
 
-      // Decrement logic
       if (params.targetType === "review") {
-          const { reviews } = await import("../db");
-          const { sql } = await import("drizzle-orm");
-          await db.update(reviews).set({ likesCount: sql`GREATEST(${reviews.likesCount} - 1, 0)` }).where(eq(reviews.id, params.targetId));
+        const { reviews } = await import("../db");
+        const { sql } = await import("drizzle-orm");
+        await db.update(reviews).set({ likesCount: sql`GREATEST(${reviews.likesCount} - 1, 0)` }).where(eq(reviews.id, params.targetId));
       } else if (params.targetType === "list") {
-          const { lists } = await import("../db");
-          const { sql } = await import("drizzle-orm");
-          await db.update(lists).set({ likesCount: sql`GREATEST(${lists.likesCount} - 1, 0)` }).where(eq(lists.id, params.targetId));
+        const { lists } = await import("../db");
+        const { sql } = await import("drizzle-orm");
+        await db.update(lists).set({ likesCount: sql`GREATEST(${lists.likesCount} - 1, 0)` }).where(eq(lists.id, params.targetId));
       }
 
-      // Invalidate taste profile cache when user unlikes a media item
       if (params.targetType === "media") {
         tasteProfileService.invalidate(user.id).catch(() => null);
       }
@@ -207,9 +184,6 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
     },
     {
       requireAuth: true,
-      params: t.Object({
-        targetType: t.Union([t.Literal("media"), t.Literal("review"), t.Literal("list")]),
-        targetId: t.String() 
-      }),
-    }
+      params: LikeParams,
+    },
   );

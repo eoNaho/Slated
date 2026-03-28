@@ -1,5 +1,5 @@
 // ================================================
-// PixelReel - Database Types (auto-generated style)
+// PixelReel - Shared Types
 // ================================================
 
 // ==========================================
@@ -7,11 +7,7 @@
 // ==========================================
 
 export type MediaType = "movie" | "series";
-export type MediaStatus =
-  | "released"
-  | "upcoming"
-  | "in_production"
-  | "canceled";
+export type MediaStatus = "released" | "upcoming" | "in_production" | "canceled";
 export type GenderType = "male" | "female" | "non_binary" | "unknown";
 export type UserRole = "user" | "moderator" | "admin";
 export type UserStatus = "active" | "suspended" | "banned";
@@ -38,45 +34,71 @@ export type AchievementType = "milestone" | "streak" | "challenge" | "rare";
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export type SubscriptionStatus = "active" | "canceled" | "expired" | "past_due";
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded";
-export type ReportStatus =
-  | "pending"
-  | "investigating"
-  | "resolved"
-  | "dismissed";
+export type ReportStatus = "pending" | "investigating" | "resolved" | "dismissed";
 export type ReportPriority = "low" | "medium" | "high" | "critical";
+export type NotificationType =
+  | "follow"
+  | "like"
+  | "comment"
+  | "achievement"
+  | "story_reaction"
+  | "story_reply"
+  | "story_mention"
+  | "club_invite"
+  | "dm"
+  | "system"
+  | "moderation_warning"
+  | "content_hidden"
+  | "content_restored"
+  | "account_suspended";
+export type StoryType =
+  | "watch"
+  | "list"
+  | "rating"
+  | "poll"
+  | "hot_take"
+  | "rewind"
+  | "countdown"
+  | "quiz"
+  | "question_box";
+export type StoryVisibility = "public" | "followers" | "close_friends";
+export type ConversationType = "dm" | "group";
+export type MessageType = "text" | "story_reply" | "image" | "system";
 
 // ==========================================
-// BASE TYPES
+// USERS
 // ==========================================
 
 export interface User {
   id: string;
   username: string;
-  display_name: string | null;
+  displayName: string | null;
   email: string | null;
   bio: string | null;
-  avatar_url: string | null;
-  cover_url: string | null;
+  avatarUrl: string | null;
+  coverUrl: string | null;
   location: string | null;
   website: string | null;
-  is_verified: boolean;
-  is_premium: boolean;
+  isVerified: boolean;
+  isPremium: boolean;
   role: UserRole;
   status: UserStatus;
-  last_active_at: string | null;
-  created_at: string;
-  updated_at: string;
+  lastActiveAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserSettings {
-  user_id: string;
+  userId: string;
   theme: string;
   language: string;
-  privacy: {
-    profile: "public" | "private" | "followers";
-    activity: "public" | "private" | "followers";
-    watchlist: "public" | "private" | "followers";
-  };
+  isPrivate: boolean;
+  visibilityDiary: "public" | "followers" | "private";
+  visibilityWatchlist: "public" | "followers" | "private";
+  visibilityActivity: "public" | "followers" | "private";
+  visibilityReviews: "public" | "followers" | "private";
+  visibilityLists: "public" | "followers" | "private";
+  visibilityLikes: "public" | "followers" | "private";
   notifications: {
     email: boolean;
     push: boolean;
@@ -84,178 +106,409 @@ export interface UserSettings {
     comments: boolean;
     likes: boolean;
   };
-  updated_at: string;
+  updatedAt: string;
 }
 
 export interface UserSocialLinks {
-  user_id: string;
+  userId: string;
   twitter: string | null;
   instagram: string | null;
   letterboxd: string | null;
   imdb: string | null;
-  updated_at: string;
+  updatedAt: string;
 }
+
+export interface UserStats {
+  userId: string;
+  xp: number;
+  level: number;
+  moviesWatched: number;
+  seriesWatched: number;
+  episodesWatched: number;
+  watchTimeMins: number;
+  reviewsCount: number;
+  listsCount: number;
+  likesReceived: number;
+  followersCount: number;
+  followingCount: number;
+  currentStreak: number;
+  longestStreak: number;
+  averageRating: number | null;
+  updatedAt: string;
+}
+
+export interface BioLink {
+  label: string;
+  url: string;
+  icon?: string;
+}
+
+export interface BioExtended {
+  headline?: string | null;
+  location?: string;
+  website?: string;
+  links?: BioLink[];
+  quote?: { text: string; author?: string; source?: string } | null;
+  moods?: string[];
+  currentlyWatching?: {
+    mediaId: string;
+    note?: string;
+    startedAt?: string;
+    progress?: number;
+  } | null;
+  sections?: { title: string; content: string }[];
+}
+
+export interface FavoriteFilm {
+  mediaId: string;
+  position: number;
+  title?: string;
+  posterPath?: string | null;
+}
+
+// ==========================================
+// MEDIA
+// ==========================================
 
 export interface Media {
   id: string;
-  tmdb_id: number;
-  imdb_id: string | null;
+  tmdbId: number;
+  imdbId: string | null;
   type: MediaType;
   title: string;
-  original_title: string | null;
+  originalTitle: string | null;
   tagline: string | null;
   overview: string | null;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  release_date: string | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  releaseDate: string | null;
   runtime: number | null;
   budget: number | null;
   revenue: number | null;
   popularity: number;
-  vote_average: number;
-  vote_count: number;
+  voteAverage: number;
+  voteCount: number;
   status: MediaStatus;
-  original_language: string;
-  seasons_count: number | null;
-  episodes_count: number | null;
+  originalLanguage: string;
+  seasonsCount: number | null;
+  episodesCount: number | null;
   homepage: string | null;
-  trailer_url: string | null;
-  created_at: string;
-  updated_at: string;
+  trailerUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Genre {
   id: string;
-  tmdb_id: number | null;
+  tmdbId: number | null;
   name: string;
   slug: string;
 }
 
 export interface Person {
   id: string;
-  tmdb_id: number;
-  imdb_id: string | null;
+  tmdbId: number;
+  imdbId: string | null;
   name: string;
   slug: string;
   biography: string | null;
   birthday: string | null;
   deathday: string | null;
-  birth_place: string | null;
-  profile_path: string | null;
+  birthPlace: string | null;
+  profilePath: string | null;
   gender: GenderType;
   popularity: number;
-  known_for_department: string | null;
-  created_at: string;
-  updated_at: string;
+  knownForDepartment: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface MediaCredit {
   id: string;
-  media_id: string;
-  person_id: string;
-  credit_type: "cast" | "crew";
+  mediaId: string;
+  personId: string;
+  creditType: "cast" | "crew";
   character: string | null;
-  cast_order: number | null;
+  castOrder: number | null;
   department: string | null;
   job: string | null;
-  created_at: string;
+  createdAt: string;
 }
+
+export interface StreamingService {
+  id: string;
+  tmdbId: number | null;
+  name: string;
+  slug: string | null;
+  logoPath: string | null;
+}
+
+export interface MediaStreaming {
+  mediaId: string;
+  serviceId: string;
+  country: string;
+  url: string | null;
+}
+
+export interface MediaVideo {
+  key: string;
+  name: string;
+  type: string;
+  site: string;
+  official: boolean | null;
+  publishedAt: string | null;
+}
+
+export interface MediaImage {
+  filePath: string;
+  width: number | null;
+  height: number | null;
+  voteAverage: number | null;
+}
+
+export interface MediaGalleryData {
+  videos: MediaVideo[];
+  backdrops: MediaImage[];
+  posters: MediaImage[];
+}
+
+export interface ExternalRating {
+  source: string;
+  value: string;
+  url?: string;
+}
+
+// ==========================================
+// SOCIAL
+// ==========================================
 
 export interface Review {
   id: string;
-  user_id: string;
-  media_id: string;
+  userId: string;
+  mediaId: string;
   title: string | null;
   content: string;
   rating: number | null;
-  contains_spoilers: boolean;
-  likes_count: number;
-  comments_count: number;
-  created_at: string;
-  updated_at: string;
+  containsSpoilers: boolean;
+  likesCount: number;
+  commentsCount: number;
+  isHidden: boolean;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface List {
   id: string;
-  user_id: string;
+  userId: string;
   name: string;
+  slug: string;
   description: string | null;
-  cover_url: string | null;
-  is_public: boolean;
-  is_ranked: boolean;
-  is_thematic: boolean;
-  category: string | null;
-  likes_count: number;
-  items_count: number;
-  views_count: number;
-  created_at: string;
-  updated_at: string;
+  coverUrl: string | null;
+  isPublic: boolean;
+  isRanked: boolean;
+  likesCount: number;
+  itemsCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ListItem {
   id: string;
-  list_id: string;
-  media_id: string;
+  listId: string;
+  mediaId: string;
   position: number;
   note: string | null;
-  created_at: string;
-}
-
-export interface WatchlistItem {
-  id: string;
-  user_id: string;
-  media_id: string;
-  priority: Priority;
-  created_at: string;
-}
-
-export interface DiaryEntry {
-  id: string;
-  user_id: string;
-  media_id: string;
-  review_id: string | null;
-  watched_at: string;
-  rating: number | null;
-  is_rewatch: boolean;
-  notes: string | null;
-  created_at: string;
-}
-
-export interface Follow {
-  follower_id: string;
-  following_id: string;
-  created_at: string;
-}
-
-export interface Like {
-  id: string;
-  user_id: string;
-  target_type: TargetType;
-  target_id: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface Comment {
   id: string;
-  user_id: string;
-  target_type: "review" | "list";
-  target_id: string;
-  parent_id: string | null;
+  userId: string;
+  targetType: "review" | "list";
+  targetId: string;
+  parentId: string | null;
   content: string;
-  likes_count: number;
-  created_at: string;
-  updated_at: string;
+  likesCount: number;
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface Activity {
-  id: string;
-  user_id: string;
-  type: ActivityType;
-  target_type: string | null;
-  target_id: string | null;
-  metadata: Record<string, unknown> | null;
-  created_at: string;
+export interface Follow {
+  followerId: string;
+  followingId: string;
+  status: "accepted" | "pending";
+  createdAt: string;
 }
+
+export interface Like {
+  id: string;
+  userId: string;
+  targetType: TargetType;
+  targetId: string;
+  createdAt: string;
+}
+
+// ==========================================
+// WATCHLIST & DIARY
+// ==========================================
+
+export interface WatchlistItem {
+  id: string;
+  userId: string;
+  mediaId: string;
+  priority: Priority;
+  createdAt: string;
+}
+
+export interface DiaryEntry {
+  id: string;
+  userId: string;
+  mediaId: string;
+  reviewId: string | null;
+  watchedAt: string;
+  rating: number | null;
+  isRewatch: boolean;
+  notes: string | null;
+  createdAt: string;
+}
+
+// ==========================================
+// NOTIFICATIONS
+// ==========================================
+
+export interface Notification {
+  id: string;
+  userId: string;
+  fromUserId: string | null;
+  type: NotificationType;
+  title: string;
+  message: string | null;
+  data: Record<string, unknown> | null;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+// ==========================================
+// STORIES
+// ==========================================
+
+export interface Story {
+  id: string;
+  userId: string;
+  type: StoryType;
+  content: unknown;
+  visibility: StoryVisibility;
+  expiresAt: string | null;
+  slides: unknown[] | null;
+  viewsCount: number;
+  reactionsCount: number;
+  createdAt: string;
+}
+
+export interface StorySlide {
+  type: StoryType;
+  content: unknown;
+  imageUrl?: string | null;
+  duration?: number;
+}
+
+export interface StoryHighlight {
+  id: string;
+  userId: string;
+  name: string;
+  coverImageUrl: string | null;
+  position: number;
+  createdAt: string;
+  storyCount?: number;
+}
+
+export interface StoryViewer {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  viewedAt: string;
+}
+
+export interface StoryReply {
+  id: string;
+  storyId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+}
+
+// ==========================================
+// MESSAGING
+// ==========================================
+
+export interface ConversationParticipant {
+  userId: string;
+  role: "admin" | "member";
+  nickname: string | null;
+  isMuted: boolean;
+  lastReadAt: string | null;
+  joinedAt: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  type: ConversationType;
+  name: string | null;
+  avatarUrl: string | null;
+  createdBy: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  messageCount: number;
+  isEncrypted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  unreadCount?: number;
+  participants?: ConversationParticipant[];
+}
+
+export interface MessageMetadata {
+  storyId?: string;
+  storyType?: string;
+  storyContent?: Record<string, unknown>;
+  storyImageUrl?: string | null;
+  storyIsExpired?: boolean;
+  mediaUrl?: string | null;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  type: MessageType;
+  content: string | null;
+  metadata: MessageMetadata | null;
+  replyToId: string | null;
+  isEdited: boolean;
+  editedAt: string | null;
+  isDeleted: boolean;
+  createdAt: string;
+  senderUsername?: string | null;
+  senderDisplayName?: string | null;
+  senderAvatarUrl?: string | null;
+}
+
+export interface DmSettings {
+  userId: string;
+  allowDmsFrom: "everyone" | "followers" | "following" | "mutual" | "nobody";
+  showReadReceipts: boolean;
+  showTypingIndicator: boolean;
+}
+
+// ==========================================
+// GAMIFICATION
+// ==========================================
 
 export interface Achievement {
   id: string;
@@ -265,122 +518,253 @@ export interface Achievement {
   category: AchievementCategory | null;
   type: AchievementType | null;
   rarity: Rarity | null;
-  xp_reward: number;
+  xpReward: number;
   requirements: Record<string, unknown> | null;
-  is_secret: boolean;
-  created_at: string;
+  isSecret: boolean;
+  createdAt: string;
+  isUnlocked?: boolean;
+  unlockedAt?: string | null;
+  progress?: number;
 }
 
 export interface UserAchievement {
-  user_id: string;
-  achievement_id: string;
+  userId: string;
+  achievementId: string;
   progress: number;
-  unlocked_at: string | null;
-}
-
-export interface UserStats {
-  user_id: string;
-  xp: number;
-  level: number;
-  movies_watched: number;
-  series_watched: number;
-  episodes_watched: number;
-  watch_time_mins: number;
-  reviews_count: number;
-  lists_count: number;
-  likes_received: number;
-  followers_count: number;
-  following_count: number;
-  current_streak: number;
-  longest_streak: number;
-  average_rating: number | null;
-  updated_at: string;
+  unlockedAt: string | null;
 }
 
 export interface XPActivity {
   id: string;
-  user_id: string;
+  userId: string;
   type: string;
-  xp_gained: number;
+  xpGained: number;
   description: string | null;
   metadata: Record<string, unknown> | null;
-  created_at: string;
+  createdAt: string;
 }
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  xp: number;
+  level: number;
+  moviesWatched: number;
+  reviewsCount: number;
+}
+
+// ==========================================
+// ACTIVITY / SCROBBLES
+// ==========================================
+
+export interface Activity {
+  id: string;
+  userId: string;
+  type: ActivityType;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface Scrobble {
+  id: string;
+  userId: string;
+  tmdbId: number | null;
+  mediaType: "movie" | "episode";
+  title: string;
+  season: number | null;
+  episode: number | null;
+  runtimeMinutes: number | null;
+  source: string;
+  progress: number | null;
+  isManual: boolean;
+  watchedAt: string;
+  createdAt: string;
+}
+
+export interface CurrentActivity {
+  userId: string;
+  tmdbId: number | null;
+  mediaType: "movie" | "episode" | null;
+  title: string;
+  season: number | null;
+  episode: number | null;
+  progress: number | null;
+  source: string | null;
+  status: "watching" | "paused" | "finished";
+  updatedAt: string;
+}
+
+export interface ActivityToken {
+  id: string;
+  userId: string;
+  name: string;
+  tokenHash: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+  token?: string;
+}
+
+export interface ActivityStats {
+  totalScrobbles: number;
+  totalMovies: number;
+  totalEpisodes: number;
+  totalHours: number | null;
+  sourceBreakdown: { source: string; count: number }[];
+  monthly: { year: number; month: number; count: number; minutes: number | null }[];
+}
+
+// ==========================================
+// IDENTITY & CUSTOMIZATION
+// ==========================================
+
+export interface ProfileFrame {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  isAnimated: boolean;
+  minPlan: string;
+  previewUrl: string | null;
+  isUnlocked?: boolean;
+}
+
+export interface ProfileTitle {
+  id: string;
+  name: string;
+  slug: string;
+  bgColor: string;
+  textColor: string;
+  source: "plan" | "xp" | "achievement";
+  minPlan: string | null;
+  xpRequired: number | null;
+  achievementId: string | null;
+  isUnlocked?: boolean;
+}
+
+export interface UserIdentityPerks {
+  userId: string;
+  frameId: string | null;
+  activeTitleId: string | null;
+  badgeEnabled: boolean;
+  verified: boolean;
+  frame?: Pick<ProfileFrame, "id" | "name" | "slug" | "color" | "isAnimated"> | null;
+  title?: Pick<ProfileTitle, "id" | "name" | "slug" | "bgColor" | "textColor"> | null;
+}
+
+export interface UserIdentity {
+  perks: UserIdentityPerks | null;
+  accentColor: string | null;
+  profileTheme: string | null;
+  showcasedBadges: string[];
+}
+
+// ==========================================
+// CLUBS
+// ==========================================
+
+export interface ClubInvite {
+  id: string;
+  clubId: string;
+  invitedUserId: string;
+  invitedById: string;
+  expiresAt: string;
+  createdAt: string;
+  club: {
+    id: string;
+    name: string;
+    slug: string;
+    coverUrl: string | null;
+    memberCount?: number;
+  };
+  invitedBy: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+// ==========================================
+// REPORTS & MODERATION
+// ==========================================
+
+export interface Report {
+  id: string;
+  reporterId: string | null;
+  targetType: "user" | "review" | "comment" | "list";
+  targetId: string;
+  reason: string;
+  description: string | null;
+  status: ReportStatus;
+  priority: ReportPriority;
+  assignedTo: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// PLANS & SUBSCRIPTIONS
+// ==========================================
 
 export interface Plan {
   id: string;
   name: string;
   slug: string;
   description: string | null;
-  price_monthly: number | null;
-  price_yearly: number | null;
+  priceMonthly: number | null;
+  priceYearly: number | null;
   features: string[] | null;
   limits: Record<string, unknown> | null;
-  is_active: boolean;
-  created_at: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface Subscription {
   id: string;
-  user_id: string;
-  plan_id: string | null;
+  userId: string;
+  planId: string | null;
   status: SubscriptionStatus;
-  current_period_start: string | null;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean;
-  stripe_subscription_id: string | null;
-  stripe_customer_id: string | null;
-  created_at: string;
-  updated_at: string;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  stripeSubscriptionId: string | null;
+  stripeCustomerId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Payment {
   id: string;
-  user_id: string;
-  subscription_id: string | null;
+  userId: string;
+  subscriptionId: string | null;
   amount: number;
   currency: string;
   status: PaymentStatus | null;
-  stripe_payment_intent_id: string | null;
-  created_at: string;
+  stripePaymentIntentId: string | null;
+  createdAt: string;
 }
 
-export interface Report {
-  id: string;
-  reporter_id: string | null;
-  target_type: "user" | "review" | "comment" | "list";
-  target_id: string;
-  reason: string;
-  description: string | null;
-  status: ReportStatus;
-  priority: ReportPriority;
-  assigned_to: string | null;
-  resolved_at: string | null;
-  resolved_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// ==========================================
+// MISC
+// ==========================================
 
 export interface Tag {
   id: string;
   name: string;
   slug: string;
-  usage_count: number;
+  usageCount: number;
 }
 
-export interface StreamingService {
-  id: string;
-  tmdb_id: number | null;
-  name: string;
-  slug: string | null;
-  logo_path: string | null;
-}
-
-export interface MediaStreaming {
-  media_id: string;
-  service_id: string;
-  country: string;
-  url: string | null;
+export interface SearchResults {
+  media: Media[];
+  users: User[];
+  lists: List[];
 }
 
 // ==========================================
@@ -389,29 +773,35 @@ export interface MediaStreaming {
 
 export interface UserProfile extends User {
   settings?: UserSettings;
-  social_links?: UserSocialLinks;
+  socialLinks?: UserSocialLinks;
   stats?: UserStats;
+  bioExtended?: BioExtended | null;
+  isFollowing?: boolean;
+  followStatus?: "accepted" | "pending" | "none";
+  isOwnProfile?: boolean;
 }
 
 export interface MediaWithDetails extends Media {
   genres?: Genre[];
   credits?: (MediaCredit & { person?: Person })[];
   streaming?: (MediaStreaming & { service?: StreamingService })[];
+  externalRatings?: ExternalRating[];
 }
 
 export interface ReviewWithAuthor extends Review {
-  user?: Pick<User, "id" | "username" | "display_name" | "avatar_url">;
-  media?: Pick<Media, "id" | "title" | "poster_path" | "type">;
+  user?: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
+  media?: Pick<Media, "id" | "title" | "posterPath" | "type">;
 }
 
 export interface ListWithItems extends List {
-  user?: Pick<User, "id" | "username" | "display_name" | "avatar_url">;
+  user?: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
   items?: (ListItem & { media?: Media })[];
+  coverImages?: string[];
 }
 
 export interface ActivityWithDetails extends Activity {
-  user?: Pick<User, "id" | "username" | "display_name" | "avatar_url">;
-  media?: Pick<Media, "id" | "title" | "poster_path" | "type">;
+  user?: Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
+  media?: Pick<Media, "id" | "title" | "posterPath" | "type">;
   review?: Pick<Review, "id" | "rating" | "content">;
   list?: Pick<List, "id" | "name">;
 }
@@ -422,14 +812,12 @@ export interface ActivityWithDetails extends Activity {
 
 export interface ApiResponse<T> {
   data: T;
-  success: boolean;
-  message?: string;
 }
 
 export interface ApiError {
   error: string;
-  message: string;
-  status: number;
+  detail?: string;
+  code?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -437,7 +825,7 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
-  total_pages: number;
-  has_next: boolean;
-  has_prev: boolean;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }

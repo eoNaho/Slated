@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   conversations,
@@ -24,6 +24,15 @@ import { broadcastToConversation, isOnline } from "../services/ws-manager";
 import { encrypt, decrypt } from "../services/crypto";
 import { createNotification } from "./notifications";
 import { contentFilterService } from "../services/content-filter";
+import {
+  DmSettingsBody,
+  ListConversationsQuery,
+  CreateConversationBody,
+  ListMessagesQuery,
+  SendMessageBody,
+  StoryReplyMessageBody,
+} from "@pixelreel/validators";
+import { IdParam } from "@pixelreel/validators";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -233,19 +242,7 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      body: t.Object({
-        allowDmsFrom: t.Optional(
-          t.Union([
-            t.Literal("everyone"),
-            t.Literal("followers"),
-            t.Literal("following"),
-            t.Literal("mutual"),
-            t.Literal("nobody"),
-          ])
-        ),
-        showReadReceipts: t.Optional(t.Boolean()),
-        showTypingIndicator: t.Optional(t.Boolean()),
-      }),
+      body: DmSettingsBody,
     }
   )
 
@@ -349,10 +346,7 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: ListConversationsQuery,
     }
   )
 
@@ -445,11 +439,7 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      body: t.Object({
-        type: t.Union([t.Literal("dm"), t.Literal("group")]),
-        participantIds: t.Array(t.String(), { minItems: 1 }),
-        name: t.Optional(t.String({ maxLength: 100 })),
-      }),
+      body: CreateConversationBody,
     }
   )
 
@@ -500,7 +490,7 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -582,11 +572,8 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        limit: t.Optional(t.String()),
-        before: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: ListMessagesQuery,
     }
   )
 
@@ -695,19 +682,8 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        content: t.String({ minLength: 1, maxLength: 4000 }),
-        type: t.Optional(
-          t.Union([
-            t.Literal("text"),
-            t.Literal("story_reply"),
-            t.Literal("image"),
-          ])
-        ),
-        metadata: t.Optional(t.Any()),
-        replyToId: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      body: SendMessageBody,
     }
   )
 
@@ -737,7 +713,7 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -870,9 +846,6 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
     },
     {
       requireAuth: true,
-      body: t.Object({
-        storyId: t.String(),
-        content: t.String({ minLength: 1, maxLength: 1000 }),
-      }),
+      body: StoryReplyMessageBody,
     }
   );

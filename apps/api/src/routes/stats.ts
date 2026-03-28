@@ -1,4 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { UsernameParam } from "@pixelreel/validators";
 import {
   db,
   user as userTable,
@@ -126,7 +127,7 @@ export const statsRoutes = new Elysia({ prefix: "/stats", tags: ["Admin"] })
       }); // end cached
     },
     {
-      params: t.Object({ username: t.String() }),
+      params: UsernameParam,
     },
   )
 

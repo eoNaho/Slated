@@ -1,4 +1,13 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  UserIdParam,
+  PaginationQuery,
+  CreateTokenBody,
+  HeartbeatBody,
+  ManualScrobbleBody,
+  StatsQuery,
+} from "@pixelreel/validators";
 import { db } from "../db";
 import { tasteProfileService } from "../services/recommendation.service";
 import {
@@ -116,9 +125,7 @@ export const activityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({
-        name: t.Optional(t.String({ maxLength: 60 })),
-      }),
+      body: CreateTokenBody,
     }
   )
 
@@ -175,7 +182,7 @@ export const activityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -292,17 +299,7 @@ export const activityRoutes = new Elysia({
       return { success: true, scrobbled };
     },
     {
-      body: t.Object({
-        title: t.String(),
-        season: t.Optional(t.Nullable(t.Integer())),
-        episode: t.Optional(t.Nullable(t.Integer())),
-        progress: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
-        source: t.String(),
-        status: t.Union([t.Literal("watching"), t.Literal("paused"), t.Literal("finished")]),
-        tmdb_id: t.Optional(t.Nullable(t.Integer())),
-        media_type: t.Optional(t.Nullable(t.Union([t.Literal("movie"), t.Literal("episode")]))),
-        runtime_minutes: t.Optional(t.Nullable(t.Integer())),
-      }),
+      body: HeartbeatBody,
     }
   )
 
@@ -354,7 +351,7 @@ export const activityRoutes = new Elysia({
       };
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: UserIdParam,
     }
   )
 
@@ -395,11 +392,8 @@ export const activityRoutes = new Elysia({
       };
     },
     {
-      params: t.Object({ userId: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: UserIdParam,
+      query: PaginationQuery,
     }
   )
 
@@ -444,16 +438,7 @@ export const activityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({
-        title: t.String(),
-        media_type: t.Union([t.Literal("movie"), t.Literal("episode")]),
-        tmdb_id: t.Optional(t.Nullable(t.Integer())),
-        season: t.Optional(t.Nullable(t.Integer())),
-        episode: t.Optional(t.Nullable(t.Integer())),
-        runtime_minutes: t.Optional(t.Nullable(t.Integer())),
-        source: t.Optional(t.String()),
-        watched_at: t.Optional(t.String()), // ISO 8601 date string
-      }),
+      body: ManualScrobbleBody,
     }
   )
 
@@ -485,7 +470,7 @@ export const activityRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -578,10 +563,7 @@ export const activityRoutes = new Elysia({
       };
     },
     {
-      params: t.Object({ userId: t.String() }),
-      query: t.Object({
-        year: t.Optional(t.String()),
-        month: t.Optional(t.String()),
-      }),
+      params: UserIdParam,
+      query: StatsQuery,
     }
   );

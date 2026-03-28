@@ -1,4 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { AddCloseFriendBody, FriendIdParam, UserIdParam } from "@pixelreel/validators";
 import {
   db,
   closeFriends,
@@ -81,7 +82,7 @@ export const closeFriendsRoutes = new Elysia({ prefix: "/close-friends", tags: [
     },
     {
       requireAuth: true,
-      body: t.Object({ friend_id: t.String() }),
+      body: AddCloseFriendBody,
     }
   )
 
@@ -104,7 +105,7 @@ export const closeFriendsRoutes = new Elysia({ prefix: "/close-friends", tags: [
     },
     {
       requireAuth: true,
-      params: t.Object({ friendId: t.String() }),
+      params: FriendIdParam,
     }
   )
 
@@ -129,6 +130,6 @@ export const closeFriendsRoutes = new Elysia({ prefix: "/close-friends", tags: [
     },
     {
       requireAuth: true,
-      params: t.Object({ userId: t.String() }),
+      params: UserIdParam,
     }
   );

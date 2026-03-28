@@ -1,4 +1,16 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  PaginationQuery,
+  ModerationQueueQuery,
+  AssignReportBody,
+  ResolveReportBody,
+  ContentActionParams,
+  ContentHideBody,
+  WarnUserBody,
+  ModerationFlagsQuery,
+  UpdateModerationFlagBody,
+} from "@pixelreel/validators";
 import {
   db,
   reports,
@@ -101,14 +113,7 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       };
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        status: t.Optional(t.String()),
-        targetType: t.Optional(t.String()),
-        priority: t.Optional(t.String()),
-        assignedTo: t.Optional(t.String()),
-      }),
+      query: ModerationQueueQuery,
     }
   )
 
@@ -143,8 +148,8 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ moderatorId: t.Optional(t.String()) }),
+      params: IdParam,
+      body: AssignReportBody,
     }
   )
 
@@ -289,19 +294,8 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        action: t.Union([
-          t.Literal("warn"),
-          t.Literal("hide_content"),
-          t.Literal("delete_content"),
-          t.Literal("suspend_user"),
-          t.Literal("ban_user"),
-          t.Literal("dismiss"),
-        ]),
-        reason: t.Optional(t.String()),
-        resolutionNote: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      body: ResolveReportBody,
     }
   )
 
@@ -346,8 +340,8 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { success: true };
     },
     {
-      params: t.Object({ type: t.String(), id: t.String() }),
-      body: t.Object({ reason: t.Optional(t.String()) }),
+      params: ContentActionParams,
+      body: ContentHideBody,
     }
   )
 
@@ -388,7 +382,7 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { success: true };
     },
     {
-      params: t.Object({ type: t.String(), id: t.String() }),
+      params: ContentActionParams,
     }
   )
 
@@ -413,8 +407,8 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { success: true };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ reason: t.String() }),
+      params: IdParam,
+      body: WarnUserBody,
     }
   )
 
@@ -448,11 +442,8 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: PaginationQuery,
     }
   )
 
@@ -485,13 +476,7 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { data: rows, total: Number(total), page, limit };
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        status: t.Optional(t.String()),
-        flagType: t.Optional(t.String()),
-        severity: t.Optional(t.String()),
-      }),
+      query: ModerationFlagsQuery,
     }
   )
 
@@ -514,10 +499,8 @@ const moderationRoutes = new Elysia({ prefix: "/moderation", tags: ["Moderation"
       return { data: updated };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        status: t.Union([t.Literal("confirmed"), t.Literal("dismissed")]),
-      }),
+      params: IdParam,
+      body: UpdateModerationFlagBody,
     }
   );
 

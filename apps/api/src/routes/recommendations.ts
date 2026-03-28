@@ -14,7 +14,15 @@
  *   GET  /recommendations/onboarding/status   → check onboarding completion
  */
 
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  PaginationQuery,
+  LimitQuery,
+  RecommendationsMediaQuery,
+  ExplanationsQuery,
+  RecFeedbackBody,
+  OnboardingBody,
+} from "@pixelreel/validators";
 import { betterAuthPlugin } from "../lib/auth";
 import {
   mediaRecService,
@@ -88,11 +96,7 @@ export const recommendationsRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      query: t.Object({
-        limit:           t.Optional(t.String()),
-        type:            t.Optional(t.Union([t.Literal("movie"), t.Literal("series"), t.Literal("all")])),
-        exclude_watched: t.Optional(t.String()),
-      }),
+      query: RecommendationsMediaQuery,
     }
   )
 
@@ -120,9 +124,7 @@ export const recommendationsRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      query: t.Object({
-        limit: t.Optional(t.String()),
-      }),
+      query: LimitQuery,
     }
   )
 
@@ -153,10 +155,7 @@ export const recommendationsRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page:  t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: PaginationQuery,
     }
   )
 
@@ -249,18 +248,7 @@ export const recommendationsRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({
-        recType:  t.Union([t.Literal("media"), t.Literal("user")]),
-        targetId: t.String(),
-        feedback: t.Union([
-          t.Literal("not_interested"),
-          t.Literal("already_watched"),
-          t.Literal("loved_it"),
-          t.Literal("not_my_taste"),
-        ]),
-        source:  t.Optional(t.String()),
-        context: t.Optional(t.String()),
-      }),
+      body: RecFeedbackBody,
     }
   )
 
@@ -297,9 +285,7 @@ export const recommendationsRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      query: t.Object({
-        mediaIds: t.Optional(t.String()),
-      }),
+      query: ExplanationsQuery,
     }
   )
 
@@ -347,10 +333,7 @@ export const recommendationsRoutes = new Elysia({
     },
     {
       requireAuth: true,
-      body: t.Object({
-        genreIds:    t.Array(t.String()),
-        seedMediaIds: t.Array(t.String()),
-      }),
+      body: OnboardingBody,
     }
   )
 

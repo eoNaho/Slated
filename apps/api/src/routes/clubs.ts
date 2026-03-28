@@ -1,4 +1,17 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  IdParam,
+  PaginationQuery,
+  ListClubsQuery,
+  CreateClubBody,
+  UpdateClubBody,
+  ClubMemberParams,
+  UpdateMemberRoleBody,
+  ClubUsernameBody,
+  JoinRequestBody,
+  ClubRequestParams,
+  InviteIdParam,
+} from "@pixelreel/validators";
 import {
   db,
   user as userTable,
@@ -127,12 +140,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
       };
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        category: t.Optional(t.String()),
-        search: t.Optional(t.String()),
-      }),
+      query: ListClubsQuery,
     }
   )
 
@@ -290,13 +298,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        name: t.String({ minLength: 3, maxLength: 60 }),
-        description: t.Optional(t.String({ maxLength: 500 })),
-        isPublic: t.Optional(t.Boolean()),
-        allowJoinRequests: t.Optional(t.Boolean()),
-        categories: t.Optional(t.Array(t.String(), { maxItems: 3 })),
-      }),
+      body: CreateClubBody,
     }
   )
 
@@ -370,7 +372,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
         },
       };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // ==========================================================================
@@ -414,14 +416,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String({ minLength: 3, maxLength: 60 })),
-        description: t.Optional(t.String({ maxLength: 500 })),
-        isPublic: t.Optional(t.Boolean()),
-        allowJoinRequests: t.Optional(t.Boolean()),
-        categories: t.Optional(t.Array(t.String(), { maxItems: 3 })),
-      }),
+      params: IdParam,
+      body: UpdateClubBody,
     }
   )
 
@@ -488,7 +484,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -531,7 +527,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -565,7 +561,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -609,7 +605,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
         throw e;
       }
     },
-    { requireAuth: true, params: t.Object({ id: t.String() }) }
+    { requireAuth: true, params: IdParam }
   )
 
   // ==========================================================================
@@ -646,7 +642,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
 
       return { success: true, message: "Left club" };
     },
-    { requireAuth: true, params: t.Object({ id: t.String() }) }
+    { requireAuth: true, params: IdParam }
   )
 
   // ==========================================================================
@@ -737,11 +733,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: PaginationQuery,
     }
   )
 
@@ -805,7 +798,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), userId: t.String() }),
+      params: ClubMemberParams,
     }
   )
 
@@ -857,10 +850,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), userId: t.String() }),
-      body: t.Object({
-        role: t.Union([t.Literal("moderator"), t.Literal("member")]),
-      }),
+      params: ClubMemberParams,
+      body: UpdateMemberRoleBody,
     }
   )
 
@@ -927,8 +918,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ username: t.String() }),
+      params: IdParam,
+      body: ClubUsernameBody,
     }
   )
 
@@ -991,10 +982,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        message: t.Optional(t.String({ maxLength: 300 })),
-      }),
+      params: IdParam,
+      body: JoinRequestBody,
     }
   )
 
@@ -1032,7 +1021,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -1088,7 +1077,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), requestId: t.String() }),
+      params: ClubRequestParams,
     }
   )
 
@@ -1127,7 +1116,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), requestId: t.String() }),
+      params: ClubRequestParams,
     }
   )
 
@@ -1206,8 +1195,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ username: t.String() }),
+      params: IdParam,
+      body: ClubUsernameBody,
     }
   )
 
@@ -1257,7 +1246,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
 
       return { success: true, message: "Joined club" };
     },
-    { requireAuth: true, params: t.Object({ inviteId: t.String() }) }
+    { requireAuth: true, params: InviteIdParam }
   )
 
   // ==========================================================================
@@ -1283,7 +1272,7 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
       await db.update(clubInvites).set({ status: "declined" }).where(eq(clubInvites.id, params.inviteId));
       return { success: true, message: "Invite declined" };
     },
-    { requireAuth: true, params: t.Object({ inviteId: t.String() }) }
+    { requireAuth: true, params: InviteIdParam }
   )
 
   // ==========================================================================
@@ -1372,11 +1361,8 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
       };
     },
     {
-      params: t.Object({ id: t.String() }),
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      params: IdParam,
+      query: PaginationQuery,
     }
   )
 
@@ -1478,5 +1464,5 @@ export const clubsRoutes = new Elysia({ prefix: "/clubs", tags: ["Clubs"] })
         },
       };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   );

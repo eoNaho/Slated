@@ -1,4 +1,9 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import {
+  PaginationQuery,
+  MediaIdParam,
+  RateMediaBody,
+} from "@pixelreel/validators";
 import { db, ratings, media, activities, eq, and, desc, count } from "../db";
 import { betterAuthPlugin } from "../lib/auth";
 import { storageService } from "../services/storage";
@@ -68,10 +73,7 @@ export const ratingsRoutes = new Elysia({ prefix: "/ratings", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-      }),
+      query: PaginationQuery,
     }
   )
 
@@ -100,7 +102,7 @@ export const ratingsRoutes = new Elysia({ prefix: "/ratings", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ mediaId: t.String() }),
+      params: MediaIdParam,
     }
   )
 
@@ -167,10 +169,7 @@ export const ratingsRoutes = new Elysia({ prefix: "/ratings", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      body: t.Object({
-        mediaId: t.String(),
-        rating: t.Number({ minimum: 0.5, maximum: 5 }),
-      }),
+      body: RateMediaBody,
     }
   )
 
@@ -193,6 +192,6 @@ export const ratingsRoutes = new Elysia({ prefix: "/ratings", tags: ["Social"] }
     },
     {
       requireAuth: true,
-      params: t.Object({ mediaId: t.String() }),
+      params: MediaIdParam,
     }
   );

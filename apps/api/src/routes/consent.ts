@@ -1,4 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { AcceptConsentBody } from "@pixelreel/validators";
 import { db, eq, and, desc, lte } from "../db";
 import { termsVersions, consentRecords } from "../db/schema/consent";
 import { betterAuthPlugin } from "../lib/auth";
@@ -167,17 +168,7 @@ export const consentRoutes = new Elysia({ prefix: "/consent", tags: ["Consent"] 
     },
     {
       requireAuth: true,
-      body: t.Object({
-        termsVersionId: t.Optional(t.String()),
-        privacyVersionId: t.Optional(t.String()),
-        method: t.Optional(
-          t.Union([
-            t.Literal("signup"),
-            t.Literal("reaccept"),
-            t.Literal("oauth_signup"),
-          ]),
-        ),
-      }),
+      body: AcceptConsentBody,
     },
   )
 

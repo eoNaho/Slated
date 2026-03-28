@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import {
   db,
   stories,
@@ -16,6 +16,13 @@ import {
 import { betterAuthPlugin } from "../lib/auth";
 import { storageService } from "../services/storage";
 import { logger } from "../utils/logger";
+import {
+  CreateHighlightBody,
+  UpdateHighlightBody,
+  AddHighlightStoriesBody,
+  HighlightItemParams,
+} from "@pixelreel/validators";
+import { UsernameParam, IdParam } from "@pixelreel/validators";
 
 export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -23,7 +30,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
   // Get highlights for a user profile (public)
   .get(
     "/user/:username",
-    async ({ params, set }) => {
+    async ({ params, set }: any) => {
       const [targetUser] = await db
         .select({ id: userTable.id })
         .from(userTable)
@@ -70,13 +77,13 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
         })),
       };
     },
-    { params: t.Object({ username: t.String() }) }
+    { params: UsernameParam }
   )
 
   // Get full stories in a highlight
   .get(
     "/:id",
-    async ({ params, set }) => {
+    async ({ params, set }: any) => {
       const [highlight] = await db
         .select()
         .from(storyHighlights)
@@ -97,7 +104,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
 
       return { data: { highlight, stories: items.map((i) => i.story) } };
     },
-    { params: t.Object({ id: t.String() }) }
+    { params: IdParam }
   )
 
   // Create highlight
@@ -130,11 +137,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     },
     {
       requireAuth: true,
-      body: t.Object({
-        name: t.String({ maxLength: 50 }),
-        cover_image_url: t.Optional(t.String()),
-        story_ids: t.Optional(t.Array(t.String())),
-      }),
+      body: CreateHighlightBody,
     }
   )
 
@@ -168,12 +171,8 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String({ maxLength: 50 })),
-        cover_image_url: t.Optional(t.Nullable(t.String())),
-        position: t.Optional(t.Number()),
-      }),
+      params: IdParam,
+      body: UpdateHighlightBody,
     }
   )
 
@@ -199,7 +198,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
+      params: IdParam,
     }
   )
 
@@ -237,8 +236,8 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ story_ids: t.Array(t.String()) }),
+      params: IdParam,
+      body: AddHighlightStoriesBody,
     }
   )
 
@@ -270,7 +269,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String(), storyId: t.String() }),
+      params: HighlightItemParams,
     }
   )
 
@@ -325,9 +324,7 @@ export const storyHighlightsRoutes = new Elysia({ prefix: "/story-highlights", t
     },
     {
       requireAuth: true,
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        image: t.File({ maxSize: "5m" }),
-      }),
+      params: IdParam,
+      body: { image: { type: "file", maxSize: "5m" } } as any,
     }
   );

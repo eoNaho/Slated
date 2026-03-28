@@ -1,7 +1,8 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { db, favorites, media, user as userTable, eq, and, asc, count, sql } from "../db";
 import { gt, gte } from "drizzle-orm";
 import { betterAuthPlugin } from "../lib/auth";
+import { UsernameParam, MediaIdParam, AddFavoriteBody, ReorderFavoritesBody } from "@pixelreel/validators";
 import { storageService } from "../services/storage";
 
 const MAX_FAVORITES_FREE = 4;
@@ -88,7 +89,7 @@ export const favoritesRoutes = new Elysia({ prefix: "/favorites" })
         })),
       };
     },
-    { params: t.Object({ username: t.String() }) }
+    { params: UsernameParam }
   )
 
   // Add favorite
@@ -162,10 +163,7 @@ export const favoritesRoutes = new Elysia({ prefix: "/favorites" })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        mediaId: t.String(),
-        position: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
-      }),
+      body: AddFavoriteBody,
     }
   )
 
@@ -190,14 +188,7 @@ export const favoritesRoutes = new Elysia({ prefix: "/favorites" })
     },
     {
       requireAuth: true,
-      body: t.Object({
-        order: t.Array(
-          t.Object({
-            mediaId: t.String(),
-            position: t.Number({ minimum: 1 }),
-          })
-        ),
-      }),
+      body: ReorderFavoritesBody,
     }
   )
 
@@ -245,6 +236,6 @@ export const favoritesRoutes = new Elysia({ prefix: "/favorites" })
     },
     {
       requireAuth: true,
-      params: t.Object({ mediaId: t.String() }),
+      params: MediaIdParam,
     }
   );
