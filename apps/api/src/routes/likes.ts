@@ -1,8 +1,9 @@
 import { Elysia, t } from "elysia";
-import { db, likes, activities, media, eq, and, inArray, desc } from "../db";
+import { db, likes, activities, media, reviews, lists, comments, user as userTable, eq, and, inArray, desc } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { canViewSection } from "../lib/privacy";
 import { tasteProfileService } from "../services/recommendation.service";
+import { createNotification } from "./notifications";
 
 export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -61,6 +62,23 @@ export const likesRoutes = new Elysia({ prefix: "/likes", tags: ["Social"] })
             const { lists } = await import("../db");
             const { sql } = await import("drizzle-orm");
             await db.update(lists).set({ likesCount: sql`${lists.likesCount} + 1` }).where(eq(lists.id, body.targetId));
+        }
+
+        // Notify target owner (review or list)
+        if (body.targetType === "review") {
+          const [review] = await db.select({ userId: reviews.userId, id: reviews.id }).from(reviews).where(eq(reviews.id, body.targetId)).limit(1);
+          if (review && review.userId !== user.id) {
+            const [liker] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, user.id)).limit(1);
+            const name = liker?.displayName || liker?.username || "Someone";
+            createNotification(review.userId, "like", `${name} liked your review`, "", { url: `/reviews/${review.id}`, targetType: "review", targetId: review.id }, user.id).catch(() => null);
+          }
+        } else if (body.targetType === "list") {
+          const [list] = await db.select({ userId: lists.userId, id: lists.id }).from(lists).where(eq(lists.id, body.targetId)).limit(1);
+          if (list && list.userId !== user.id) {
+            const [liker] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, user.id)).limit(1);
+            const name = liker?.displayName || liker?.username || "Someone";
+            createNotification(list.userId, "like", `${name} liked your list`, "", { url: `/lists/${list.id}`, targetType: "list", targetId: list.id }, user.id).catch(() => null);
+          }
         }
 
         // Invalidate taste profile cache when user likes a media item

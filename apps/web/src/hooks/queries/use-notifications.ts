@@ -25,6 +25,6 @@ export function useUnreadCount(userId: string | undefined) {
     },
     enabled: !!userId,
     staleTime: 60 * 1000,
-    refetchInterval: 5 * 60 * 1000, // poll every 5 min
+    refetchInterval: 60 * 1000, // poll every 1 min (fallback when WS is down)
   });
 }

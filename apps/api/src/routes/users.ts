@@ -20,6 +20,7 @@ import {
   gte,
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { createNotification } from "./notifications";
 import { cached, invalidate, TTL } from "../lib/cache";
 import { storageService } from "../services/storage";
 import { getUserPlanTier } from "../lib/feature-gate";
@@ -728,6 +729,17 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
         if (status === "accepted") {
           invalidate(`user:stats:${user.id}`, `user:stats:${targetUser.id}`).catch((err) => console.warn({ err }, "failed to invalidate stats cache after follow"));
         }
+
+        // Notify target user
+        const [follower] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, user.id)).limit(1);
+        const name = follower?.displayName || follower?.username || "Someone";
+        const url = `/profile/${follower?.username ?? user.id}`;
+        if (status === "accepted") {
+          createNotification(targetUser.id, "follow", `${name} started following you`, "", { url }, user.id).catch(() => null);
+        } else {
+          createNotification(targetUser.id, "follow", `${name} requested to follow you`, "", { url }, user.id).catch(() => null);
+        }
+
         return { message: status === "pending" ? "Follow request sent" : "Followed successfully", status };
       } catch (e: any) {
         if (e.code === "23505") {
@@ -1018,6 +1030,12 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
       }
 
       invalidate(`user:stats:${user.id}`, `user:stats:${params.requesterId}`).catch(() => null);
+
+      // Notify the requester that their follow request was accepted
+      const [accepter] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, user.id)).limit(1);
+      const name = accepter?.displayName || accepter?.username || "Someone";
+      createNotification(params.requesterId, "follow", `${name} accepted your follow request`, "", { url: `/profile/${accepter?.username ?? user.id}` }, user.id).catch(() => null);
+
       return { message: "Follow request accepted" };
     },
     { requireAuth: true, params: t.Object({ requesterId: t.String() }) },

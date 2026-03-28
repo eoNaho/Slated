@@ -38,3 +38,5 @@ coverage
 security-test.sh
 security-test.js
 security-report.txt
+security-audit-supabase.md
+security-pending-fixes.md

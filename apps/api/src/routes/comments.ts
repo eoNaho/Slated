@@ -20,6 +20,7 @@ import { betterAuthPlugin } from "../lib/auth";
 import { blockedUserIds } from "../lib/block-filter";
 import { contentFilterService } from "../services/content-filter";
 import { checkContentVelocity } from "../lib/moderation-escalation";
+import { createNotification } from "./notifications";
 
 export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"] })
   .use(betterAuthPlugin)
@@ -179,6 +180,36 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
           .where(eq(reviews.id, body.target_id));
       }
 
+      // Notify target owner (review or list) — skip if self-comment or hidden
+      if (!filterResult.shouldAutoHide) {
+        const [commenter] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, authUser.id)).limit(1);
+        const name = commenter?.displayName || commenter?.username || "Someone";
+
+        if (body.target_type === "review") {
+          const [review] = await db.select({ userId: reviews.userId }).from(reviews).where(eq(reviews.id, body.target_id)).limit(1);
+          if (review && review.userId !== authUser.id) {
+            const url = `/reviews/${body.target_id}`;
+            const notifTitle = body.parent_id ? `${name} replied to a comment` : `${name} commented on your review`;
+            createNotification(review.userId, "comment", notifTitle, body.content.slice(0, 100), { url, targetType: "review", targetId: body.target_id, commentId: newComment.id }, authUser.id).catch(() => null);
+          }
+        } else if (body.target_type === "list") {
+          const [list] = await db.select({ userId: lists.userId }).from(lists).where(eq(lists.id, body.target_id)).limit(1);
+          if (list && list.userId !== authUser.id) {
+            const url = `/lists/${body.target_id}`;
+            createNotification(list.userId, "comment", `${name} commented on your list`, body.content.slice(0, 100), { url, targetType: "list", targetId: body.target_id, commentId: newComment.id }, authUser.id).catch(() => null);
+          }
+        }
+
+        // Notify parent comment author on reply
+        if (body.parent_id) {
+          const [parentComment] = await db.select({ userId: comments.userId }).from(comments).where(eq(comments.id, body.parent_id)).limit(1);
+          if (parentComment && parentComment.userId !== authUser.id) {
+            const url = body.target_type === "review" ? `/reviews/${body.target_id}` : `/lists/${body.target_id}`;
+            createNotification(parentComment.userId, "comment", `${name} replied to your comment`, body.content.slice(0, 100), { url, targetType: body.target_type, targetId: body.target_id, commentId: newComment.id }, authUser.id).catch(() => null);
+          }
+        }
+      }
+
       return { data: newComment };
     },
     {
@@ -244,10 +275,19 @@ export const commentsRoutes = new Elysia({ prefix: "/comments", tags: ["Social"]
           targetId: params.id,
         });
 
-        await db
+        const [updated] = await db
           .update(comments)
           .set({ likesCount: sql`${comments.likesCount} + 1` })
-          .where(eq(comments.id, params.id));
+          .where(eq(comments.id, params.id))
+          .returning({ userId: comments.userId, targetType: comments.targetType, targetId: comments.targetId });
+
+        // Notify comment author
+        if (updated && updated.userId !== authUser.id) {
+          const [liker] = await db.select({ displayName: userTable.displayName, username: userTable.username }).from(userTable).where(eq(userTable.id, authUser.id)).limit(1);
+          const name = liker?.displayName || liker?.username || "Someone";
+          const url = updated.targetType === "review" ? `/reviews/${updated.targetId}` : `/lists/${updated.targetId}`;
+          createNotification(updated.userId, "like", `${name} liked your comment`, "", { url, commentId: params.id }, authUser.id).catch(() => null);
+        }
 
         return { success: true };
       } catch (e: any) {

@@ -56,13 +56,14 @@ export async function notifyTasteMatchReview(
     const [reviewer, mediaItem] = await Promise.all([
       db.select({ username: userTable.username, displayName: userTable.displayName })
         .from(userTable).where(eq(userTable.id, reviewerId)).limit(1),
-      db.select({ title: media.title }).from(media).where(eq(media.id, mediaId)).limit(1),
+      db.select({ title: media.title, slug: media.slug }).from(media).where(eq(media.id, mediaId)).limit(1),
     ]);
 
     if (!reviewer[0] || !mediaItem[0]) return;
 
     const reviewerName = reviewer[0].displayName ?? reviewer[0].username ?? "Someone";
     const mediaTitle = mediaItem[0].title;
+    const mediaUrl = `/media/${mediaItem[0].slug}`;
 
     for (const match of matches) {
       await createNotification(
@@ -70,7 +71,7 @@ export async function notifyTasteMatchReview(
         "system",
         "Seu match avaliou um filme",
         `${reviewerName} acabou de avaliar "${mediaTitle}" — alguém com gosto parecido com o seu.`,
-        { reviewerId, mediaId },
+        { reviewerId, mediaId, url: mediaUrl },
         reviewerId,
       );
     }
@@ -111,7 +112,7 @@ export async function notifyTrendingInGenre(): Promise<void> {
         const watchedIds = [...profile.watchedMediaIds];
 
         const candidates = await db
-          .select({ id: media.id, title: media.title })
+          .select({ id: media.id, title: media.title, slug: media.slug })
           .from(media)
           .innerJoin(mediaGenres, eq(mediaGenres.mediaId, media.id))
           .where(
@@ -132,7 +133,7 @@ export async function notifyTrendingInGenre(): Promise<void> {
           "system",
           `Em alta no seu gênero favorito`,
           `"${candidates[0].title}" está em alta em ${topGenre.genreName}.`,
-          { mediaId: candidates[0].id, genreId: topGenre.genreId },
+          { mediaId: candidates[0].id, genreId: topGenre.genreId, url: `/media/${candidates[0].slug}` },
         );
       } catch {
         // Skip individual user failures silently
@@ -187,7 +188,7 @@ export async function notifyFriendsWatched(): Promise<void> {
         if (alreadyWatched.length > 0) continue;
 
         const [mediaItem] = await db
-          .select({ title: media.title })
+          .select({ title: media.title, slug: media.slug })
           .from(media)
           .where(eq(media.id, row.mediaId))
           .limit(1);
@@ -200,7 +201,7 @@ export async function notifyFriendsWatched(): Promise<void> {
           "system",
           "Populares entre quem você segue",
           `${watchCount} pessoas que você segue assistiram "${mediaItem.title}" essa semana.`,
-          { mediaId: row.mediaId, count: watchCount },
+          { mediaId: row.mediaId, count: watchCount, url: `/media/${mediaItem.slug}` },
         );
       } catch {
         // Skip individual failures

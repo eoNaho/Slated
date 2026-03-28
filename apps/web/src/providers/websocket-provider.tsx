@@ -41,7 +41,19 @@ type ServerEvent =
       isTyping: boolean;
     }
   | { type: "announcement"; data: AnnouncementData }
-  | { type: "pong" };
+  | { type: "pong" }
+  | {
+      type: "notification";
+      notification: {
+        id: string;
+        type: string;
+        title: string;
+        message: string | null;
+        data: Record<string, any> | null;
+        isRead: boolean;
+        createdAt: string;
+      };
+    };
 
 interface WebSocketContextValue {
   /** Send a raw event to the server. No-op when disconnected. */
@@ -200,6 +212,11 @@ export function WebSocketProvider({
 
       if (data.type === "announcement") {
         announcementHandlersRef.current.forEach((h) => h(data.data));
+      }
+
+      if (data.type === "notification") {
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
       }
     };
 

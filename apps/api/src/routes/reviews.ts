@@ -15,6 +15,7 @@ import {
   notInArray,
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
+import { createNotification } from "./notifications";
 import { blockedUserIds } from "../lib/block-filter";
 import { canViewSection } from "../lib/privacy";
 import { contentFilterService } from "../services/content-filter";
@@ -344,10 +345,18 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews", tags: ["Social"] }
         });
 
         // Update review likes count
-        await db
+        const [updatedReview] = await db
           .update(reviews)
           .set({ likesCount: sql`${reviews.likesCount} + 1` })
-          .where(eq(reviews.id, params.id));
+          .where(eq(reviews.id, params.id))
+          .returning({ userId: reviews.userId });
+
+        // Notify review author
+        if (updatedReview && updatedReview.userId !== authUser.id) {
+          const [liker] = await db.select({ displayName: user.displayName, username: user.username }).from(user).where(eq(user.id, authUser.id)).limit(1);
+          const name = liker?.displayName || liker?.username || "Someone";
+          createNotification(updatedReview.userId, "like", `${name} liked your review`, "", { url: `/reviews/${params.id}`, targetType: "review", targetId: params.id }, authUser.id).catch(() => null);
+        }
 
         return { success: true };
       } catch (e: any) {
