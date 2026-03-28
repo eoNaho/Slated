@@ -1,4 +1,5 @@
 import { Header, Footer } from "@/components/layout";
+import { TermsGuard } from "@/components/layout/terms-guard";
 import { WebSocketProvider } from "@/providers/websocket-provider";
 import { AnnouncementBanner } from "@/components/ui/announcement-banner";
 
@@ -17,11 +18,13 @@ export default function PublicLayout({
         </div>
 
         <Header />
-        <main className="relative z-10 pt-14">
-          <AnnouncementBanner />
-          {children}
-          <Footer />
-        </main>
+        <TermsGuard>
+          <main className="relative z-10 pt-14">
+            <AnnouncementBanner />
+            {children}
+            <Footer />
+          </main>
+        </TermsGuard>
       </div>
     </WebSocketProvider>
   );

@@ -32,7 +32,7 @@ function getRateLimiter(type: "default" | "auth" | "api"): Ratelimit | null {
 
   const configs = {
     default: Ratelimit.slidingWindow(100, "1 m"),
-    auth: Ratelimit.slidingWindow(10, "1 m"),
+    auth: Ratelimit.slidingWindow(60, "1 m"),
     api: Ratelimit.slidingWindow(60, "1 m"),
   };
 
@@ -72,7 +72,7 @@ function inMemoryRateLimit(
 // ==================== MIDDLEWARE ====================
 
 export function rateLimit(type: "default" | "auth" | "api" = "default") {
-  const limits = { default: 100, auth: 10, api: 60 };
+  const limits = { default: 100, auth: 60, api: 60 };
   const max = limits[type];
 
   return new Elysia({ name: `rate-limit-${type}` }).derive(
