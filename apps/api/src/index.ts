@@ -80,48 +80,61 @@ const app = new Elysia()
     }),
   )
 
-  // Better Auth handler — mounts all /api/auth/* routes automatically
-  .mount(auth.handler)
-
-  // OpenAPI docs with Scalar UI
+  // Better Auth handler — stricter rate limit applied to all /api/auth/* routes
   .use(
-    openapi({
-      provider: "scalar",
-      path: "/docs",
-      documentation: {
-        info: {
-          title: "PixelReel API",
-          version: "1.0.0",
-          description:
-            "Complete API for PixelReel - Media, Social, Gamification",
-        },
-        tags: [
-          { name: "Auth", description: "Authentication and OAuth" },
-          { name: "Users", description: "User management" },
-          { name: "Media", description: "Movies and Series" },
-          { name: "Social", description: "Reviews, Comments, Feed" },
-          { name: "Gamification", description: "Achievements and XP" },
-          { name: "Admin", description: "System management" },
-          { name: "Payments", description: "Stripe and Plans" },
-          { name: "Activity", description: "Scrobbles, Tokens, Watching Now" },
-        ],
-        components: {
-          securitySchemes: {
-            cookieAuth: {
-              type: "apiKey",
-              in: "cookie",
-              name: "better-auth.session_token",
+    new Elysia({ prefix: "/api/auth" })
+      .use(rateLimit("auth"))
+      .all("/*", ({ request }) => auth.handler(request))
+  )
+
+  // OpenAPI docs with Scalar UI — disabled in production to avoid exposing API surface
+  .use(
+    process.env.NODE_ENV !== "production"
+      ? openapi({
+          provider: "scalar",
+          path: "/docs",
+          documentation: {
+            info: {
+              title: "PixelReel API",
+              version: "1.0.0",
+              description:
+                "Complete API for PixelReel - Media, Social, Gamification",
+            },
+            tags: [
+              { name: "Auth", description: "Authentication and OAuth" },
+              { name: "Users", description: "User management" },
+              { name: "Media", description: "Movies and Series" },
+              { name: "Social", description: "Reviews, Comments, Feed" },
+              { name: "Gamification", description: "Achievements and XP" },
+              { name: "Admin", description: "System management" },
+              { name: "Payments", description: "Stripe and Plans" },
+              { name: "Activity", description: "Scrobbles, Tokens, Watching Now" },
+            ],
+            components: {
+              securitySchemes: {
+                cookieAuth: {
+                  type: "apiKey",
+                  in: "cookie",
+                  name: "better-auth.session_token",
+                },
+              },
             },
           },
-        },
-      },
-    }),
+        })
+      : new Elysia()
   )
 
   // Global error handler
   .onError(({ error, code, set }: any) => {
     const errorMessage =
       "message" in error ? String(error.message) : "Unknown error";
+
+    // Preserve 429 from rate limiter — must be checked before other cases
+    if (errorMessage === "Too Many Requests" || set.status === 429) {
+      set.status = 429;
+      return { error: "Too Many Requests" };
+    }
+
     const cause = error?.cause
       ? String((error.cause as any)?.message ?? error.cause)
       : undefined;

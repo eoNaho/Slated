@@ -76,11 +76,14 @@ export function rateLimit(type: "default" | "auth" | "api" = "default") {
   const max = limits[type];
 
   return new Elysia({ name: `rate-limit-${type}` }).derive(
+    { as: "scoped" },
     async ({ request, set }) => {
-      const forwarded = request.headers.get("x-forwarded-for");
+      // Prefer X-Real-IP (set by a trusted reverse proxy) over X-Forwarded-For,
+      // which can be spoofed by clients. Never trust the leftmost X-Forwarded-For
+      // value directly — only the rightmost entry added by your own proxy is safe.
       const ip =
-        forwarded?.split(",")[0]?.trim() ||
         request.headers.get("x-real-ip") ||
+        request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ||
         "unknown";
 
       const limiter = getRateLimiter(type);
@@ -111,7 +114,7 @@ export function rateLimit(type: "default" | "auth" | "api" = "default") {
 }
 
 export function securityHeaders() {
-  return new Elysia({ name: "security-headers" }).onAfterHandle(({ set }) => {
+  const applyHeaders = ({ set }: { set: any }) => {
     set.headers["X-Frame-Options"] = "DENY";
     set.headers["X-Content-Type-Options"] = "nosniff";
     set.headers["X-XSS-Protection"] = "1; mode=block";
@@ -122,7 +125,11 @@ export function securityHeaders() {
     set.headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     set.headers["Permissions-Policy"] =
       "camera=(), microphone=(), geolocation=()";
-  });
+  };
+
+  return new Elysia({ name: "security-headers" })
+    .onAfterHandle({ as: "global" }, applyHeaders)
+    .onError({ as: "global" }, applyHeaders);
 }
 
 export function requestLogger() {
@@ -166,7 +173,8 @@ export function isValidEmail(email: string): boolean {
 }
 
 export async function hashData(data: string): Promise<string> {
-  const salt = process.env.HASH_SALT || "pixelreel-salt";
+  const salt = process.env.HASH_SALT;
+  if (!salt) throw new Error("HASH_SALT environment variable is required");
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data + salt);
   const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);

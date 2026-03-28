@@ -8,7 +8,10 @@ type Role = "user" | "moderator" | "admin";
  * Returns 401 if not authenticated.
  */
 export function withSession() {
-  return new Elysia({ name: "with-session" }).resolve(
+  // No fixed name — prevents Elysia from deduplicating this plugin across route
+  // files. Each route that calls withSession() gets its own resolver instance.
+  return new Elysia().resolve(
+    { as: "scoped" },
     async ({ request: { headers }, status }) => {
       const session = await auth.api.getSession({ headers });
       if (!session) return status(401);
@@ -25,7 +28,8 @@ export function withSession() {
  * Must be used after withSession().
  */
 function requireRole(...roles: Role[]) {
-  return new Elysia({ name: `require-role-${roles.join("-")}` }).onBeforeHandle(
+  return new Elysia().onBeforeHandle(
+    { as: "scoped" },
     ({ user, status }: any) => {
       if (!user) return status(401);
       if (!roles.includes(user.role as Role)) return status(403);
@@ -35,14 +39,14 @@ function requireRole(...roles: Role[]) {
 
 /** Admin-only guard: resolves session + requires role === "admin" */
 export function adminGuard() {
-  return new Elysia({ name: "admin-guard" })
+  return new Elysia()
     .use(withSession())
     .use(requireRole("admin"));
 }
 
 /** Staff guard: resolves session + requires role === "admin" OR "moderator" */
 export function staffGuard() {
-  return new Elysia({ name: "staff-guard" })
+  return new Elysia()
     .use(withSession())
     .use(requireRole("admin", "moderator"));
 }

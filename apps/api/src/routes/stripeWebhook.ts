@@ -18,6 +18,14 @@ export const stripeRoutes = new Elysia({
     async (ctx: any) => {
       const { user, body, set } = ctx;
 
+      const validPriceIds = new Set(
+        [process.env.STRIPE_PRO_PRICE_ID, process.env.STRIPE_ULTRA_PRICE_ID].filter(Boolean)
+      );
+      if (validPriceIds.size > 0 && !validPriceIds.has(body.priceId)) {
+        set.status = 400;
+        return { error: "Invalid price" };
+      }
+
       const [userData] = await db
         .select()
         .from(userTable)

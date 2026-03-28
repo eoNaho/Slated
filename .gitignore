@@ -35,3 +35,6 @@ coverage
 *.tsbuildinfo
 
 /projeto antigo
+security-test.sh
+security-test.js
+security-report.txt
