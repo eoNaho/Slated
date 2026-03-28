@@ -36,6 +36,7 @@ import { SupporterBadge, VerifiedBadge } from "./identity-badges";
 import { Story } from "@/types/stories";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { HighlightsRow } from "@/components/stories/HighlightsRow";
+import { CreateStoryModal } from "@/components/stories/CreateStoryModal";
 import { Portal } from "@/components/ui/portal";
 import type { StoryHighlight } from "@/lib/api";
 import { ReportModal } from "@/components/moderation/report-modal";
@@ -79,9 +80,8 @@ export function ProfileHeader({
   const [followDialog, setFollowDialog] = useState<
     "followers" | "following" | null
   >(null);
-  const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(
-    null,
-  );
+  const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(null);
+  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
@@ -344,13 +344,22 @@ export function ProfileHeader({
             {/* Action Buttons */}
             <div className="flex items-center gap-2.5">
               {isOwnProfile ? (
-                <Link
-                  href="/settings"
-                  className="h-10 px-4 rounded-xl font-semibold text-sm bg-zinc-800 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Edit Profile
-                </Link>
+                <>
+                  <button
+                    onClick={() => setIsCreateStoryOpen(true)}
+                    className="h-10 px-4 rounded-xl font-semibold text-sm bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 transition-all flex items-center gap-2"
+                  >
+                    <Film className="h-4 w-4" />
+                    New Story
+                  </button>
+                  <Link
+                    href="/settings"
+                    className="h-10 px-4 rounded-xl font-semibold text-sm bg-zinc-800 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Edit Profile
+                  </Link>
+                </>
               ) : (
                 <>
                   <button
@@ -446,6 +455,7 @@ export function ProfileHeader({
             <HighlightsRow
               highlights={highlights}
               isOwnProfile={!!isOwnProfile}
+              username={profile.username}
             />
           </div>
         )}
@@ -515,6 +525,15 @@ export function ProfileHeader({
           <StoryViewer
             stories={activeStoryGroup}
             onClose={() => setActiveStoryGroup(null)}
+          />
+        </Portal>
+      )}
+
+      {/* Create Story Modal */}
+      {isCreateStoryOpen && (
+        <Portal>
+          <CreateStoryModal
+            onClose={() => setIsCreateStoryOpen(false)}
           />
         </Portal>
       )}

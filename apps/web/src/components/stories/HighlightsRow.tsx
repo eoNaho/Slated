@@ -8,14 +8,19 @@ import { StoryHighlight } from "@/lib/api";
 import { HighlightViewer } from "./HighlightViewer";
 import { HighlightEditorModal } from "./HighlightEditorModal";
 import { Portal } from "@/components/ui/portal";
+import { useHighlights } from "@/hooks/queries/use-stories";
 
 interface HighlightsRowProps {
   highlights: StoryHighlight[];
   isOwnProfile?: boolean;
+  username?: string;
   onHighlightCreated?: () => void;
 }
 
-export function HighlightsRow({ highlights, isOwnProfile, onHighlightCreated }: HighlightsRowProps) {
+export function HighlightsRow({ highlights: initialHighlights, isOwnProfile, username, onHighlightCreated }: HighlightsRowProps) {
+  // Use client-side fetching when username is available so changes reflect immediately
+  const { data: fetchedHighlights } = useHighlights(username ?? "", !!username);
+  const highlights = fetchedHighlights ?? initialHighlights;
   const [viewingHighlight, setViewingHighlight] = React.useState<StoryHighlight | null>(null);
   const [isCreating, setIsCreating] = React.useState(false);
   const [editingHighlight, setEditingHighlight] = React.useState<StoryHighlight | null>(null);

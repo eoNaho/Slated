@@ -89,19 +89,16 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
     }
     try {
       if (isEditing) {
-        // Upload cover if a new file was selected
-        let newCoverUrl: string | undefined;
+        // Upload cover if a new file was selected — the upload endpoint already updates the DB
         if (coverFile) {
           setCoverUploading(true);
-          const result = await api.highlights.uploadCover(existing.id, coverFile);
-          newCoverUrl = result.coverImageUrl;
+          await api.highlights.uploadCover(existing.id, coverFile);
           setCoverUploading(false);
         }
 
         await updateHighlight.mutateAsync({
           id: existing.id,
           name: name.trim(),
-          ...(newCoverUrl !== undefined ? { cover_image_url: newCoverUrl } : {}),
         });
 
         // Diff stories
