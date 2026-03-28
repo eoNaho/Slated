@@ -33,7 +33,7 @@ import { notificationsRoutes } from "./routes/notifications";
 import { stripeRoutes } from "./routes/stripeWebhook";
 import { imageRoutes } from "./routes/images";
 import { activityRoutes } from "./routes/activity";
-import { storiesRoutes } from "./routes/stories";
+// import { storiesRoutes } from "./routes/stories"; // disabled
 import { discoverRoutes } from "./routes/discover";
 import { seriesRoutes } from "./routes/series";
 import { likesRoutes } from "./routes/likes";
@@ -41,11 +41,11 @@ import { bookmarksRoutes } from "./routes/bookmarks";
 import { identityRoutes } from "./routes/identity";
 import { mediaCoversRoutes } from "./routes/media-covers";
 import { closeFriendsRoutes } from "./routes/close-friends";
-import { storyHighlightsRoutes } from "./routes/story-highlights";
+// import { storyHighlightsRoutes } from "./routes/story-highlights"; // disabled
 import { reportsRoutes } from "./routes/reports";
 import { blocksRoutes } from "./routes/blocks";
 import { moderationRoutes } from "./routes/moderation";
-import { messagesRoutes } from "./routes/messages";
+// import { messagesRoutes } from "./routes/messages"; // disabled
 import { wsRoutes } from "./routes/ws";
 import { announcementsRoutes } from "./routes/announcements";
 import { recommendationsRoutes } from "./routes/recommendations";
@@ -199,7 +199,7 @@ const app = new Elysia()
       .use(stripeRoutes)
       .use(imageRoutes)
       .use(activityRoutes)
-      .use(storiesRoutes)
+      // .use(storiesRoutes) // disabled
       .use(discoverRoutes)
       .use(seriesRoutes)
       .use(likesRoutes)
@@ -207,11 +207,11 @@ const app = new Elysia()
       .use(identityRoutes)
       .use(mediaCoversRoutes)
       .use(closeFriendsRoutes)
-      .use(storyHighlightsRoutes)
+      // .use(storyHighlightsRoutes) // disabled
       .use(reportsRoutes)
       .use(blocksRoutes)
       .use(moderationRoutes)
-      .use(messagesRoutes)
+      // .use(messagesRoutes) // disabled
       .use(announcementsRoutes)
       .use(recommendationsRoutes)
       .use(adminRecommendationsRoutes)

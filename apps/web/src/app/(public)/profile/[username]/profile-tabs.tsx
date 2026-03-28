@@ -188,8 +188,6 @@ export function ProfileTabs({
         initialFollowStatus={followStatus}
         isPrivate={isPrivate}
         watchingNow={watchingNow}
-        stories={stories}
-        highlights={highlights}
         identity={identity}
       />
 

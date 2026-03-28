@@ -19,7 +19,6 @@ import {
   transformTrendingToMedia,
   generateReviews,
 } from "@/lib/queries/home";
-import { StoriesBar } from "@/components/stories/StoriesBar";
 
 const AUTH_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
@@ -67,9 +66,6 @@ export default async function HomePage() {
 
   return (
     <div className="relative min-h-screen">
-      {/* Stories Feed */}
-      <StoriesBar />
-
       {/* Personalized Dashboard */}
       {isLoggedIn && (
         <div className="container mx-auto">

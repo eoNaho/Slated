@@ -5,7 +5,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "dev:web": "pnpm --filter @pixelreel/web dev",
-    "dev:api": "pnpm --filter @pixelreel/api dev",
+    "dev:api": "bun run --watch --env-file apps/api/.env apps/api/src/index.ts",
     "build:web": "pnpm --filter @pixelreel/web build",
     "build:api": "pnpm --filter @pixelreel/api build",
     "lint": "turbo lint",

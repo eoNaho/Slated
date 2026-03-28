@@ -9,7 +9,7 @@ import {
   Menu,
   X,
   Bell,
-  MessageSquare,
+
   Film,
   LogOut,
   User,
@@ -29,8 +29,7 @@ import { resolveImage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useClickOutside } from "@/hooks/use-click-outside";
 import { useUnreadCount } from "@/hooks/queries/use-notifications";
-import { useUnreadDmCount } from "@/hooks/queries/use-messages";
-import { MiniDmPanel } from "@/components/messages/mini-dm-panel";
+
 
 const navLinks = [
   { href: "/feed", label: "Feed", icon: Rss },
@@ -50,18 +49,15 @@ export function Header() {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isDmPanelOpen, setIsDmPanelOpen] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const dmPanelRef = useRef<HTMLDivElement>(null);
+
 
   const { data: unreadCount = 0 } = useUnreadCount(user?.id);
-  const { data: unreadDmCount = 0 } = useUnreadDmCount(user?.id);
-
   useClickOutside(menuRef, useCallback(() => setIsMenuOpen(false), []));
   useClickOutside(userMenuRef, useCallback(() => setIsUserMenuOpen(false), []));
-  useClickOutside(dmPanelRef, useCallback(() => setIsDmPanelOpen(false), []));
 
   async function handleSignOut() {
     await signOut();
@@ -148,33 +144,6 @@ export function Header() {
               className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-32 xl:w-48 font-body"
             />
           </form>
-
-          {/* DM Panel — sm+ only */}
-          {user && (
-            <div ref={dmPanelRef} className="relative hidden sm:block">
-              <button
-                onClick={() => setIsDmPanelOpen((v) => !v)}
-                className={cn(
-                  "relative inline-flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
-                  isDmPanelOpen
-                    ? "text-foreground bg-accent"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                )}
-                aria-label="Messages"
-              >
-                <MessageSquare size={18} />
-                {unreadDmCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white px-0.5 leading-none">
-                    {unreadDmCount > 99 ? "99+" : unreadDmCount}
-                  </span>
-                )}
-              </button>
-              <MiniDmPanel
-                isOpen={isDmPanelOpen}
-                onClose={() => setIsDmPanelOpen(false)}
-              />
-            </div>
-          )}
 
           {/* Notifications — visible on all sizes when logged in */}
           {user && (
@@ -373,19 +342,7 @@ export function Header() {
                   <User size={16} />
                   Profile
                 </Link>
-                <Link
-                  href="/messages"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-                >
-                  <MessageSquare size={16} />
-                  Messages
-                  {unreadDmCount > 0 && (
-                    <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-orange-500 text-[10px] font-bold text-white px-1">
-                      {unreadDmCount > 99 ? "99+" : unreadDmCount}
-                    </span>
-                  )}
-                </Link>
+
                 <Link
                   href="/saved"
                   onClick={() => setIsMenuOpen(false)}

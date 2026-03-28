@@ -1,7 +1,6 @@
-import { useState, useMemo, useTransition, useRef } from "react";
+import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   Calendar,
   MapPin,
@@ -16,7 +15,6 @@ import {
   Film,
   Flag,
   Ban,
-  MessageSquare,
 } from "lucide-react";
 import type {
   UserProfile,
@@ -33,12 +31,7 @@ import { WatchingNow } from "./watching-now";
 import { FramedAvatar } from "./framed-avatar";
 import { TitleBadge } from "./title-badge";
 import { SupporterBadge, VerifiedBadge } from "./identity-badges";
-import { Story } from "@/types/stories";
-import { StoryViewer } from "@/components/stories/StoryViewer";
-import { HighlightsRow } from "@/components/stories/HighlightsRow";
-import { CreateStoryModal } from "@/components/stories/CreateStoryModal";
 import { Portal } from "@/components/ui/portal";
-import type { StoryHighlight } from "@/lib/api";
 import { ReportModal } from "@/components/moderation/report-modal";
 
 interface ProfileHeaderProps {
@@ -50,8 +43,6 @@ interface ProfileHeaderProps {
   initialFollowStatus?: "accepted" | "pending" | "none";
   isPrivate?: boolean;
   watchingNow?: CurrentActivity | null;
-  stories?: Story[];
-  highlights?: StoryHighlight[];
   identity?: UserIdentity | null;
 }
 
@@ -62,26 +53,19 @@ export function ProfileHeader({
   initialFollowStatus,
   isPrivate = false,
   watchingNow = null,
-  stories = [],
-  highlights = [],
   identity = null,
 }: ProfileHeaderProps) {
   const { data: session } = useSession();
   const sessionUserId = session?.user?.id;
-  const router = useRouter();
 
   // followStatus supersedes legacy isFollowing boolean
   const [followStatus, setFollowStatus] = useState<"accepted" | "pending" | "none">(
     initialFollowStatus ?? (initialIsFollowing ? "accepted" : "none")
   );
-  const isFollowing = followStatus === "accepted";
-  const [isDmLoading, setIsDmLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [followDialog, setFollowDialog] = useState<
     "followers" | "following" | null
   >(null);
-  const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(null);
-  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
@@ -101,22 +85,6 @@ export function ProfileHeader({
     }
     setShowMoreMenu(true);
   };
-
-  const { activeStories, hasUnseen } = useMemo(() => {
-    const active = stories
-      .filter((s) => !s.isExpired && !s.isPinned)
-      .map((s) => ({
-        ...s,
-        user: {
-          id: s.user?.id ?? profile.id,
-          username: s.user?.username ?? profile.username,
-          displayName: s.user?.displayName ?? profile.displayName ?? null,
-          avatarUrl: s.user?.avatarUrl ?? profile.avatarUrl ?? null,
-        },
-      }));
-    const unseen = active.some((s) => !s.hasViewed);
-    return { activeStories: active, hasUnseen: unseen };
-  }, [stories, profile]);
 
   const bannerUrl =
     resolveImage(profile.coverUrl) ||
@@ -159,13 +127,7 @@ export function ProfileHeader({
               avatarUrl={profile.avatarUrl}
               username={profile.username}
               frame={identity?.perks?.frame}
-              hasUnseen={hasUnseen}
               size="xl"
-              onClick={
-                activeStories.length > 0
-                  ? () => setActiveStoryGroup(activeStories)
-                  : undefined
-              }
             />
             {/* Premium pulsing star badge */}
             {profile.isPremium && (
@@ -345,13 +307,6 @@ export function ProfileHeader({
             <div className="flex items-center gap-2.5">
               {isOwnProfile ? (
                 <>
-                  <button
-                    onClick={() => setIsCreateStoryOpen(true)}
-                    className="h-10 px-4 rounded-xl font-semibold text-sm bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 transition-all flex items-center gap-2"
-                  >
-                    <Film className="h-4 w-4" />
-                    New Story
-                  </button>
                   <Link
                     href="/settings"
                     className="h-10 px-4 rounded-xl font-semibold text-sm bg-zinc-800 text-zinc-300 border border-white/10 hover:bg-zinc-700 transition-all flex items-center gap-2"
@@ -392,33 +347,6 @@ export function ProfileHeader({
                   >
                     {followStatus === "accepted" ? "Unfollow" : followStatus === "pending" ? "Requested" : isPrivate ? "Request" : "Follow"}
                   </button>
-                  {sessionUserId && (
-                    <button
-                      onClick={async () => {
-                        setIsDmLoading(true);
-                        try {
-                          const conv = await api.messages.createConversation({
-                            type: "dm",
-                            participantIds: [profile.id],
-                          });
-                          router.push(`/messages/${conv.id}`);
-                        } catch {
-                          // silently ignore
-                        } finally {
-                          setIsDmLoading(false);
-                        }
-                      }}
-                      disabled={isDmLoading}
-                      title="Enviar mensagem"
-                      className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700 hover:text-white transition-all disabled:opacity-60"
-                    >
-                      {isDmLoading ? (
-                        <div className="w-4 h-4 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin" />
-                      ) : (
-                        <MessageSquare className="h-4 w-4" />
-                      )}
-                    </button>
-                  )}
                 </>
               )}
               <button
@@ -448,17 +376,6 @@ export function ProfileHeader({
             )}
           </div>
         </div>
-
-        {/* Highlights Section */}
-        {(highlights.length > 0 || isOwnProfile) && (
-          <div className="mt-8">
-            <HighlightsRow
-              highlights={highlights}
-              isOwnProfile={!!isOwnProfile}
-              username={profile.username}
-            />
-          </div>
-        )}
 
         {/* Stats Row - Inline */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-6 pt-5 border-t border-white/5">
@@ -518,25 +435,6 @@ export function ProfileHeader({
           </div>
         </div>
       </div>
-
-      {/* Story Viewer — rendered via portal to escape stacking context */}
-      {activeStoryGroup && (
-        <Portal>
-          <StoryViewer
-            stories={activeStoryGroup}
-            onClose={() => setActiveStoryGroup(null)}
-          />
-        </Portal>
-      )}
-
-      {/* Create Story Modal */}
-      {isCreateStoryOpen && (
-        <Portal>
-          <CreateStoryModal
-            onClose={() => setIsCreateStoryOpen(false)}
-          />
-        </Portal>
-      )}
 
       {/* Follow List Dialog */}
       {followDialog && (
