@@ -23,6 +23,7 @@ import { blockedUserIds } from "../lib/block-filter";
 import { broadcastToConversation, isOnline } from "../services/ws-manager";
 import { encrypt, decrypt } from "../services/crypto";
 import { createNotification } from "./notifications";
+import { contentFilterService } from "../services/content-filter";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -610,6 +611,18 @@ export const messagesRoutes = new Elysia({ prefix: "/messages", tags: ["Messagin
       if (!participantIds.includes(user.id)) {
         set.status = 404;
         return { error: "Conversation not found" };
+      }
+
+      // Content filter — only for text messages, skip system/story_reply types
+      // DMs are private: we only block the worst content at send time.
+      // Low/medium severity is allowed without flagging — moderators should only
+      // see DM content when the recipient explicitly files a report.
+      if (!body.type || body.type === "text") {
+        const filterResult = await contentFilterService.check(body.content);
+        if (filterResult.severity === "high") {
+          set.status = 400;
+          return { error: "Message contains content that violates community guidelines" };
+        }
       }
 
       // Encrypt content and preview in parallel

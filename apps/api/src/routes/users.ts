@@ -21,6 +21,7 @@ import {
 } from "../db";
 import { betterAuthPlugin, getOptionalSession } from "../lib/auth";
 import { createNotification } from "./notifications";
+import { contentFilterService } from "../services/content-filter";
 import { cached, invalidate, TTL } from "../lib/cache";
 import { storageService } from "../services/storage";
 import { getUserPlanTier } from "../lib/feature-gate";
@@ -191,8 +192,19 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["Users"] })
   .patch(
     "/me",
     async (ctx: any) => {
-      const { user, body } = ctx;
+      const { user, body, set } = ctx;
       const updateData: Record<string, any> = { updatedAt: new Date() };
+
+      // Check bio and displayName for blocked content
+      const textsToCheck = [body.displayName, body.bio].filter(Boolean).join(" ");
+      if (textsToCheck) {
+        const filterResult = await contentFilterService.check(textsToCheck);
+        if (filterResult.severity === "high") {
+          set.status = 400;
+          return { error: "Profile contains content that violates community guidelines" };
+        }
+      }
+
       if (body.displayName !== undefined) updateData.displayName = body.displayName;
       if (body.bio !== undefined) updateData.bio = body.bio;
       if (body.location !== undefined) updateData.location = body.location;
