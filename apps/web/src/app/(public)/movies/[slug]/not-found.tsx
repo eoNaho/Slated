@@ -23,10 +23,10 @@ export default function MovieNotFound() {
 
           <div className="space-y-4 mb-10">
             <h2 className="text-2xl font-black text-zinc-100 uppercase tracking-widest">
-              Filme não encontrado
+              Movie not found
             </h2>
             <p className="text-zinc-500 text-sm font-medium leading-relaxed max-w-xs mx-auto">
-              Este filme não existe no catálogo ou foi removido.
+              This movie doesn&apos;t exist in the catalog or has been removed.
             </p>
           </div>
 
@@ -35,14 +35,14 @@ export default function MovieNotFound() {
               href="/movies"
               className="inline-flex items-center justify-center gap-2.5 h-12 px-8 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border border-white/10 text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 transition-all active:scale-95"
             >
-              Ver filmes
+              Browse movies
             </Link>
             <Link
               href="/"
               className="inline-flex items-center justify-center gap-2.5 h-12 px-8 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all"
             >
               <Home className="h-4 w-4" />
-              Início
+              Home
             </Link>
           </div>
 

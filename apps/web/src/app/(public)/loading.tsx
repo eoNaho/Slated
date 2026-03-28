@@ -4,7 +4,7 @@ export default function Loading() {
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">
-          Carregando
+          Loading
         </span>
       </div>
     </div>

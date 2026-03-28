@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Bell, Check, Trophy, Heart, MessageSquare, Users, Zap, Loader2, ShieldAlert, EyeOff, Eye, UserX } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useNotifications } from "@/hooks/queries/use-notifications";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
@@ -83,7 +82,7 @@ export default function NotificationsPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500">
-        Faça login para ver suas notificações.
+        Sign in to see your notifications.
       </div>
     );
   }
@@ -95,7 +94,7 @@ export default function NotificationsPage() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <Bell className="h-6 w-6 text-zinc-400" />
-            <h1 className="text-2xl font-bold text-white">Notificações</h1>
+            <h1 className="text-2xl font-bold text-white">Notifications</h1>
             {unreadCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold">
                 {unreadCount}
@@ -113,7 +112,7 @@ export default function NotificationsPage() {
               ) : (
                 <Check className="h-3.5 w-3.5" />
               )}
-              Marcar todas como lidas
+              Mark all as read
             </button>
           )}
         </div>
@@ -127,7 +126,7 @@ export default function NotificationsPage() {
             <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
               <Bell className="h-7 w-7 text-zinc-600" />
             </div>
-            <p className="text-zinc-500 text-sm">Nenhuma notificação por aqui.</p>
+            <p className="text-zinc-500 text-sm">No notifications here.</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -161,7 +160,6 @@ export default function NotificationsPage() {
                     <p className="text-xs text-zinc-600 mt-1">
                       {formatDistanceToNow(new Date(n.createdAt), {
                         addSuffix: true,
-                        locale: ptBR,
                       })}
                     </p>
                   </div>

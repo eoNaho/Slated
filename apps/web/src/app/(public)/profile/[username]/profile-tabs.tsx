@@ -286,7 +286,7 @@ export function ProfileTabs({
                   ))}
                 </div>
               ) : (
-                <EmptyState icon={Users} message="Nenhum club ainda." />
+                <EmptyState icon={Users} message="No clubs yet." />
               ))}
             {activeTab === "watchlist" && <WatchlistGrid items={watchlist} customCovers={customCovers} />}
             {activeTab === "likes" && <LikesGrid items={likes} customCovers={customCovers} />}

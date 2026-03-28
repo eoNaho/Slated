@@ -46,11 +46,11 @@ import { MembersTab } from "./tabs/members-tab";
 import { ManageTab } from "./tabs/manage-tab";
 
 const TABS = [
-  { value: "posts", label: "Discussões", icon: MessageSquare },
-  { value: "events", label: "Sessões", icon: Calendar },
+  { value: "posts", label: "Discussions", icon: MessageSquare },
+  { value: "events", label: "Sessions", icon: Calendar },
   { value: "watchlist", label: "Watchlist", icon: Bookmark },
-  { value: "polls", label: "Enquetes", icon: BarChart2 },
-  { value: "members", label: "Membros", icon: Users },
+  { value: "polls", label: "Polls", icon: BarChart2 },
+  { value: "members", label: "Members", icon: Users },
 ];
 
 export interface ClubHubProps {
@@ -82,12 +82,12 @@ export function ClubHub({
 
   const tabs = [
     ...TABS,
-    ...(isAdmin ? [{ value: "manage", label: "Gerenciar", icon: Settings }] : []),
+    ...(isAdmin ? [{ value: "manage", label: "Manage", icon: Settings }] : []),
   ];
 
   async function handleJoin() {
     if (!session?.user) {
-      toast.error("Faça login para entrar no clube");
+      toast.error("Sign in to join the club");
       router.push("/sign-in");
       return;
     }
@@ -95,27 +95,27 @@ export function ClubHub({
     try {
       if (club.allowJoinRequests && !club.isPublic) {
         await apiFetch(`/clubs/${club.id}/join-request`, { method: "POST" });
-        toast.success("Solicitação enviada! Aguardando aprovação.");
+        toast.success("Request sent! Awaiting approval.");
       } else {
         await apiFetch(`/clubs/${club.id}/join`, { method: "POST" });
-        toast.success("Você entrou no clube!");
+        toast.success("You joined the club!");
         setMyRole("member");
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro inesperado");
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setJoinLoading(false);
     }
   }
 
   async function handleLeave() {
-    if (!confirm("Tem certeza que deseja sair do clube?")) return;
+    if (!confirm("Are you sure you want to leave the club?")) return;
     try {
       await apiFetch(`/clubs/${club.id}/leave`, { method: "DELETE" });
-      toast.success("Você saiu do clube.");
+      toast.success("You left the club.");
       setMyRole(null);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro inesperado");
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     }
   }
 
@@ -158,7 +158,7 @@ export function ClubHub({
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-purple-400 transition-all mb-8 group"
           >
             <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Clubes
+            Clubs
           </Link>
 
           <div className="flex flex-col md:flex-row gap-8 items-center md:items-end">
@@ -193,7 +193,7 @@ export function ClubHub({
                       ) : (
                         <Lock className="h-3 w-3" />
                       )}
-                      {club.isPublic ? "Público" : "Privado"}
+                      {club.isPublic ? "Public" : "Private"}
                     </span>
                     {club.categories.map((cat) => (
                       <span
@@ -216,7 +216,7 @@ export function ClubHub({
                     {/* Founder */}
                     <div className="h-10 px-4 flex items-center gap-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md group/founder transition-all hover:bg-white/[0.08]">
                       <span className="text-xs text-zinc-500">
-                        Fundado por
+                        Founded by
                       </span>
                       <div className="flex items-center gap-2">
                         <Avatar
@@ -238,9 +238,9 @@ export function ClubHub({
                     {/* Stats */}
                     <div className="flex items-center gap-8 py-1">
                       {[
-                        { value: club.memberCount, label: "Membros" },
-                        { value: initialPosts.length, label: "Discussões" },
-                        { value: initialEvents.length, label: "Sessões" },
+                        { value: club.memberCount, label: "Members" },
+                        { value: initialPosts.length, label: "Discussions" },
+                        { value: initialEvents.length, label: "Sessions" },
                       ].map(({ value, label }) => (
                         <div key={label} className="group/stat cursor-default">
                           <div className="text-lg font-bold text-white tabular-nums group-hover/stat:text-purple-400 transition-colors">
@@ -281,7 +281,7 @@ export function ClubHub({
                           href={`/clubs/${club.slug}/settings`}
                           className="h-9 px-4 rounded-lg text-sm font-medium flex items-center gap-2 border border-white/10 text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 transition-all shadow-xl hover:scale-105 active:scale-95"
                         >
-                          <Settings className="h-4 w-4" /> Configurações
+                          <Settings className="h-4 w-4" /> Settings
                         </Link>
                       )}
                       {myRole !== "owner" && (
@@ -289,7 +289,7 @@ export function ClubHub({
                           onClick={handleLeave}
                           className="h-9 px-4 rounded-lg text-sm font-medium border border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 transition-all"
                         >
-                          Sair
+                          Leave
                         </button>
                       )}
                     </>
@@ -309,14 +309,14 @@ export function ClubHub({
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : club.isPublic ? (
                           <>
-                            Entrar no Clube{" "}
+                            Join Club{" "}
                             <ChevronLeft className="h-3.5 w-3.5 rotate-180" />
                           </>
                         ) : club.allowJoinRequests ? (
-                          "Solicitar Entrada"
+                          "Request to Join"
                         ) : (
                           <>
-                            <Lock className="h-3 w-3" /> Clube Fechado
+                            <Lock className="h-3 w-3" /> Closed Club
                           </>
                         )}
                       </span>

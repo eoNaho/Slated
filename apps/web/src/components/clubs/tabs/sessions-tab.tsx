@@ -101,9 +101,9 @@ export function SessionsTab({
       ]);
       setForm(emptyForm());
       setShowForm(false);
-      toast.success("Sessão criada!");
+      toast.success("Session created!");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar sessão");
+      toast.error(err instanceof Error ? err.message : "Failed to create session");
     } finally {
       setLoading(false);
     }
@@ -140,24 +140,24 @@ export function SessionsTab({
         prev.map((e) => (e.id === eventId ? { ...e, ...data.data } : e)),
       );
       setEditingId(null);
-      toast.success("Sessão atualizada!");
+      toast.success("Session updated!");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao editar sessão");
+      toast.error(err instanceof Error ? err.message : "Failed to edit session");
     } finally {
       setEditLoading(false);
     }
   }
 
   async function handleDelete(eventId: string) {
-    if (!confirm("Excluir esta sessão?")) return;
+    if (!confirm("Delete this session?")) return;
     try {
       await apiFetch(`/clubs/${clubId}/events/${eventId}`, {
         method: "DELETE",
       });
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
-      toast.success("Sessão excluída.");
+      toast.success("Session deleted.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao excluir");
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
     }
   }
 
@@ -189,7 +189,7 @@ export function SessionsTab({
         }),
       );
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -211,7 +211,7 @@ export function SessionsTab({
                 <Plus className="h-5 w-5 text-purple-400" />
               </div>
               <span className="relative z-10 text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                Agendar uma sessão...
+                Schedule a session...
               </span>
             </button>
           ) : (
@@ -221,7 +221,7 @@ export function SessionsTab({
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
                 <span className="text-sm font-semibold text-zinc-400">
-                  Nova Sessão
+                  New Session
                 </span>
                 <button
                   onClick={() => setShowForm(false)}
@@ -235,7 +235,7 @@ export function SessionsTab({
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
-                  placeholder="Título (ex: Vamos assistir Inception!)"
+                  placeholder="Title (e.g. Let's watch Inception!)"
                   className={inputCls}
                 />
                 <div className="flex gap-3 mt-2 mb-2">
@@ -246,7 +246,7 @@ export function SessionsTab({
                       onChange={() => setForm({ ...form, eventType: "watch" })}
                       className="accent-purple-500"
                     />
-                    Sessão de Cinema
+                    Movie Session
                   </label>
                   <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
                     <input
@@ -257,7 +257,7 @@ export function SessionsTab({
                       }
                       className="accent-purple-500"
                     />
-                    Discussão
+                    Discussion
                   </label>
                 </div>
 
@@ -266,7 +266,7 @@ export function SessionsTab({
                     <MediaSearchInput
                       value={form.media}
                       onChange={(media) => setForm({ ...form, media })}
-                      placeholder="Buscar filme ou série..."
+                      placeholder="Search movie or series..."
                     />
                   </div>
                 )}
@@ -277,13 +277,13 @@ export function SessionsTab({
                     setForm({ ...form, description: e.target.value })
                   }
                   rows={2}
-                  placeholder="Descrição (opcional)"
+                  placeholder="Description (optional)"
                   className={`${inputCls} resize-none max-h-[100px]`}
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1.5">
-                      Data e horário
+                      Date and time
                     </label>
                     <input
                       type="datetime-local"
@@ -324,14 +324,14 @@ export function SessionsTab({
                     ) : (
                       <Plus className="h-3.5 w-3.5" />
                     )}
-                    Criar Sessão
+                    Create Session
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
                     className={btnGhostCls}
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 </div>
               </form>
@@ -341,12 +341,12 @@ export function SessionsTab({
       )}
 
       {events.length === 0 ? (
-        <EmptyState icon={Calendar} text="Nenhuma sessão agendada ainda." />
+        <EmptyState icon={Calendar} text="No sessions scheduled yet." />
       ) : (
         <>
           {upcoming.length > 0 && (
             <EventGroup
-              label="Próximas Sessões"
+              label="Upcoming Sessions"
               events={[...upcoming].sort(
                 (a, b) =>
                   new Date(a.scheduledAt).getTime() -
@@ -368,7 +368,7 @@ export function SessionsTab({
           )}
           {past.length > 0 && (
             <EventGroup
-              label="Sessões Passadas"
+              label="Past Sessions"
               events={[...past].sort(
                 (a, b) =>
                   new Date(b.scheduledAt).getTime() -
@@ -454,7 +454,7 @@ function EventGroup({
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-semibold text-zinc-400">
-                    Editar Sessão
+                    Edit Session
                   </span>
                   <button
                     onClick={onCancelEdit}
@@ -469,7 +469,7 @@ function EventGroup({
                     onEditFormChange({ ...editForm, title: e.target.value })
                   }
                   className={inputCls}
-                  placeholder="Título"
+                  placeholder="Title"
                 />
                 <textarea
                   value={editForm.description}
@@ -480,13 +480,13 @@ function EventGroup({
                     })
                   }
                   rows={2}
-                  placeholder="Descrição (opcional)"
+                  placeholder="Description (optional)"
                   className={`${inputCls} resize-none max-h-[100px]`}
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1.5">
-                      Data e horário
+                      Date and time
                     </label>
                     <input
                       type="datetime-local"
@@ -532,14 +532,14 @@ function EventGroup({
                     ) : (
                       <Check className="h-3.5 w-3.5" />
                     )}
-                    Salvar
+                    Save
                   </button>
                   <button
                     type="button"
                     onClick={onCancelEdit}
                     className={btnGhostCls}
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -567,7 +567,7 @@ function EventGroup({
                     className="text-[10px] font-medium uppercase mt-1"
                     style={{ color: isPast ? "#3f3f46" : "#a855f7" }}
                   >
-                    {d.toLocaleDateString("pt-BR", { month: "short" })}
+                    {d.toLocaleDateString("en-US", { month: "short" })}
                   </div>
                 </div>
                 {/* Content */}
@@ -605,11 +605,11 @@ function EventGroup({
                     </span>
                     <span className="flex items-center gap-1 text-indigo-400/80">
                       <CheckCircle2 className="h-3 w-3" />
-                      {event.goingCount} confirmados
+                      {event.goingCount} confirmed
                     </span>
                     <span className="flex items-center gap-1 text-purple-400/80">
                       <Star className="h-3 w-3" />
-                      {event.interestedCount} interessados
+                      {event.interestedCount} interested
                     </span>
                   </div>
                   {event.meetLink && !isPast && (
@@ -619,7 +619,7 @@ function EventGroup({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 mt-2.5 text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors"
                     >
-                      <Video className="h-3.5 w-3.5" /> Entrar na Sessão{" "}
+                      <Video className="h-3.5 w-3.5" /> Join Session{" "}
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
@@ -629,9 +629,9 @@ function EventGroup({
                         ["going", "interested", "not_going"] as const
                       ).map((s) => {
                         const labels = {
-                          going: "Vou",
-                          interested: "Talvez",
-                          not_going: "Não vou",
+                          going: "Going",
+                          interested: "Maybe",
+                          not_going: "Not going",
                         };
                         const activeStyle = {
                           going: {

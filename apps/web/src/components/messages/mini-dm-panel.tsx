@@ -12,7 +12,6 @@ import { ConversationView } from "./conversation-view";
 import { NewConversationModal } from "./new-conversation-modal";
 import type { Conversation } from "@/types";
 import { formatDistanceToNowStrict } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -71,7 +70,7 @@ export function MiniDmPanel({ isOpen, onClose }: MiniDmPanelProps) {
             <button
               onClick={() => setSelectedConvId(null)}
               className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/8 transition-colors"
-              title="Voltar"
+              title="Back"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
@@ -110,12 +109,12 @@ export function MiniDmPanel({ isOpen, onClose }: MiniDmPanelProps) {
         ) : (
           <>
             <span className="flex-1 text-sm font-semibold text-white">
-              Mensagens
+              Messages
             </span>
             <button
               onClick={() => setShowNewModal(true)}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/8 transition-colors"
-              title="Nova conversa"
+              title="New conversation"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -198,9 +197,9 @@ function MiniInboxList({
           <MessageSquare className="h-5 w-5 text-zinc-600" />
         </div>
         <p className="text-zinc-500 text-xs leading-relaxed">
-          Nenhuma conversa ainda.
+          No conversations yet.
           <br />
-          Comece uma nova!
+          Start a new one!
         </p>
       </div>
     );
@@ -361,7 +360,7 @@ function formatShort(dateStr: string): string {
     if (diffHours < 24) return `${diffHours}h`;
     const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays}d`;
-    return formatDistanceToNowStrict(date, { locale: ptBR, addSuffix: false });
+    return formatDistanceToNowStrict(date, { addSuffix: false });
   } catch {
     return "";
   }

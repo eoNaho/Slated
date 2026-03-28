@@ -40,7 +40,7 @@ export default function ListDetailPageBySlug() {
       const res = await api.lists.getBySlug(username as string, slug as string);
       setList(res.data);
     } catch (err) {
-      console.error("Falha ao carregar a lista", err);
+      console.error("Failed to load list", err);
     } finally {
       setIsLoading(false);
     }
@@ -58,10 +58,10 @@ export default function ListDetailPageBySlug() {
         list.id,
         mediaItem.localId ?? String(mediaItem.id),
       );
-      toast.success(`${mediaItem.title} adicionado à lista`);
+      toast.success(`${mediaItem.title} added to list`);
       loadList();
     } catch (err) {
-      toast.error((err as Error).message || "Falha ao adicionar media");
+      toast.error((err as Error).message || "Failed to add media");
     }
   };
 
@@ -70,24 +70,24 @@ export default function ListDetailPageBySlug() {
   }, [loadList]);
 
   const handleDelete = async () => {
-    if (!confirm("Tem a certeza que deseja eliminar esta lista?")) return;
+    if (!confirm("Are you sure you want to delete this list?")) return;
     setIsDeleting(true);
     try {
       await api.lists.delete(list!.id);
       router.push(`/profile/${session?.user.username}?tab=lists`);
     } catch (err) {
-      console.error("Falha ao eliminar a lista", err);
+      console.error("Failed to delete list", err);
       setIsDeleting(false);
     }
   };
 
   const handleRemoveItem = async (media: { id: string; title: string }) => {
-    if (!confirm(`Remover "${media.title}" desta lista?`)) return;
+    if (!confirm(`Remove "${media.title}" from this list?`)) return;
     try {
       await api.lists.removeItem(list!.id, media.id);
       loadList();
     } catch (err) {
-      console.error("Falha ao remover item", err);
+      console.error("Failed to remove item", err);
     }
   };
 
@@ -110,10 +110,10 @@ export default function ListDetailPageBySlug() {
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-white">
-            Lista não encontrada
+            List not found
           </h1>
           <p className="text-zinc-500">
-            A lista que procura não existe ou é privada.
+            The list you're looking for doesn't exist or is private.
           </p>
         </div>
         <Button
@@ -121,7 +121,7 @@ export default function ListDetailPageBySlug() {
           variant="ghost"
           className="text-zinc-400"
         >
-          Voltar
+          Back
         </Button>
       </div>
     );
@@ -139,7 +139,7 @@ export default function ListDetailPageBySlug() {
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mb-8 text-sm font-bold group"
           >
             <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            VOLTAR
+            BACK
           </button>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -152,7 +152,7 @@ export default function ListDetailPageBySlug() {
                     <Lock className="w-3.5 h-3.5 text-amber-500" />
                   )}
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60">
-                    {list.isPublic ? "Pública" : "Privada"}
+                    {list.isPublic ? "Public" : "Private"}
                   </span>
                 </div>
                 <div className="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center gap-1.5">
@@ -195,7 +195,7 @@ export default function ListDetailPageBySlug() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] text-zinc-500 font-black uppercase tracking-tight">
-                      Curado por
+                      Curated by
                     </span>
                     <span className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">
                       @{list.user?.username}
@@ -207,10 +207,10 @@ export default function ListDetailPageBySlug() {
 
                 <div className="flex flex-col">
                   <span className="text-[10px] text-zinc-500 font-black uppercase tracking-tight">
-                    Coleção
+                    Collection
                   </span>
                   <span className="text-sm font-bold text-white">
-                    {list.itemsCount} Itens
+                    {list.itemsCount} Items
                   </span>
                 </div>
               </div>
@@ -220,10 +220,10 @@ export default function ListDetailPageBySlug() {
                 <div className="pt-8 max-w-lg">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
-                      Adicionar a esta lista
+                      Add to this list
                     </label>
                     <MediaSearchInput
-                      placeholder="Procurar por mais filmes ou séries..."
+                      placeholder="Search for movies or series..."
                       onChange={handleAddMedia}
                       className="bg-white/5 border-white/10"
                     />
@@ -240,7 +240,7 @@ export default function ListDetailPageBySlug() {
                     className="h-12 px-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold gap-2"
                   >
                     <Edit2 className="w-4 h-4" />
-                    Editar
+                    Edit
                   </Button>
                   <Button
                     onClick={handleDelete}
@@ -252,13 +252,13 @@ export default function ListDetailPageBySlug() {
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}
-                    Eliminar
+                    Delete
                   </Button>
                 </>
               ) : (
                 <Button className="h-12 px-6 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold gap-2">
                   <Share2 className="w-4 h-4" />
-                  Partilhar Lista
+                  Share List
                 </Button>
               )}
             </div>
@@ -279,15 +279,15 @@ export default function ListDetailPageBySlug() {
             <LayoutGrid className="w-12 h-12 text-zinc-700" />
             <div className="space-y-1">
               <p className="text-lg font-bold text-white/40">
-                Esta lista está vazia
+                This list is empty
               </p>
               <p className="text-sm text-zinc-600">
-                Comece a explorar para adicionar alguma media aqui.
+                Start exploring to add some media here.
               </p>
             </div>
             <Link href="/discover">
               <Button className="mt-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold h-11 px-8">
-                Ir Descobrir
+                Discover
               </Button>
             </Link>
           </div>

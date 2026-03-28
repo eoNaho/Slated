@@ -9,7 +9,6 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import Link from "next/link";
 import Image from "next/image";
 import { cn, resolveImage } from "@/lib/utils";
@@ -45,10 +44,10 @@ interface EnrichedBookmark {
 }
 
 const FILTER_TABS: { value: FilterType; label: string; icon: typeof Film }[] = [
-  { value: "all", label: "Todos", icon: Bookmark },
-  { value: "media", label: "Filmes & Séries", icon: Film },
+  { value: "all", label: "All", icon: Bookmark },
+  { value: "media", label: "Movies & Series", icon: Film },
   { value: "review", label: "Reviews", icon: FileText },
-  { value: "list", label: "Listas", icon: ListIcon },
+  { value: "list", label: "Lists", icon: ListIcon },
 ];
 
 function MediaCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemove: () => void }) {
@@ -80,14 +79,14 @@ function MediaCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemov
             "absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
             t?.type === "movie" ? "bg-purple-600/90 text-white" : "bg-pink-600/90 text-white"
           )}>
-            {t?.type === "movie" ? "Filme" : "Série"}
+            {t?.type === "movie" ? "Movie" : "Series"}
           </div>
         </div>
       </Link>
       <button
         onClick={onRemove}
         className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-zinc-400 hover:text-red-400 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
-        aria-label="Remover dos salvos"
+        aria-label="Remove from saved"
       >
         <X className="w-3 h-3" />
       </button>
@@ -102,7 +101,7 @@ function ReviewCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemo
       <button
         onClick={onRemove}
         className="absolute top-3 right-3 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-        aria-label="Remover dos salvos"
+        aria-label="Remove from saved"
       >
         <X className="w-3 h-3" />
       </button>
@@ -113,7 +112,7 @@ function ReviewCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemo
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-white line-clamp-1">{t?.mediaTitle || "Sem título"}</p>
+          <p className="text-xs font-bold text-white line-clamp-1">{t?.mediaTitle || "Untitled"}</p>
           {t?.authorUsername && (
             <p className="text-[10px] text-zinc-500 mt-0.5">por @{t.authorUsername}</p>
           )}
@@ -132,7 +131,7 @@ function ReviewCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemo
         </p>
       )}
       <p className="text-[10px] text-zinc-600 mt-2">
-        {formatDistanceToNow(new Date(bookmark.createdAt), { addSuffix: true, locale: ptBR })}
+        {formatDistanceToNow(new Date(bookmark.createdAt), { addSuffix: true })}
       </p>
     </div>
   );
@@ -146,7 +145,7 @@ function ListCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemove
       <button
         onClick={onRemove}
         className="absolute top-3 right-3 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-        aria-label="Remover dos salvos"
+        aria-label="Remove from saved"
       >
         <X className="w-3 h-3" />
       </button>
@@ -166,7 +165,7 @@ function ListCard({ bookmark, onRemove }: { bookmark: EnrichedBookmark; onRemove
       )}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
         <span className="text-[10px] font-black text-zinc-600 uppercase tracking-wider">
-          {t?.itemsCount ?? 0} {t?.itemsCount === 1 ? "item" : "itens"}
+          {t?.itemsCount ?? 0} {t?.itemsCount === 1 ? "item" : "items"}
         </span>
         <Link href={href} className="flex items-center gap-1 text-[10px] font-semibold text-purple-400 hover:text-purple-300 transition-colors">
           Ver lista <ExternalLink className="w-3 h-3" />
@@ -194,9 +193,9 @@ export default function SavedPage() {
       api.bookmarks.unbookmark(targetType, targetId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
-      toast.success("Removido dos salvos");
+      toast.success("Removed from saved");
     },
-    onError: () => toast.error("Falha ao remover"),
+    onError: () => toast.error("Failed to remove"),
   });
 
   const bookmarks = (data?.data ?? []) as EnrichedBookmark[];
@@ -215,16 +214,16 @@ export default function SavedPage() {
         <div className="container mx-auto px-6 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase tracking-widest mb-4">
             <Bookmark className="w-3 h-3" />
-            Salvos
+            Saved
           </div>
           <h1 className="text-4xl font-black text-white tracking-tight">
-            Sua coleção{" "}
+            Your personal{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">
-              pessoal.
+              collection.
             </span>
           </h1>
           <p className="text-zinc-400 mt-2 text-base">
-            Filmes, reviews e listas que você guardou para depois.
+            Movies, reviews and lists you saved for later.
           </p>
         </div>
       </div>
@@ -273,10 +272,10 @@ export default function SavedPage() {
               <Bookmark className="w-10 h-10 text-zinc-700" />
             </div>
             <div className="text-center">
-              <p className="text-zinc-300 font-semibold text-lg">Nenhum item salvo</p>
+              <p className="text-zinc-300 font-semibold text-lg">No saved items</p>
               <p className="text-zinc-600 text-sm mt-1">
-                Salve filmes, reviews e listas tocando no{" "}
-                <Bookmark className="w-3 h-3 inline text-yellow-400" /> em qualquer conteúdo.
+                Save movies, reviews and lists by tapping the{" "}
+                <Bookmark className="w-3 h-3 inline text-yellow-400" /> on any content.
               </p>
             </div>
             <Link
@@ -284,7 +283,7 @@ export default function SavedPage() {
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:brightness-110 text-white text-sm font-bold transition-all"
             >
               <Sparkles className="w-4 h-4" />
-              Explorar conteúdo
+              Explore content
             </Link>
           </div>
         ) : (
@@ -296,7 +295,7 @@ export default function SavedPage() {
                   <div className="flex items-center gap-2 mb-5">
                     <Film className="w-4 h-4 text-purple-400" />
                     <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">
-                      Filmes & Séries
+                      Movies & Series
                     </h2>
                     <span className="text-[10px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-full">
                       {mediaBookmarks.length}
@@ -340,7 +339,7 @@ export default function SavedPage() {
                   <div className="flex items-center gap-2 mb-5">
                     <ListIcon className="w-4 h-4 text-green-400" />
                     <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">
-                      Listas
+                      Lists
                     </h2>
                     <span className="text-[10px] font-black bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">
                       {listBookmarks.length}

@@ -477,7 +477,7 @@ export function ProfileHeader({
             <span className="font-semibold text-white">
               {profile.stats.followersCount.toLocaleString()}
             </span>
-            <span className="text-zinc-500">seguidores</span>
+            <span className="text-zinc-500">followers</span>
           </button>
           <button
             onClick={() => setFollowDialog("following")}
@@ -486,7 +486,7 @@ export function ProfileHeader({
             <span className="font-semibold text-white">
               {profile.stats.followingCount}
             </span>
-            <span className="text-zinc-500">seguindo</span>
+            <span className="text-zinc-500">following</span>
           </button>
           {profile.stats.averageRating && (
             <div className="flex items-center gap-1.5 text-sm">
@@ -559,12 +559,12 @@ export function ProfileHeader({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">
-                    {isBlocked ? "Desbloquear usuário?" : "Bloquear usuário?"}
+                    {isBlocked ? "Unblock user?" : "Block user?"}
                   </h3>
                   <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
                     {isBlocked
-                      ? `${profile.displayName || profile.username} poderá ver seu perfil e interagir com você novamente.`
-                      : `${profile.displayName || profile.username} não poderá ver seu perfil, seguir você ou interagir com seu conteúdo.`}
+                      ? `${profile.displayName || profile.username} will be able to see your profile and interact with you again.`
+                      : `${profile.displayName || profile.username} won't be able to see your profile, follow you, or interact with your content.`}
                   </p>
                 </div>
               </div>
@@ -573,7 +573,7 @@ export function ProfileHeader({
                   onClick={() => setShowBlockConfirm(false)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
                 >
-                  Cancelar
+                  Cancel
                 </button>
                 <button
                   onClick={async () => {
@@ -582,15 +582,15 @@ export function ProfileHeader({
                       if (isBlocked) {
                         await api.blocks.unblock(profile.id);
                         setIsBlocked(false);
-                        setBlockFeedback("Usuário desbloqueado.");
+                        setBlockFeedback("User unblocked.");
                       } else {
                         await api.blocks.block(profile.id);
                         setIsBlocked(true);
-                        setBlockFeedback("Usuário bloqueado.");
+                        setBlockFeedback("User blocked.");
                       }
                       setTimeout(() => setBlockFeedback(null), 3000);
                     } catch {
-                      setBlockFeedback("Falha ao executar ação.");
+                      setBlockFeedback("Failed to perform action.");
                       setTimeout(() => setBlockFeedback(null), 3000);
                     } finally {
                       setBlockLoading(false);
@@ -603,9 +603,9 @@ export function ProfileHeader({
                   {blockLoading ? (
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : isBlocked ? (
-                    "Desbloquear"
+                    "Unblock"
                   ) : (
-                    "Bloquear"
+                    "Block"
                   )}
                 </button>
               </div>
@@ -644,7 +644,7 @@ export function ProfileHeader({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
                 >
-                  <Flag className="w-4 h-4 text-red-400" /> Denunciar usuário
+                  <Flag className="w-4 h-4 text-red-400" /> Report user
                 </button>
                 <button
                   onClick={() => {
@@ -654,7 +654,7 @@ export function ProfileHeader({
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
                 >
                   <Ban className="w-4 h-4 text-orange-400" />
-                  {isBlocked ? "Desbloquear" : "Bloquear"} usuário
+                  {isBlocked ? "Unblock" : "Block"} user
                 </button>
               </>
             )}

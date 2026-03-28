@@ -36,7 +36,7 @@ export function ListCard({ list }: ListCardProps) {
       else await api.bookmarks.bookmark("list", list.id);
     } catch {
       setBookmarked(prev);
-      toast.error("Falha ao salvar lista");
+      toast.error("Failed to save list");
     }
   };
 
@@ -54,7 +54,7 @@ export function ListCard({ list }: ListCardProps) {
             ? "text-yellow-400 bg-yellow-400/10 opacity-100"
             : "text-zinc-500 hover:text-yellow-400 hover:bg-yellow-400/10"
         )}
-        aria-label={bookmarked ? "Remover dos salvos" : "Salvar lista"}
+        aria-label={bookmarked ? "Remove from saved" : "Save list"}
       >
         <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? "fill-current" : ""}`} />
       </button>

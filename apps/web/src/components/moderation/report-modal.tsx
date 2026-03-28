@@ -6,14 +6,14 @@ import { api } from "@/lib/api";
 
 const REASONS = [
   { value: "spam", label: "Spam" },
-  { value: "harassment", label: "Assédio" },
-  { value: "inappropriate", label: "Conteúdo inapropriado" },
-  { value: "hate_speech", label: "Discurso de ódio" },
-  { value: "misinformation", label: "Desinformação" },
-  { value: "impersonation", label: "Impersonação" },
-  { value: "copyright", label: "Violação de direitos autorais" },
-  { value: "self_harm", label: "Autolesão" },
-  { value: "other", label: "Outro" },
+  { value: "harassment", label: "Harassment" },
+  { value: "inappropriate", label: "Inappropriate content" },
+  { value: "hate_speech", label: "Hate speech" },
+  { value: "misinformation", label: "Misinformation" },
+  { value: "impersonation", label: "Impersonation" },
+  { value: "copyright", label: "Copyright violation" },
+  { value: "self_harm", label: "Self-harm" },
+  { value: "other", label: "Other" },
 ] as const;
 
 interface ReportModalProps {
@@ -37,7 +37,7 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
       await api.reports.create({ targetType, targetId, reason, description: description || undefined });
       setDone(true);
     } catch {
-      setError("Falha ao enviar denúncia. Tente novamente.");
+      setError("Failed to submit report. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
       >
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Flag className="w-4 h-4 text-red-400" /> Denunciar
+            <Flag className="w-4 h-4 text-red-400" /> Report
           </h3>
           <button onClick={onClose} className="p-1 rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors">
             <X className="w-4 h-4" />
@@ -61,19 +61,19 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
         {done ? (
           <div className="flex flex-col items-center py-6 gap-3 text-center">
             <CheckCircle className="w-12 h-12 text-emerald-400" />
-            <p className="text-sm font-semibold text-white">Denúncia enviada</p>
-            <p className="text-xs text-zinc-500">Nossa equipe irá revisar em breve. Obrigado por ajudar a manter a comunidade segura.</p>
+            <p className="text-sm font-semibold text-white">Report submitted</p>
+            <p className="text-xs text-zinc-500">Our team will review it shortly. Thank you for helping keep the community safe.</p>
             <button
               onClick={onClose}
               className="mt-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-zinc-800 hover:bg-zinc-700 transition-colors"
             >
-              Fechar
+              Close
             </button>
           </div>
         ) : (
           <>
             <div className="space-y-2">
-              <p className="text-xs font-medium text-zinc-400">Motivo da denúncia</p>
+              <p className="text-xs font-medium text-zinc-400">Reason for report</p>
               <div className="grid grid-cols-1 gap-1.5">
                 {REASONS.map((r) => (
                   <button
@@ -92,11 +92,11 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
             </div>
 
             <div>
-              <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Detalhes adicionais (opcional)</label>
+              <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Additional details (optional)</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descreva o problema..."
+                placeholder="Describe the issue..."
                 rows={3}
                 maxLength={500}
                 className="w-full px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 resize-none"
@@ -110,7 +110,7 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
                 onClick={onClose}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={submit}
@@ -118,7 +118,7 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500/80 hover:bg-red-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flag className="w-4 h-4" />}
-                Denunciar
+                Report
               </button>
             </div>
           </>

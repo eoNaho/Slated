@@ -69,10 +69,10 @@ export function ManageTab({
         method: "POST",
         body: JSON.stringify({ username: inviteInput.replace(/^@/, "") }),
       });
-      toast.success("Convite enviado!");
+      toast.success("Invite sent!");
       setInviteInput("");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setInviteLoading(false);
     }
@@ -84,9 +84,9 @@ export function ManageTab({
         method: "POST",
       });
       setJoinRequests((prev) => prev.filter((r) => r.request.id !== requestId));
-      toast.success("Solicitação aceita!");
+      toast.success("Request accepted!");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -96,22 +96,22 @@ export function ManageTab({
         method: "POST",
       });
       setJoinRequests((prev) => prev.filter((r) => r.request.id !== requestId));
-      toast.success("Solicitação rejeitada.");
+      toast.success("Request rejected.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
   async function handleKick(userId: string) {
-    if (!confirm("Remover este membro do clube?")) return;
+    if (!confirm("Remove this member from the club?")) return;
     try {
       await apiFetch(`/clubs/${clubId}/members/${userId}`, {
         method: "DELETE",
       });
       onMembersChange(members.filter((m) => m.userId !== userId));
-      toast.success("Membro removido.");
+      toast.success("Member removed.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -125,10 +125,10 @@ export function ManageTab({
         members.map((m) => (m.userId === userId ? { ...m, role: newRole } : m)),
       );
       toast.success(
-        newRole === "moderator" ? "Promovido a moderador." : "Rebaixado a membro.",
+        newRole === "moderator" ? "Promoted to moderator." : "Demoted to member.",
       );
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -141,7 +141,7 @@ export function ManageTab({
       >
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/[0.02] to-transparent opacity-50 pointer-events-none" />
         <h3 className="relative z-10 text-sm font-semibold text-zinc-400 mb-5 flex items-center gap-2.5">
-          <UserPlus className="h-4 w-4 text-purple-400" /> Convidar Membro
+          <UserPlus className="h-4 w-4 text-purple-400" /> Invite Member
         </h3>
         <div className="flex gap-2">
           <input
@@ -164,7 +164,7 @@ export function ManageTab({
             ) : (
               <UserPlus className="h-3.5 w-3.5" />
             )}
-            Convidar
+            Invite
           </button>
         </div>
       </div>
@@ -177,7 +177,7 @@ export function ManageTab({
         >
           <h3 className="text-sm font-semibold text-zinc-400 mb-4 flex items-center gap-2">
             <UserCheck className="h-4 w-4 text-indigo-400" />
-            Solicitações de Entrada
+            Join Requests
             {joinRequests.length > 0 && (
               <span className="text-xs font-medium bg-purple-500/15 text-purple-300 border border-purple-500/25 px-2 py-0.5 rounded-md">
                 {joinRequests.length}
@@ -186,11 +186,11 @@ export function ManageTab({
           </h3>
           {!joinReqLoaded ? (
             <div className="flex items-center gap-2 text-sm text-zinc-600 py-3">
-              <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading...
             </div>
           ) : joinRequests.length === 0 ? (
             <p className="text-sm text-zinc-700 py-2">
-              Nenhuma solicitação pendente.
+              No pending requests.
             </p>
           ) : (
             <div className="space-y-2">
@@ -227,13 +227,13 @@ export function ManageTab({
                         onClick={() => handleAcceptRequest(req.request.id)}
                         className="flex items-center gap-1.5 text-xs font-bold text-purple-400 hover:text-purple-300 border border-purple-500/25 hover:border-purple-400/40 bg-purple-500/8 hover:bg-purple-500/15 px-3 py-1.5 rounded-lg transition-all"
                       >
-                        <UserCheck className="h-3.5 w-3.5" /> Aceitar
+                        <UserCheck className="h-3.5 w-3.5" /> Accept
                       </button>
                       <button
                         onClick={() => handleRejectRequest(req.request.id)}
                         className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 bg-white/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-all"
                       >
-                        <UserX className="h-3.5 w-3.5" /> Rejeitar
+                        <UserX className="h-3.5 w-3.5" /> Reject
                       </button>
                     </div>
                   </div>
@@ -260,10 +260,10 @@ export function ManageTab({
           }}
         />
         <h3 className="relative z-10 text-sm font-semibold text-zinc-400 mb-5 flex items-center gap-2">
-          <Users className="h-4 w-4 text-zinc-500" /> Gerenciar Membros
+          <Users className="h-4 w-4 text-zinc-500" /> Manage Members
         </h3>
         {members.length === 0 ? (
-          <p className="text-sm text-zinc-700 py-2">Nenhum membro.</p>
+          <p className="text-sm text-zinc-700 py-2">No members.</p>
         ) : (
           <div className="divide-y divide-white/5">
             {members.map((m) => {
@@ -302,7 +302,7 @@ export function ManageTab({
                     {canPromote && m.role === "member" && (
                       <button
                         onClick={() => handleSetRole(m.userId, "moderator")}
-                        title="Promover a Moderador"
+                        title="Promote to Moderator"
                         className="p-1.5 rounded-lg text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all"
                       >
                         <ChevronUp className="h-4 w-4" />
@@ -311,7 +311,7 @@ export function ManageTab({
                     {canPromote && m.role === "moderator" && (
                       <button
                         onClick={() => handleSetRole(m.userId, "member")}
-                        title="Rebaixar a Membro"
+                        title="Demote to Member"
                         className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-300 hover:bg-white/5 transition-all"
                       >
                         <ChevronDown className="h-4 w-4" />
@@ -320,7 +320,7 @@ export function ManageTab({
                     {canKick && (
                       <button
                         onClick={() => handleKick(m.userId)}
-                        title="Remover do clube"
+                        title="Remove from club"
                         className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/20 transition-all"
                       >
                         <UserMinus className="h-4 w-4" />

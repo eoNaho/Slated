@@ -20,11 +20,11 @@ const CATEGORIES = [
   { value: "anime", label: "Anime" },
   { value: "documentary", label: "Documentary" },
   { value: "musical", label: "Musical" },
-  { value: "by-director", label: "Por Diretor" },
-  { value: "by-actor", label: "Por Ator" },
-  { value: "by-decade", label: "Por Década" },
-  { value: "by-country", label: "Por País" },
-  { value: "general", label: "Geral" },
+  { value: "by-director", label: "By Director" },
+  { value: "by-actor", label: "By Actor" },
+  { value: "by-decade", label: "By Decade" },
+  { value: "by-country", label: "By Country" },
+  { value: "general", label: "General" },
 ];
 
 const API_URL =
@@ -52,7 +52,7 @@ export function NewClubForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (name.trim().length < 3) {
-      toast.error("Nome deve ter pelo menos 3 caracteres");
+      toast.error("Name must be at least 3 characters");
       return;
     }
 
@@ -73,14 +73,14 @@ export function NewClubForm() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erro ao criar club");
+        throw new Error(err.error || "Failed to create club");
       }
 
       const { data } = await res.json();
-      toast.success("Club criado com sucesso!");
+      toast.success("Club created successfully!");
       router.push(`/clubs/${data.slug}`);
     } catch (err: any) {
-      toast.error(err.message || "Erro inesperado");
+      toast.error(err.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -91,12 +91,12 @@ export function NewClubForm() {
       {/* Name */}
       <div>
         <label className="block text-sm font-medium text-zinc-300 mb-2">
-          Nome do club <span className="text-red-400">*</span>
+          Club name <span className="text-red-400">*</span>
         </label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ex: Filmes de Terror dos Anos 80"
+          placeholder="e.g. 80s Horror Films"
           maxLength={60}
           required
           className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/8 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-purple-500/60 transition-colors text-sm"
@@ -107,12 +107,12 @@ export function NewClubForm() {
       {/* Description */}
       <div>
         <label className="block text-sm font-medium text-zinc-300 mb-2">
-          Descrição
+          Description
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Sobre o que é esse club? O que os membros vão fazer aqui?"
+          placeholder="What is this club about? What will members do here?"
           maxLength={500}
           rows={3}
           className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/8 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-purple-500/60 transition-colors text-sm resize-none"
@@ -123,7 +123,7 @@ export function NewClubForm() {
       {/* Categories */}
       <div>
         <label className="block text-sm font-medium text-zinc-300 mb-1">
-          Categorias <span className="text-zinc-600 text-xs">(máx. 3)</span>
+          Categories <span className="text-zinc-600 text-xs">(max. 3)</span>
         </label>
         <div className="flex flex-wrap gap-2 mt-2">
           {CATEGORIES.map((cat) => {
@@ -159,10 +159,10 @@ export function NewClubForm() {
           </div>
           <div>
             <div className={`font-medium text-sm ${isPublic ? "text-white" : "text-zinc-400"}`}>
-              Público
+              Public
             </div>
             <p className="text-xs text-zinc-600 mt-0.5">
-              Qualquer pessoa pode ver e entrar no club
+              Anyone can view and join the club
             </p>
           </div>
           <div className={`ml-auto w-4 h-4 rounded-full border-2 mt-1 transition-all ${isPublic ? "bg-purple-500 border-purple-500" : "border-zinc-600"}`} />
@@ -178,10 +178,10 @@ export function NewClubForm() {
           </div>
           <div>
             <div className={`font-medium text-sm ${!isPublic ? "text-white" : "text-zinc-400"}`}>
-              Privado
+              Private
             </div>
             <p className="text-xs text-zinc-600 mt-0.5">
-              Apenas membros aprovados podem ver o conteúdo
+              Only approved members can view the content
             </p>
           </div>
           <div className={`ml-auto w-4 h-4 rounded-full border-2 mt-1 transition-all ${!isPublic ? "bg-purple-500 border-purple-500" : "border-zinc-600"}`} />
@@ -201,10 +201,10 @@ export function NewClubForm() {
           </div>
           <div>
             <span className="text-sm font-medium text-zinc-300">
-              Aceitar solicitações de entrada
+              Accept join requests
             </span>
             <p className="text-xs text-zinc-600">
-              Usuários podem solicitar entrar; você aprova ou recusa
+              Users can request to join; you approve or decline
             </p>
           </div>
         </label>
@@ -218,7 +218,7 @@ export function NewClubForm() {
           className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
         >
           <Users className="h-4 w-4" />
-          {loading ? "Criando..." : "Criar Club"}
+          {loading ? "Creating..." : "Create Club"}
         </button>
       </div>
     </form>

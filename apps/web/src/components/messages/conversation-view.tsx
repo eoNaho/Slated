@@ -208,8 +208,8 @@ export function ConversationView({ conversationId, hideHeader = false }: Convers
               </span>
               <span className="text-xs text-zinc-400 ml-1">
                 {typingNames.length === 1
-                  ? `${typingNames[0]} está digitando`
-                  : `${typingNames.length} pessoas estão digitando`}
+                  ? `${typingNames[0]} is typing`
+                  : `${typingNames.length} people are typing`}
               </span>
             </div>
           </div>

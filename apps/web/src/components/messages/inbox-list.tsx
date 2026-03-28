@@ -16,7 +16,7 @@ export function InboxList() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 px-5 py-4 border-b border-white/5">
-        <h1 className="text-lg font-semibold text-white">Mensagens</h1>
+        <h1 className="text-lg font-semibold text-white">Messages</h1>
       </div>
 
       {/* List */}
@@ -33,9 +33,9 @@ export function InboxList() {
               <MessageSquare className="h-6 w-6 text-zinc-600" />
             </div>
             <p className="text-zinc-500 text-sm leading-relaxed">
-              Nenhuma conversa ainda.
+              No conversations yet.
               <br />
-              Comece uma nova!
+              Start a new one!
             </p>
           </div>
         ) : (

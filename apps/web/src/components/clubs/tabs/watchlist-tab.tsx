@@ -50,7 +50,7 @@ export function WatchlistTab({
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!media) {
-      toast.error("Selecione um filme ou série.");
+      toast.error("Select a movie or series.");
       return;
     }
     setLoading(true);
@@ -69,9 +69,9 @@ export function WatchlistTab({
       setMedia(null);
       setNote("");
       setShowForm(false);
-      toast.success("Adicionado à watchlist!");
+      toast.success("Added to watchlist!");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao adicionar");
+      toast.error(err instanceof Error ? err.message : "Failed to add");
     } finally {
       setLoading(false);
     }
@@ -86,9 +86,9 @@ export function WatchlistTab({
       setWatchlist((prev) =>
         prev.map((i) => (i.id === itemId ? { ...i, isWatched } : i)),
       );
-      toast.success(isWatched ? "Marcado como assistido!" : "Desmarcado.");
+      toast.success(isWatched ? "Marked as watched!" : "Unmarked.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -98,9 +98,9 @@ export function WatchlistTab({
         method: "DELETE",
       });
       setWatchlist((prev) => prev.filter((i) => i.id !== itemId));
-      toast.success("Removido da watchlist.");
+      toast.success("Removed from watchlist.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -118,7 +118,7 @@ export function WatchlistTab({
                 <Plus className="h-5 w-5 text-purple-400" />
               </div>
               <span className="relative z-10 text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                Sugerir um título para a watchlist...
+                Suggest a title for the watchlist...
               </span>
             </button>
           ) : (
@@ -128,7 +128,7 @@ export function WatchlistTab({
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
                 <span className="text-sm font-semibold text-zinc-400">
-                  Adicionar à Watchlist
+                  Add to Watchlist
                 </span>
                 <button
                   onClick={() => setShowForm(false)}
@@ -141,12 +141,12 @@ export function WatchlistTab({
                 <MediaSearchInput
                   value={media}
                   onChange={setMedia}
-                  placeholder="Buscar filme ou série..."
+                  placeholder="Search movie or series..."
                 />
                 <input
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Nota (opcional)"
+                  placeholder="Note (optional)"
                   className={inputCls}
                 />
                 <div className="flex gap-2 pt-1">
@@ -164,14 +164,14 @@ export function WatchlistTab({
                     ) : (
                       <Plus className="h-3.5 w-3.5" />
                     )}
-                    Adicionar
+                    Add
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
                     className={btnGhostCls}
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 </div>
               </form>
@@ -181,7 +181,7 @@ export function WatchlistTab({
       )}
 
       {watchlist.length === 0 ? (
-        <EmptyState icon={Bookmark} text="Nenhum título na watchlist ainda." />
+        <EmptyState icon={Bookmark} text="No titles in the watchlist yet." />
       ) : (
         <div className="space-y-2">
           {[...watchlist]
@@ -245,7 +245,7 @@ export function WatchlistTab({
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-md border border-white/5 bg-zinc-950 text-purple-400">
-                        {item.mediaType === "movie" ? "Filme" : "Série"}
+                        {item.mediaType === "movie" ? "Movie" : "Series"}
                       </span>
                       {item.note && (
                         <span className="text-xs text-zinc-600 line-clamp-1">
@@ -267,8 +267,8 @@ export function WatchlistTab({
                         }`}
                         title={
                           item.isWatched
-                            ? "Desmarcar como assistido"
-                            : "Marcar como assistido"
+                            ? "Unmark as watched"
+                            : "Mark as watched"
                         }
                       >
                         <CheckCircle2 className="h-4 w-4" />
@@ -278,7 +278,7 @@ export function WatchlistTab({
                       <button
                         onClick={() => handleRemove(item.id)}
                         className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-950/20 transition-all"
-                        title="Remover"
+                        title="Remove"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

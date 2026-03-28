@@ -6,8 +6,8 @@ import { MediaCard } from "@/components/media";
 import { getPopularMovies } from "@/lib/queries/media";
 
 export const metadata: Metadata = {
-  title: "Filmes",
-  description: "Descubra e explore filmes populares",
+  title: "Movies",
+  description: "Discover and explore popular movies",
 };
 
 export default async function MoviesPage() {
@@ -21,11 +21,11 @@ export default async function MoviesPage() {
         <div className="container mx-auto px-4 lg:px-8 py-16 relative">
           <div className="flex items-center gap-3 mb-4">
             <Film className="h-8 w-8 text-purple-400" />
-            <h1 className="text-4xl font-bold text-white">Filmes</h1>
+            <h1 className="text-4xl font-bold text-white">Movies</h1>
           </div>
           <p className="text-xl text-zinc-400 max-w-2xl">
-            Descubra os melhores filmes de todo o mundo. Acompanhe o que já viu,
-            avalie os seus favoritos e crie o seu diário de cinema pessoal.
+            Discover the best movies from around the world. Track what you&apos;ve
+            watched, rate your favorites, and build your personal film diary.
           </p>
         </div>
       </div>
@@ -35,15 +35,15 @@ export default async function MoviesPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" className="text-purple-400 bg-purple-400/10">
             <TrendingUp className="h-4 w-4 mr-2" />
-            Populares
+            Popular
           </Button>
           <Button variant="ghost" className="text-zinc-400 hover:text-white">
             <Star className="h-4 w-4 mr-2" />
-            Melhor Classificados
+            Top Rated
           </Button>
           <Button variant="ghost" className="text-zinc-400 hover:text-white">
             <Calendar className="h-4 w-4 mr-2" />
-            Próximas Estreias
+            Upcoming
           </Button>
         </div>
       </div>
@@ -86,14 +86,14 @@ export default async function MoviesPage() {
           <div className="text-center py-16">
             <Film className="h-16 w-16 text-zinc-700 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">
-              Ainda não há filmes
+              No movies yet
             </h2>
             <p className="text-zinc-400">
-              Pesquise filmes para os adicionar à biblioteca.
+              Search for movies to add them to the library.
             </p>
             <Link href="/search">
               <Button className="mt-4 bg-purple-600 hover:bg-purple-700">
-                Pesquisar Filmes
+                Search Movies
               </Button>
             </Link>
           </div>

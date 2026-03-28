@@ -84,7 +84,7 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      toast.error("Nome é obrigatório");
+      toast.error("Name is required");
       return;
     }
     try {
@@ -203,9 +203,9 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
                     onClick={() => coverInputRef.current?.click()}
                     className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors block"
                   >
-                    {currentCoverUrl ? "Alterar imagem" : "Escolher imagem"}
+                    {currentCoverUrl ? "Change image" : "Choose image"}
                   </button>
-                  <p className="text-xs text-zinc-600">JPG, PNG ou WebP · máx 5MB</p>
+                  <p className="text-xs text-zinc-600">JPG, PNG or WebP · max 5MB</p>
                   {coverPreview && (
                     <button
                       type="button"
@@ -295,11 +295,11 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
                     className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Deletar highlight
+                    Delete highlight
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-xs text-red-300">Tem certeza? Esta ação não pode ser desfeita.</p>
+                    <p className="text-xs text-red-300">Are you sure? This action cannot be undone.</p>
                     <div className="flex gap-2">
                       <button
                         onClick={handleDelete}
@@ -307,13 +307,13 @@ export function HighlightEditorModal({ existing, onClose, onSuccess }: Highlight
                         className="flex-1 h-9 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 transition-colors text-white text-sm font-semibold flex items-center justify-center gap-1.5"
                       >
                         {deleteHighlight.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                        Confirmar
+                        Confirm
                       </button>
                       <button
                         onClick={() => setConfirmDelete(false)}
                         className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white text-sm transition-colors"
                       >
-                        Cancelar
+                        Cancel
                       </button>
                     </div>
                   </div>

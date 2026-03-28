@@ -210,7 +210,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
             )}
             <div className="flex-1 min-w-0 pb-0.5">
               <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-500 mb-1">
-                {media.type === "movie" ? "Log & Review" : "Log & Review · Série"}
+                {media.type === "movie" ? "Log & Review" : "Log & Review · Series"}
               </p>
               <h2 className="text-lg font-black text-white leading-tight truncate tracking-tight">
                 {media.title}
@@ -289,7 +289,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
                   type="text"
                   value={reviewTitle}
                   onChange={(e) => setReviewTitle(e.target.value.slice(0, 100))}
-                  placeholder="Título da review (opcional)"
+                  placeholder="Review title (optional)"
                   className="w-full px-4 py-2.5 rounded-xl text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none bg-transparent"
                   style={{ border: "1px solid rgba(255,255,255,0.08)" }}
                 />
@@ -305,7 +305,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
                     onChange={(e) =>
                       setReview(e.target.value.slice(0, MAX_CHARS))
                     }
-                    placeholder="O que você achou? Use emojis para dar mais expressão 😄"
+                    placeholder="What did you think? Use emojis for more expression 😄"
                     rows={5}
                     autoFocus
                     className="w-full px-4 pt-3 pb-10 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none bg-transparent"
@@ -351,7 +351,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
                       theme={"dark" as any}
                       width="100%"
                       height={340}
-                      searchPlaceholder="Buscar emoji…"
+                      searchPlaceholder="Search emoji…"
                       skinTonesDisabled
                       previewConfig={{ showPreview: false }}
                     />
@@ -378,7 +378,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
                   </div>
                   <span className="flex items-center gap-1.5 text-xs text-zinc-500 group-hover:text-zinc-300 transition-colors select-none">
                     <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                    Contém spoilers
+                    Contains spoilers
                   </span>
                 </label>
               </div>
@@ -395,7 +395,7 @@ export function LogModal({ isOpen, onClose, media, onSubmit, initialData }: LogM
             }}
           >
             <Send className="h-4 w-4" />
-            Salvar
+            Save
           </button>
         </form>
       </div>

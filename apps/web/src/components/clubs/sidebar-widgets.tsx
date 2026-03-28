@@ -63,23 +63,23 @@ function WidgetWrapper({ title, icon: Icon, children, actionLabel, onActionClick
 
 export function ClubInfoWidget({ club }: { club: Club }) {
   return (
-    <WidgetWrapper title="Sobre o Clube" icon={Info}>
+    <WidgetWrapper title="About the Club" icon={Info}>
       <div className="space-y-4">
         <p className="text-zinc-400 text-sm leading-relaxed">
-          {club.description || "Nenhuma descrição fornecida."}
+          {club.description || "No description provided."}
         </p>
         <div className="pt-4 border-t border-white/5 space-y-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Tipo</span>
+            <span className="text-zinc-500">Type</span>
             <span className="flex items-center gap-1.5 text-zinc-300 font-medium">
               {club.isPublic ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-              {club.isPublic ? "Público" : "Privado"}
+              {club.isPublic ? "Public" : "Private"}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Categoria</span>
+            <span className="text-zinc-500">Category</span>
             <span className="text-purple-400 font-medium">
-              {club.categories[0] || "Geral"}
+              {club.categories[0] || "General"}
             </span>
           </div>
         </div>
@@ -93,10 +93,10 @@ export function NextSessionWidget({ event }: { event?: ClubEvent }) {
 
   const date = new Date(event.scheduledAt);
   const day = date.getDate();
-  const month = date.toLocaleDateString("pt-BR", { month: "short" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
 
   return (
-    <WidgetWrapper title="Próxima Sessão" icon={Calendar}>
+    <WidgetWrapper title="Next Session" icon={Calendar}>
       <div className="group/card cursor-pointer">
         <div className="flex gap-4 items-start mb-4">
           <div className="shrink-0 w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex flex-col items-center justify-center">
@@ -107,7 +107,7 @@ export function NextSessionWidget({ event }: { event?: ClubEvent }) {
             <h4 className="text-sm font-semibold text-white mb-1 line-clamp-1 group-hover/card:text-purple-400 transition-colors">
               {event.title}
             </h4>
-            <p className="text-xs text-zinc-500">{event.goingCount} confirmados</p>
+            <p className="text-xs text-zinc-500">{event.goingCount} confirmed</p>
           </div>
         </div>
         {event.meetLink && (
@@ -116,7 +116,7 @@ export function NextSessionWidget({ event }: { event?: ClubEvent }) {
             target="_blank"
             className="w-full h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2 text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-all active:scale-[0.98]"
           >
-            Entrar na Reunião <ExternalLink className="h-3.5 w-3.5" />
+            Join Meeting <ExternalLink className="h-3.5 w-3.5" />
           </Link>
         )}
       </div>
@@ -128,7 +128,7 @@ export function TopPollWidget({ poll, onViewAll }: { poll?: ClubPoll; onViewAll?
   if (!poll) return null;
 
   return (
-    <WidgetWrapper title="Enquete Ativa" icon={BarChart2}>
+    <WidgetWrapper title="Active Poll" icon={BarChart2}>
       <div className="space-y-4">
         <h4 className="text-sm font-bold text-white leading-snug">
           {poll.question}
@@ -156,7 +156,7 @@ export function TopPollWidget({ poll, onViewAll }: { poll?: ClubPoll; onViewAll?
           onClick={onViewAll}
           className="text-xs font-medium text-zinc-500 hover:text-purple-400 transition-colors w-full text-center py-2 border-t border-white/5 mt-2"
         >
-          Ver Todas as Enquetes
+          View All Polls
         </button>
       </div>
     </WidgetWrapper>
@@ -171,7 +171,7 @@ export function WatchlistSpotlightWidget({ item, onViewWatchlist }: { item?: Clu
     : null;
 
   return (
-    <WidgetWrapper title="Destaque da Watchlist" icon={Bookmark}>
+    <WidgetWrapper title="Watchlist Spotlight" icon={Bookmark}>
       <div className="relative aspect-[16/9] rounded-2xl overflow-hidden border border-white/5 mb-4 group/poster">
         {item.mediaPosterPath ? (
           <Image
@@ -195,14 +195,14 @@ export function WatchlistSpotlightWidget({ item, onViewWatchlist }: { item?: Clu
           href={mediaHref}
           className="w-full h-9 rounded-xl bg-purple-600/10 border border-purple-500/20 flex items-center justify-center gap-2 text-sm font-medium text-purple-400 hover:bg-purple-600/20 transition-all active:scale-[0.98]"
         >
-          Ver Detalhes <ArrowRight className="h-3 w-3" />
+          View Details <ArrowRight className="h-3 w-3" />
         </Link>
       ) : (
         <button
           onClick={onViewWatchlist}
           className="w-full h-9 rounded-xl bg-purple-600/10 border border-purple-500/20 flex items-center justify-center gap-2 text-sm font-medium text-purple-400 hover:bg-purple-600/20 transition-all active:scale-[0.98]"
         >
-          Ver Watchlist <ArrowRight className="h-3 w-3" />
+          View Watchlist <ArrowRight className="h-3 w-3" />
         </button>
       )}
     </WidgetWrapper>

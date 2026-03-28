@@ -10,7 +10,7 @@ interface MembersTabProps {
 
 export function MembersTab({ members }: MembersTabProps) {
   if (members.length === 0) {
-    return <EmptyState icon={Users} text="Nenhum membro ainda." />;
+    return <EmptyState icon={Users} text="No members yet." />;
   }
 
   return (

@@ -36,7 +36,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
       else await api.bookmarks.bookmark("review", String(review.id));
     } catch {
       setBookmarked(prev);
-      toast.error("Falha ao salvar review");
+      toast.error("Failed to save review");
     }
   };
 
@@ -105,7 +105,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
             <button
               onClick={toggleBookmark}
               className={`transition-colors focus:outline-none ${bookmarked ? "text-yellow-400" : "text-zinc-600 hover:text-yellow-400"}`}
-              aria-label={bookmarked ? "Remover dos salvos" : "Salvar review"}
+              aria-label={bookmarked ? "Remove from saved" : "Save review"}
             >
               <Bookmark className={`h-3.5 w-3.5 ${bookmarked ? "fill-current" : ""}`} />
             </button>

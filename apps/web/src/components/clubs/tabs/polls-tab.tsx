@@ -40,7 +40,7 @@ export function PollsTab({
     e.preventDefault();
     const opts = options.filter((o) => o.trim());
     if (!question.trim() || opts.length < 2) {
-      toast.error("Pergunta e mínimo 2 opções são obrigatórias.");
+      toast.error("Question and at least 2 options are required.");
       return;
     }
     setLoading(true);
@@ -69,9 +69,9 @@ export function PollsTab({
       setOptions(["", ""]);
       setExpiry("");
       setShowForm(false);
-      toast.success("Enquete criada!");
+      toast.success("Poll created!");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar enquete");
+      toast.error(err instanceof Error ? err.message : "Failed to create poll");
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export function PollsTab({
 
   async function handleVote(pollId: string, optionId: string) {
     if (!sessionUserId) {
-      toast.error("Faça login para votar");
+      toast.error("Sign in to vote");
       return;
     }
     try {
@@ -104,18 +104,18 @@ export function PollsTab({
         ),
       );
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
   async function handleDelete(pollId: string) {
-    if (!confirm("Excluir esta enquete?")) return;
+    if (!confirm("Delete this poll?")) return;
     try {
       await apiFetch(`/clubs/${clubId}/polls/${pollId}`, { method: "DELETE" });
       setPolls((prev) => prev.filter((p) => p.id !== pollId));
-      toast.success("Enquete excluída.");
+      toast.success("Poll deleted.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao excluir");
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
     }
   }
 
@@ -133,7 +133,7 @@ export function PollsTab({
                 <Plus className="h-5 w-5 text-purple-400" />
               </div>
               <span className="relative z-10 text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                Criar uma enquete...
+                Create a poll...
               </span>
             </button>
           ) : (
@@ -143,7 +143,7 @@ export function PollsTab({
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
                 <span className="text-sm font-semibold text-zinc-400">
-                  Nova Enquete
+                  New Poll
                 </span>
                 <button
                   onClick={() => setShowForm(false)}
@@ -159,12 +159,12 @@ export function PollsTab({
                   required
                   minLength={5}
                   maxLength={300}
-                  placeholder="Qual é a sua pergunta?"
+                  placeholder="What is your question?"
                   className={inputCls}
                 />
                 <div className="space-y-2">
                   <label className="text-xs text-zinc-500">
-                    Opções (mín. 2, máx. 10)
+                    Options (min. 2, max. 10)
                   </label>
                   {options.map((opt, i) => (
                     <div key={i} className="flex gap-2">
@@ -175,7 +175,7 @@ export function PollsTab({
                             prev.map((o, j) => (j === i ? e.target.value : o)),
                           )
                         }
-                        placeholder={`Opção ${i + 1}`}
+                        placeholder={`Option ${i + 1}`}
                         className={`${inputCls} flex-1`}
                       />
                       {options.length > 2 && (
@@ -197,13 +197,13 @@ export function PollsTab({
                       onClick={() => setOptions((prev) => [...prev, ""])}
                       className="text-xs font-medium text-zinc-600 hover:text-zinc-300 transition-colors flex items-center gap-1.5 mt-1"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Adicionar opção
+                      <Plus className="h-3.5 w-3.5" /> Add option
                     </button>
                   )}
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1.5">
-                    Expiração (opcional)
+                    Expiry (optional)
                   </label>
                   <input
                     type="datetime-local"
@@ -227,14 +227,14 @@ export function PollsTab({
                     ) : (
                       <BarChart2 className="h-3.5 w-3.5" />
                     )}
-                    Criar Enquete
+                    Create Poll
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
                     className={btnGhostCls}
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 </div>
               </form>
@@ -244,7 +244,7 @@ export function PollsTab({
       )}
 
       {polls.length === 0 ? (
-        <EmptyState icon={BarChart2} text="Nenhuma enquete ainda." />
+        <EmptyState icon={BarChart2} text="No polls yet." />
       ) : (
         polls.map((poll) => {
           const isExpired = poll.expiresAt
@@ -345,14 +345,14 @@ export function PollsTab({
                 })}
               </div>
               <div className="flex items-center gap-3 mt-4 text-xs text-zinc-500">
-                <span>{poll.totalVotes} votos</span>
+                <span>{poll.totalVotes} votes</span>
                 {poll.expiresAt && (
                   <>
                     <span className="text-zinc-800">·</span>
                     <span style={{ color: isExpired ? "#f87171" : undefined }}>
                       {isExpired
-                        ? "Encerrada"
-                        : `Até ${formatDate(poll.expiresAt)}`}
+                        ? "Closed"
+                        : `Until ${formatDate(poll.expiresAt)}`}
                     </span>
                   </>
                 )}

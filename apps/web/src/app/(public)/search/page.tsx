@@ -33,10 +33,10 @@ type UserResult = {
 };
 
 const TABS: { value: TypeFilter; label: string }[] = [
-  { value: "all", label: "Todos" },
-  { value: "movie", label: "Filmes" },
-  { value: "series", label: "Séries" },
-  { value: "users", label: "Pessoas" },
+  { value: "all", label: "All" },
+  { value: "movie", label: "Movies" },
+  { value: "series", label: "Series" },
+  { value: "users", label: "People" },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ function SearchPageInner() {
         setTotalResults(result.total);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
-        setError("A busca falhou. Por favor, tente novamente.");
+        setError("Search failed. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -376,7 +376,7 @@ function SearchPageInner() {
       const { slug } = await mediaApi.import(item.tmdbId, item.mediaType);
       router.push(`/${segment}/${slug}`);
     } catch {
-      setError("Falha ao carregar detalhes. Tente novamente.");
+      setError("Failed to load details. Please try again.");
       setNavigating(null);
     }
   };
@@ -408,7 +408,7 @@ function SearchPageInner() {
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Buscar filmes, séries, pessoas..."
+                  placeholder="Search movies, series, people..."
                   autoFocus={!urlQuery}
                   className="h-11 w-full rounded-xl border border-zinc-800 bg-zinc-900/50 pl-10 pr-10 text-sm focus:border-violet-500/50 focus:outline-none focus:ring-4 focus:ring-violet-500/10 transition-all"
                 />
@@ -429,7 +429,7 @@ function SearchPageInner() {
                 type="submit"
                 className="h-11 rounded-xl bg-violet-600 px-6 text-sm font-bold text-white hover:bg-violet-500 active:scale-95 transition-all shrink-0 shadow-lg shadow-violet-900/20"
               >
-                Buscar
+                Search
               </button>
             </form>
           </div>
@@ -458,7 +458,7 @@ function SearchPageInner() {
               {isLoading && urlQuery && (
                 <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-zinc-600">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Buscando
+                  Searching
                 </span>
               )}
               {!isLoading && totalResults > 0 && (
@@ -466,7 +466,7 @@ function SearchPageInner() {
                   <span className="text-zinc-400">
                     {totalResults.toLocaleString()}
                   </span>{" "}
-                  resultados
+                  results
                 </span>
               )}
             </div>
@@ -498,7 +498,7 @@ function SearchPageInner() {
                 {/* CORREÇÃO: Título mantido no skeleton para evitar layout shift */}
                 <h2 className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 opacity-50">
                   <User2 className="h-3.5 w-3.5" />
-                  Pessoas
+                  People
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from({ length: activeTab === "all" ? 3 : 9 }).map(
@@ -515,10 +515,10 @@ function SearchPageInner() {
                 <h2 className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 opacity-50">
                   <Film className="h-3.5 w-3.5" />
                   {activeTab === "movie"
-                    ? "Filmes"
+                    ? "Movies"
                     : activeTab === "series"
-                      ? "Séries"
-                      : "Filmes & Séries"}
+                      ? "Series"
+                      : "Movies & Series"}
                 </h2>
                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-6">
                   {Array.from({ length: 14 }).map((_, i) => (
@@ -539,7 +539,7 @@ function SearchPageInner() {
                 {/* CORREÇÃO: Título é sempre exibido independentemente de ser a aba 'all' ou não */}
                 <h2 className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                   <User2 className="h-3.5 w-3.5" />
-                  Pessoas
+                  People
                 </h2>
                 <div
                   className={cn(
@@ -567,10 +567,10 @@ function SearchPageInner() {
                 <h2 className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                   <Film className="h-3.5 w-3.5" />
                   {activeTab === "movie"
-                    ? "Filmes"
+                    ? "Movies"
                     : activeTab === "series"
-                      ? "Séries"
-                      : "Filmes & Séries"}
+                      ? "Series"
+                      : "Movies & Series"}
                 </h2>
                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-4 gap-y-8 pt-2">
                   {mediaResults.map((item) => (
@@ -599,10 +599,10 @@ function SearchPageInner() {
               <Search className="h-8 w-8 text-zinc-700" />
             </div>
             <p className="text-lg font-bold text-zinc-200">
-              Nenhum resultado para &ldquo;{urlQuery}&rdquo;
+              No results for &ldquo;{urlQuery}&rdquo;
             </p>
             <p className="mt-2 text-sm text-zinc-500 max-w-xs leading-relaxed">
-              Verifique a ortografia ou tente termos mais genéricos.
+              Check the spelling or try more generic terms.
             </p>
           </div>
         )}
@@ -614,11 +614,11 @@ function SearchPageInner() {
               <Film className="h-8 w-8 text-zinc-700" />
             </div>
             <p className="text-lg font-bold text-zinc-200">
-              Explore o catálogo
+              Explore the catalog
             </p>
             <p className="mt-2 text-sm text-zinc-500 max-w-xs leading-relaxed">
-              Procure por milhões de filmes, séries e conecte-se com outras
-              pessoas.
+              Search through millions of movies, series and connect with other
+              people.
             </p>
           </div>
         )}
